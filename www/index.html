@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="viewport-fit=cover, width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Growth — Roblox Quest Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #121212;
+  --surface: #1e1e1e;
+  --surface2: #2a2a2a;
+  --border: #333333;
+  --border2: #444444;
+  --text: #ffffff;
+  --text2: #cccccc;
+  --text3: #aaaaaa;
+  --red: #e8001b;
+  --red-dim: rgba(232,0,27,.15);
+  --green: #00e676;
+  --green-dim: rgba(0,230,118,.15);
+  --amber: #ffb300;
+  --blue: #29b6f6;
+  --blue-dim: rgba(41,182,246,.15);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 16px rgba(0,0,0,.3);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth; touch-action: manipulation;}
+body{ background:var(--bg); color:var(--text); font-family:'Nunito',sans-serif; font-weight:400; min-height:100vh; line-height:1.5; overflow-x: hidden; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+
+.hidden { display: none !important; }
+
+/* Views */
+.view { display: none; padding: 20px 18px 80px; max-width: 560px; margin: 0 auto; animation: fadeIn .3s ease; }
+.view.active { display: block; }
+.auth-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 30px 20px; text-align: center; box-shadow: var(--shadow-lg); margin-top: 40px; }
+.auth-logo { width: 60px; height: 60px; background: var(--red); border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(232,0,27,.4); transform: rotate(-10deg); }
+.auth-title { font-size: 26px; font-weight: 900; margin-bottom: 8px; }
+.auth-sub { font-size: 14px; color: var(--text3); margin-bottom: 24px; font-weight: 700; }
+.auth-input { width: 100%; background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: var(--radius-sm); font-family: 'Nunito', sans-serif; font-size: 15px; font-weight: 700; padding: 12px 16px; margin-bottom: 16px; outline: none; transition: border-color .15s; }
+.auth-input:focus { border-color: var(--blue); }
+.btn-primary { width: 100%; background: var(--red); color: #fff; border: none; border-radius: var(--radius-sm); font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 900; padding: 14px 20px; cursor: pointer; transition: transform .1s, opacity .15s; box-shadow: 0 4px 15px rgba(232,0,27,.3); margin-bottom: 10px; }
+.btn-primary:hover { transform: translateY(-2px); opacity: .9; }
+.btn-secondary { width: 100%; background: var(--surface2); color: var(--text); border: 1px solid var(--border2); border-radius: var(--radius-sm); font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 900; padding: 14px 20px; cursor: pointer; transition: transform .1s; margin-bottom: 10px; }
+.btn-secondary:hover { border-color: var(--text); }
+.google-btn { display: flex; align-items: center; justify-content: center; gap: 10px; background: #fff; color: #121212; border: none; font-weight: 800; }
+.google-btn img { width: 20px; height: 20px; }
+
+/* Parent Dashboard */
+.parent-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; margin-top: 20px; }
+.req-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+.req-email { font-weight: 800; font-size: 15px; }
+.btn-approve { background: var(--green); color: #121212; border: none; padding: 8px 16px; border-radius: 999px; font-weight: 900; font-size: 13px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,230,118,.3); }
+
+/* Tracker UI */
+.app-header{ padding:28px 0 20px; display:flex;align-items:flex-start;justify-content:space-between; }
+.logo-row{display:flex;align-items:center;gap:10px}
+.logo-box{ width:40px;height:40px;background:var(--red);border-radius:8px; display:flex;align-items:center;justify-content:center;flex-shrink:0; box-shadow:0 2px 8px rgba(232,0,27,.35); }
+.app-title{font-size:24px;font-weight:900;color:var(--text);letter-spacing:-.5px}
+.app-sub{font-size:12px;color:var(--text3);margin-top:2px;font-weight:700}
+.date-chip{ font-size:11px;color:var(--text2);font-weight:800; background:var(--surface);border:1px solid var(--border2); border-radius:999px;padding:5px 14px;white-space:nowrap;margin-top:6px; box-shadow:var(--shadow); text-align:center; }
+
+.switch { position: relative; display: inline-block; width: 46px; height: 26px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--surface2); transition: .2s; border: 1px solid var(--border2); }
+.slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: var(--text3); transition: .2s; }
+input:checked + .slider { background-color: var(--blue); border-color: var(--blue); }
+input:checked + .slider:before { transform: translateX(20px); background-color: #fff; }
+.slider.round { border-radius: 34px; }
+.slider.round:before { border-radius: 50%; }
+
+.quests-area{ transition: all 0.3s; }
+.quests-area.sick-mode { opacity: 0.3; pointer-events: none; filter: grayscale(100%); }
+.sick-msg { display: none; text-align: center; color: var(--blue); font-weight: 800; padding: 20px 0 10px 0; font-size: 15px; }
+.sick-mode ~ .sick-msg { display: block; }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; opacity: 0; pointer-events: none; transition: opacity .3s; }
+.modal-overlay.show { opacity: 1; pointer-events: auto; }
+.modal-content { background: var(--surface); border: 2px solid var(--amber); border-radius: 20px; padding: 30px; text-align: center; max-width: 320px; box-shadow: 0 10px 40px rgba(255,179,0,.3); transform: scale(0.8); transition: transform .3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.modal-overlay.show .modal-content { transform: scale(1); }
+.modal-img { font-size: 80px; margin-bottom: 10px; text-shadow: 0 0 30px rgba(255,179,0,.6); animation: float 2s ease-in-out infinite; }
+.modal-title { font-size: 24px; font-weight: 900; color: var(--amber); margin-bottom: 10px; }
+.modal-desc { font-size: 14px; color: var(--text); font-weight: 700; margin-bottom: 20px; }
+.modal-btn { background: var(--amber); color: #121212; border: none; padding: 12px 24px; font-size: 16px; font-weight: 900; border-radius: 999px; cursor: pointer; box-shadow: 0 4px 15px rgba(255,179,0,.4); width: 100%; font-family: 'Nunito', sans-serif; transition: transform .1s; }
+.modal-btn:hover { transform: scale(1.05); }
+
+@keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+
+/* SUMMARY BAR WITH FLASH EFFECT */
+.summary-row{ display:grid;grid-template-columns:90px 1fr;gap:18px;align-items:center; background:var(--surface);border:1px solid var(--border); border-radius:var(--radius);padding:20px;margin-bottom:12px; box-shadow:var(--shadow-lg); transition: background 0.3s, box-shadow 0.3s; }
+.summary-row.flash { background: #fff; box-shadow: 0 0 40px rgba(255,255,255,0.8); transition: none; }
+.char-area{ display:flex;flex-direction:column;align-items:center;justify-content:center; position:relative; }
+.char-pct{ font-size:13px;font-weight:900;color:var(--red); margin-top:4px; }
+.summary-right .big-label{ font-size:15px;font-weight:900;margin-bottom:8px;color:var(--text); }
+.xp-track{background:var(--surface2);border-radius:999px;height:10px;margin-bottom:5px;overflow:hidden;border:1px solid var(--border); position: relative;}
+.xp-fill{height:10px;border-radius:999px;background:var(--red);transition:width .5s cubic-bezier(.4,0,.2,1)}
+.xp-label{font-size:11px;color:var(--text3);font-weight:700}
+.level-badge{ display:inline-flex;align-items:center;gap:5px; font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em; padding:4px 12px;border-radius:999px;margin-bottom:10px; }
+
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin:20px 0 10px}
+.sec-title{font-size:10px;font-weight:900;color:var(--text3);letter-spacing:.1em;text-transform:uppercase}
+.sec-count{font-size:11px;color:var(--text3);font-weight:800}
+
+/* TASKS REDESIGN */
+.task-list{display:flex;flex-direction:column;gap:8px}
+
+.task-card{ background:var(--surface);border:1px solid var(--border); border-radius:var(--radius-sm);padding:14px 16px; display:flex; flex-direction:column; gap:10px; transition:background .12s,border-color .12s,transform .1s; box-shadow:0 2px 6px rgba(0,0,0,.15); position: relative; overflow: hidden; }
+.task-card:hover{background:var(--surface2);border-color:var(--border2);transform:translateY(-1px);box-shadow:var(--shadow)}
+.task-card.done{background:var(--bg); border-style: dashed;}
+
+/* Epic Boss Box */
+.epic-card { background: linear-gradient(135deg, #332600, #1a1300); border: 2px solid var(--amber); border-radius: var(--radius); padding: 18px 20px; display:flex; flex-direction:column; gap:12px; box-shadow: 0 0 20px rgba(255,179,0,0.2); animation: pulseEpic 2.5s infinite alternate; position: relative; overflow: hidden; }
+@keyframes pulseEpic { 0% { box-shadow: 0 0 10px rgba(255,179,0,0.1); border-color: rgba(255,179,0,0.4); } 100% { box-shadow: 0 0 30px rgba(255,179,0,0.5); border-color: rgba(255,179,0,1); } }
+.epic-title { color: var(--amber); font-weight: 900; text-transform: uppercase; font-size: 11px; letter-spacing: 3px; display: flex; align-items: center; gap: 6px; text-shadow: 0 0 10px rgba(255,179,0,0.5); }
+
+/* Hold to Claim Button */
+.hold-btn { position: relative; overflow: hidden; background: var(--surface2); border: 2px solid var(--border2); border-radius: var(--radius-sm); height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; touch-action: none; font-weight: 900; color: #fff; transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.hold-btn:active { transform: scale(0.96); }
+.hold-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--blue); width: 0%; z-index: 1; transition: width 0.05s linear; }
+.hold-text { position: relative; z-index: 2; pointer-events: none; letter-spacing: 1px; font-size: 13px; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+
+/* Mystery Box CSS */
+.mystery-btn { background: linear-gradient(45deg, #ff0055, #ffb300, #ff0055); background-size: 200% 200%; animation: shimmer 2s infinite; border-color: #ffb300; }
+@keyframes shimmer { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+.mystery-toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5); opacity: 0; background: rgba(0,0,0,0.9); border: 4px solid var(--amber); border-radius: 20px; padding: 40px; text-align: center; z-index: 99999; color: #fff; pointer-events: none; animation: popToast 2.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; box-shadow: 0 0 50px rgba(255,179,0,0.6); }
+@keyframes popToast { 0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } 10% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; } 20% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 80% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; } }
+.mystery-toast-title { font-size: 40px; font-weight: 900; color: var(--amber); margin-bottom: 10px; text-transform: uppercase; text-shadow: 0 0 20px rgba(255,179,0,0.8); }
+.mystery-toast-xp { font-size: 60px; font-weight: 900; color: var(--green); text-shadow: 0 0 20px rgba(0,230,118,0.8); }
+
+/* Stamp */
+.stamp { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg) scale(2); opacity: 0; color: var(--red); border: 4px solid var(--red); padding: 4px 12px; font-weight: 900; font-size: 24px; letter-spacing: 4px; text-transform: uppercase; border-radius: 8px; pointer-events: none; z-index: 10; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); background: rgba(18,18,18,0.7); box-shadow: 0 0 20px rgba(232,0,27,0.4); text-shadow: 0 0 10px rgba(232,0,27,0.5); }
+.task-card.done .stamp { transform: translate(-50%, -50%) rotate(-15deg) scale(1); opacity: 0.95; }
+
+/* Visual Loot */
+.loot { position: fixed; font-size: 28px; z-index: 9999; pointer-events: none; transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.4, 1), opacity 0.8s ease-in; opacity: 1; text-shadow: 0 0 10px rgba(255,255,255,0.8); }
+.loot-text { position: fixed; font-size: 16px; font-weight: 900; color: var(--green); z-index: 9999; pointer-events: none; animation: floatUpText 1s cubic-bezier(0.2, 0.8, 0.4, 1) forwards; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+@keyframes floatUpText { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-50px) scale(1.5); } }
+
+/* Screen Shake */
+.shake { animation: screenShake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes screenShake { 
+  0% { transform: translate(0); }
+  20% { transform: translate(-4px, 4px) rotate(-1deg); }
+  40% { transform: translate(-4px, -4px) rotate(1deg); }
+  60% { transform: translate(4px, 4px) rotate(0deg); }
+  80% { transform: translate(4px, -4px) rotate(-1deg); }
+  100% { transform: translate(0); } 
+}
+
+/* Old checkboxes for done state */
+.check{ width:22px;height:22px;border-radius:6px;border:2px solid var(--border2); flex-shrink:0;display:flex;align-items:center;justify-content:center; background:var(--surface2);transition:all .18s; }
+.check.on{background:var(--green);border-color:var(--green);box-shadow:0 0 0 3px rgba(0,230,118,.18)}
+.check.on::after{content:'✓';color:#121212;font-size:13px;font-weight:900;font-family:sans-serif;line-height:1}
+.task-name{font-size:13px;font-weight:700;flex:1;color:var(--text)}
+
+.diff-tag{font-size:10px;font-weight:900;padding:2px 10px;border-radius:999px;flex-shrink:0;text-transform:uppercase;letter-spacing:.05em}
+.diff-easy{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,230,118,.25)}
+.diff-med{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(41,182,246,.25)}
+.diff-hard{background:var(--red-dim);color:var(--red);border:1px solid rgba(232,0,27,.25)}
+.delete-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;padding:0 2px;transition:opacity .15s;line-height:1;flex-shrink:0}
+.delete-btn:hover{color:var(--red)}
+
+.add-area{ background:var(--surface);border:1px solid var(--border); border-radius:var(--radius);padding:16px;margin-top:10px; box-shadow:var(--shadow); }
+.add-area input,.add-area select{ background:var(--surface2);border:1px solid var(--border2);color:var(--text); border-radius:var(--radius-sm);font-family:'Nunito',sans-serif; font-size:13px;font-weight:700;padding:9px 13px;outline:none;transition:border-color .15s,box-shadow .15s; }
+.add-area input{width:100%;margin-bottom:10px}
+.add-area input::placeholder{color:var(--text3)}
+.add-area input:focus{border-color:rgba(232,0,27,.4);box-shadow:0 0 0 3px rgba(232,0,27,.08)}
+.add-row2{display:flex;gap:8px}
+.add-area select{flex:1;cursor:pointer}
+.add-submit{ flex:1;background:var(--red);color:#fff;border:none; border-radius:var(--radius-sm);font-family:'Nunito',sans-serif;font-size:14px;font-weight:900; cursor:pointer;transition:opacity .15s,transform .1s;padding:9px 20px; box-shadow:0 3px 10px rgba(232,0,27,.3); }
+.add-submit:hover{opacity:.9;transform:translateY(-1px)}
+
+.comfort-section{margin-top:20px}
+.comfort-hints{display:flex;justify-content:space-between;font-size:10px;font-weight:900;color:var(--text3);margin-bottom:8px}
+.comfort-segs{display:flex;gap:4px}
+.c-seg{ flex:1;height:60px;border-radius:var(--radius-sm);cursor:pointer; background:var(--surface2);border:1.5px solid var(--border); transition:all .14s;display:flex;align-items:center;justify-content:center; }
+.c-seg:hover{transform:scaleY(1.1);box-shadow:var(--shadow)}
+.comfort-msg{font-size:12px;font-weight:700;color:var(--text2);margin-top:10px;min-height:20px}
+
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}
+.stat-box{ background:var(--surface);border:1px solid var(--border); border-radius:var(--radius);padding:14px;text-align:center;box-shadow:var(--shadow); }
+.stat-num{font-size:28px;font-weight:900;color:var(--text)}
+.stat-lbl{font-size:10px;font-weight:900;color:var(--text3);margin-top:3px;text-transform:uppercase;letter-spacing:.06em}
+
+.week-section{margin-top:20px}
+.week-row{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:10px}
+.w-cell{ aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column; align-items:center;justify-content:center; font-size:9px;font-weight:800;color:var(--text3); background:var(--surface);border:1px solid var(--border); }
+.w-cell.full{background:var(--green-dim);border-color:rgba(0,230,118,.35);color:var(--green)}
+.w-cell.good{background:var(--amber-dim);border-color:rgba(255,179,0,.3);color:var(--amber)}
+.w-cell.part{background:var(--blue-dim);border-color:rgba(41,182,246,.25);color:var(--blue)}
+.w-cell.today{border:2px solid var(--red);color:var(--text);background:var(--red-dim)}
+.w-cell .w-day{font-size:8px;opacity:.7}
+.w-cell .w-pct{font-size:9px;margin-top:1px}
+
+.history-section{margin-top:20px}
+.history-list{display:flex;flex-direction:column;gap:5px;margin-top:10px}
+.history-item{ background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm); padding:10px 14px;display:flex;align-items:center;justify-content:space-between; font-size:12px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.04); }
+.history-date{color:var(--text2)}
+.history-pct.green{color:var(--green)}
+.history-pct.amber{color:var(--amber)}
+.history-pct.red{color:var(--red)}
+.history-pct.blue{color:var(--blue)}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes comboFloat{ 0%{opacity:0;transform:translate(-50%,-60%) scale(.5)} 20%{opacity:1;transform:translate(-50%,-100%) scale(1.4)} 50%{opacity:1;transform:translate(-50%,-100%) scale(1.2) rotate(3deg)} 80%{opacity:1;transform:translate(-50%,-120%) scale(1)} 100%{opacity:0;transform:translate(-50%,-165%) scale(.9)} }
+@keyframes toastSlide{ 0%{opacity:0;transform:translateX(-50%) translateY(-12px)} 12%{opacity:1;transform:translateX(-50%) translateY(0)} 78%{opacity:1;transform:translateX(-50%) translateY(0)} 100%{opacity:0;transform:translateX(-50%) translateY(-8px)} }
+</style>
+</head>
+<body>
+
+  <!-- LANG TOGGLE -->
+  <div style="position:fixed; top:env(safe-area-inset-top, 20px); right:20px; z-index:9999; display:flex; gap:5px; background:var(--surface); padding:4px; border-radius:999px; border:1px solid var(--border); box-shadow:var(--shadow);">
+    <button onclick="switchLang('en')" style="background:none; border:none; padding:4px 8px; border-radius:999px; font-weight:800; cursor:pointer; color:var(--text); font-size:12px;" id="lang-en">EN</button>
+    <button onclick="switchLang('cs')" style="background:none; border:none; padding:4px 8px; border-radius:999px; font-weight:800; cursor:pointer; color:var(--text3); font-size:12px;" id="lang-cs">CS</button>
+  </div>
+
+
+  <!-- VIEW: LOGIN -->
+  <div id="view-login" class="view active">
+    <div class="auth-box">
+      <div class="auth-logo">
+        <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg" style="width:36px;height:36px;">
+          <path d="M5.4 0L0 18.6L18.6 24L24 5.4L5.4 0ZM14.9 14.9L9.1 13.2L10.8 7.4L16.6 9.1L14.9 14.9Z"/>
+        </svg>
+      </div>
+      <h1 class="auth-title" data-i18n="title">Growth</h1>
+      <p class="auth-sub" data-i18n="subtitle">Your Roblox Quest Tracker</p>
+      
+      <input type="email" id="mock-email" class="auth-input" placeholder="Enter an email to simulate login" data-i18n="simLoginMsg">
+      <button id="btn-login-google" class="btn-primary google-btn">
+        <svg viewBox="0 0 48 48" style="width: 20px;"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        <span data-i18n="btnGoogle">Sign in with Google</span>
+      </button>
+      <p style="font-size: 11px; color: var(--text3); margin-top: 10px;"><span data-i18n="simLoginMsg">This simulates Google Auth. Type any email to begin.</span></p>
+    </div>
+  </div>
+
+  <!-- VIEW: ROLE SELECT -->
+  <div id="view-role" class="view">
+    <div class="auth-box">
+      <h1 class="auth-title" data-i18n="welcome">Welcome!</h1>
+      <p class="auth-sub" data-i18n="whoUsing">Who is using this device?</p>
+      <button id="btn-role-parent" class="btn-primary" style="background: var(--blue);" data-i18n="roleParent">I am a Parent</button>
+      <button id="btn-role-child" class="btn-primary" style="background: var(--green); color: #121212;" data-i18n="roleChild">I am a Child</button>
+    </div>
+  </div>
+
+  <!-- VIEW: CHILD ONBOARDING -->
+  <div id="view-child-onboard" class="view">
+    <div class="auth-box">
+      <h1 class="auth-title" data-i18n="linkTitle">Link Account</h1>
+      <p class="auth-sub" data-i18n="linkSub">Enter your parent's email address so they can approve your account.</p>
+      <input type="email" id="parent-email" class="auth-input" placeholder="Parent's Email">
+      <button id="btn-send-req" class="btn-primary" data-i18n="btnSendReq">Send Request</button>
+    </div>
+  </div>
+
+  <!-- VIEW: WAITING FOR APPROVAL -->
+  <div id="view-waiting" class="view">
+    <div class="auth-box">
+      <h1 class="auth-title" style="font-size: 60px; margin-bottom: 0;">⏳</h1>
+      <h1 class="auth-title" data-i18n="waitTitle">Waiting...</h1>
+      <p class="auth-sub" data-i18n="waitSub">Your parent must approve your request before you can start your quests.</p>
+      <button id="btn-refresh-wait" class="btn-secondary" data-i18n="btnCheckStatus">Check Status</button>
+      <button onclick="logout()" style="background:none; border:none; color:var(--red); font-weight:800; cursor:pointer; margin-top: 10px;" data-i18n="btnLogout">Logout</button>
+    </div>
+  </div>
+
+  <!-- VIEW: PARENT DASHBOARD -->
+  <div id="view-parent" class="view">
+    <div class="parent-header">
+      <h1 class="auth-title" style="margin:0" data-i18n="parentDash">Parent Dashboard</h1>
+      <button onclick="logout()" class="btn-secondary" style="width:auto; padding:6px 14px; margin:0; border-radius:999px;">Logout</button>
+    </div>
+    
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow);">
+      <h2 style="font-size: 16px; font-weight: 900; margin-bottom: 12px; color: var(--amber);" data-i18n="pendingReq">Pending Approvals</h2>
+      <div id="pending-list" style="margin-bottom: 20px;"></div>
+      
+      <h2 style="font-size: 16px; font-weight: 900; margin-bottom: 12px; color: var(--green);" data-i18n="approvedKids">Approved Kids</h2>
+      <div id="approved-list"></div>
+    </div>
+  </div>
+
+  <!-- VIEW: TRACKER (Shared for Child and Parent) -->
+  <div id="view-tracker" class="view">
+    <header class="app-header">
+      <div>
+        <div class="logo-row">
+          <div class="logo-box">
+            <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;transform:rotate(-15deg) scale(1.1)">
+              <path d="M5.4 0L0 18.6L18.6 24L24 5.4L5.4 0ZM14.9 14.9L9.1 13.2L10.8 7.4L16.6 9.1L14.9 14.9Z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="app-title" data-i18n="title">Growth</div>
+            <div class="app-sub" data-i18n="subtitle">Your daily Roblox quest tracker</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:flex-end;">
+        <div id="tracker-actions"></div>
+        <div class="date-chip" id="date-chip"></div>
+      </div>
+    </header>
+
+    <div class="sick-day-toggle" style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; background: var(--surface); padding: 12px 16px; border-radius: var(--radius); border: 1px solid var(--border);">
+      <span style="font-weight: 800; font-size: 14px; color: var(--text);" data-i18n="illToday">I am ill today 🤒</span>
+      <label class="switch">
+        <input type="checkbox" id="sick-toggle">
+        <span class="slider round"></span>
+      </label>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-row" id="summary-card">
+      <div class="char-area">
+        <div id="roblox-char"></div>
+        <div class="char-pct" id="ring-pct">0%</div>
+      </div>
+      <div class="summary-right">
+        <div class="level-badge" id="level-badge"></div>
+        <div class="big-label" id="summary-label" data-i18n="readyPlay">Ready to play!</div>
+        <div class="xp-track" id="xp-track"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
+        <div class="xp-label" id="xp-label">0 / 100 XP to next level</div>
+      </div>
+    </div>
+
+    <div id="quests-container">
+      <div class="quests-area" id="quests-area">
+        <div class="sec-head">
+          <span class="sec-title" data-i18n="questLog">🎮 Quest Log</span>
+          <span class="sec-count" id="task-count"></span>
+        </div>
+        
+        <!-- Gamified Task List -->
+        <div class="task-list" id="task-list"></div>
+
+        <div class="add-area">
+          <input id="task-input" placeholder="Add a new quest…" maxlength="80"/>
+          <div class="add-row2">
+            <select id="diff-sel">
+              <option value="easy" data-i18n="diffEasy">Easy +10 XP</option>
+              <option value="med" selected data-i18n="diffMed">Medium +20 XP</option>
+              <option value="hard" data-i18n="diffHard">Hard +35 XP</option>
+            </select>
+            <select id="freq-sel">
+              <option value="daily" selected data-i18n="freqDaily">Everyday</option>
+              <option value="today" data-i18n="freqToday">Today Only</option>
+            </select>
+          </div>
+          <label style="display:flex; align-items:center; gap:8px; margin-top:10px; cursor:pointer; font-size:13px; font-weight:800; color:var(--amber);">
+            <input type="checkbox" id="mystery-toggle" style="width:16px; height:16px; margin:0;"> <span data-i18n="makeMystery">🎁 Make it a Mystery Reward</span>
+          </label>
+          <button class="add-submit" id="add-btn" style="width:100%; margin-top:10px;" data-i18n="btnAddQuest">Add Quest</button>
+        </div>
+
+        <!-- Parent Prize Configurator -->
+        <div id="parent-prize-config" class="hidden">
+          <div class="sec-head"><span class="sec-title" data-i18n="wheelConfig">🎡 Prize Wheel Settings (Parent)</span></div>
+          <div style="background:var(--surface); border:1px solid var(--amber); border-radius:var(--radius); padding:16px; margin-bottom: 20px;">
+            <div style="font-size:12px; color:var(--text2); margin-bottom:10px; font-weight:700;" data-i18n="wheelCfgSub">Set the 6 prizes for the wheel:</div>
+            <div id="prize-inputs" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:12px;"></div>
+            <button class="btn-secondary" style="margin:0; width:100%; border-color:var(--amber); color:var(--amber);" onclick="savePrizes()" data-i18n="btnSavePrizes">Save Prizes</button>
+          </div>
+        </div>
+
+        <!-- Comfort -->
+        <div class="comfort-section">
+          <div class="sec-head" style="margin-top:0;margin-bottom:8px">
+            <span class="sec-title" data-i18n="howFeel">😊 How did today feel?</span>
+          </div>
+          <div class="comfort-hints"><span data-i18n="wiped">😵 Wiped</span><span data-i18n="thriving">😄 Thriving</span><span data-i18n="tooEasy">😎 Too Easy</span></div>
+          <div class="comfort-segs" id="comfort-segs"></div>
+          <div class="comfort-msg" id="comfort-msg" data-i18n="tapAvatar">Tap your Roblox avatar to rate today!</div>
+        </div>
+      </div>
+      
+      <div class="sick-msg">
+        <span data-i18n="sickMsg1">You're marked as ill today. Rest up! 💤</span><br>
+        <span style="font-size: 13px; font-weight: 700; color: var(--text3);" data-i18n="sickMsg2">Your streak is paused and won't be lost.</span>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-num" id="s-done">0</div><div class="stat-lbl" data-i18n="statDone">✅ Done</div></div>
+      <div class="stat-box"><div class="stat-num" id="s-streak">0</div><div class="stat-lbl" data-i18n="statStreak">🔥 Streak</div></div>
+      <div class="stat-box"><div class="stat-num" id="s-level">1</div><div class="stat-lbl" data-i18n="statLevel">⭐ Level</div></div>
+    </div>
+
+    <!-- Week -->
+    <div class="week-section">
+      <div class="sec-head"><span class="sec-title" data-i18n="thisWeek">📅 This Week</span></div>
+      <div class="week-row" id="week-row"></div>
+    </div>
+
+    <!-- History -->
+    <div class="history-section">
+      <div class="sec-head"><span class="sec-title" data-i18n="historyTitle">📜 Quest Log</span></div>
+      <div class="history-list" id="history-list"></div>
+    </div>
+
+  </div> <!-- End view-tracker -->
+
+<!-- Prize Wheel Modal -->
+<div class="modal-overlay" id="wheel-modal">
+  <div class="modal-content" style="max-width: 400px; padding: 20px;">
+    <div class="modal-title" data-i18n="modalQuestsComplete">Daily Quests Complete!</div>
+    <div class="modal-desc" data-i18n="modalSpinWheel">Spin the wheel to claim your reward!</div>
+    
+    <div style="position:relative; width: 260px; height: 260px; margin: 0 auto 20px; border-radius: 50%; border: 4px solid var(--amber); box-shadow: 0 0 20px rgba(255,179,0,0.4); overflow: hidden;">
+      <div id="wheel-spin" style="width: 100%; height: 100%; border-radius: 50%; transition: transform 4s cubic-bezier(0.2, 0.8, 0.3, 1);"></div>
+      <!-- Pointer -->
+      <div style="position:absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 25px solid var(--text); z-index: 10; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));"></div>
+    </div>
+    
+    <button class="modal-btn" id="spin-btn" data-i18n="btnSpin">SPIN WHEEL 🎡</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="prize-won-modal">
+  <div class="modal-content">
+    <div class="modal-img" style="font-size:60px;">🎉</div>
+    <div class="modal-title" id="prize-won-text" data-i18n="modalYouWon">You won!</div>
+    <button class="modal-btn" onclick="document.getElementById('prize-won-modal').classList.remove('show')" data-i18n="btnAwesome">Awesome!</button>
+  </div>
+</div>
+
+<script>
+
+const i18n = {
+  en: {
+    title: "Growth",
+    subtitle: "Your Roblox Quest Tracker",
+    simLoginMsg: "This simulates Google Auth. Type any email to begin.",
+    btnGoogle: "Sign in with Google",
+    welcome: "Welcome!",
+    whoUsing: "Who is using this device?",
+    roleParent: "I am a Parent",
+    roleChild: "I am a Child",
+    linkTitle: "Link Account",
+    linkSub: "Enter your parent's email address so they can approve your account.",
+    btnSendReq: "Send Request",
+    waitTitle: "Waiting...",
+    waitSub: "Your parent must approve your request before you can start your quests.",
+    btnCheckStatus: "Check Status",
+    btnLogout: "Logout",
+    parentDash: "Parent Dashboard",
+    pendingReq: "Pending Approvals",
+    wantsJoin: "Wants to join your family",
+    btnApprove: "Approve",
+    approvedKids: "Approved Kids",
+    viewProgress: "View Progress ➔",
+    btnBackDash: "🔙 Dashboard",
+    illToday: "I am ill today 🤒",
+    sickMsg1: "You're marked as ill today. Rest up! 💤",
+    sickMsg2: "Your streak is paused and won't be lost.",
+    readyPlay: "Ready to play!",
+    restUp: "Rest up and recover!",
+    keepGrind: "Keep on grinding!",
+    buildXp: "Building XP!",
+    almostThere: "Almost there!",
+    questDone: "Quests Done! 🎉",
+    xpToLevel: "XP to next level",
+    xpMax: "XP (Max!)",
+    questLog: "🎮 Quest Log",
+    doneOf: "done",
+    noQuests: "No quests! Rest up.",
+    addQuestPlh: "Add a new quest…",
+    diffEasy: "Easy +10 XP",
+    diffMed: "Medium +20 XP",
+    diffHard: "Hard +35 XP",
+    freqDaily: "Everyday",
+    freqToday: "Today Only",
+    makeMystery: "🎁 Make it a Mystery Reward",
+    btnAddQuest: "Add Quest",
+    wheelConfig: "🎡 Prize Wheel Settings (Parent)",
+    wheelCfgSub: "Set the 6 prizes for the wheel:",
+    btnSavePrizes: "Save Prizes",
+    howFeel: "😊 How did today feel?",
+    wiped: "😵 Wiped",
+    thriving: "😄 Thriving",
+    tooEasy: "😎 Too Easy",
+    tapAvatar: "Tap your Roblox avatar to rate today!",
+    statDone: "✅ Done",
+    statStreak: "🔥 Streak",
+    statLevel: "⭐ Level",
+    thisWeek: "📅 This Week",
+    historyTitle: "📜 Quest Log",
+    historyEmpty: "Complete your first day!",
+    sickDayPause: "🤒 Sick Day (Paused)",
+    quests: "quests",
+    modalQuestsComplete: "Daily Quests Complete!",
+    modalSpinWheel: "Spin the wheel to claim your reward!",
+    btnSpin: "SPIN WHEEL 🎡",
+    modalYouWon: "You won!",
+    btnAwesome: "Awesome!",
+    holdToClaim: "HOLD TO CLAIM",
+    holdMystery: "HOLD FOR MYSTERY 🎁",
+    holdBase: "HOLD",
+    epicBoss: "🌟 EPIC DAILY BOSS",
+    diffTagEasy: "Easy",
+    diffTagMed: "Medium",
+    diffTagHard: "Hard",
+    cleared: "CLEARED",
+    btnUndo: "UNDO",
+    jackpot: "Jackpot!",
+    levelUp: "LEVEL UP! 🏆",
+    prizesSaved: "Prizes Saved! ✅",
+    firstQuest: "First Quest Done! ⭐",
+    defTask1: "Drink 2 glasses of water 💧",
+    defTask2: "10-min morning stretch 🤸",
+    defTask3: "Read for 15 minutes 📖",
+    defTask4: "30-min deep focus block 🧠",
+    defPrize1: "Robux 💰",
+    defPrize2: "Ice Cream 🍦",
+    defPrize3: "Movie Night 🍿",
+    defPrize4: "Try Again 🍀",
+    defPrize5: "Extra TV Time 📺",
+    defPrize6: "Skip a Chore 🛑"
+  },
+  cs: {
+    title: "Growth",
+    subtitle: "Tvůj sledovač úkolů",
+    simLoginMsg: "Toto simuluje Google Auth. Napište jakýkoliv email.",
+    btnGoogle: "Přihlásit se přes Google",
+    welcome: "Vítejte!",
+    whoUsing: "Kdo používá toto zařízení?",
+    roleParent: "Jsem Rodič",
+    roleChild: "Jsem Dítě",
+    linkTitle: "Propojit Účet",
+    linkSub: "Zadejte email rodiče, aby mohl schválit účet.",
+    btnSendReq: "Odeslat Žádost",
+    waitTitle: "Čekání...",
+    waitSub: "Váš rodič musí schválit žádost, než začnete plnit úkoly.",
+    btnCheckStatus: "Zkontrolovat Stav",
+    btnLogout: "Odhlásit se",
+    parentDash: "Panel Rodiče",
+    pendingReq: "Čekající Schválení",
+    wantsJoin: "Chce se připojit do rodiny",
+    btnApprove: "Schválit",
+    approvedKids: "Schválené Děti",
+    viewProgress: "Zobrazit Pokrok ➔",
+    btnBackDash: "🔙 Panel",
+    illToday: "Jsem dnes nemocný/á 🤒",
+    sickMsg1: "Jsi nemocný/á. Odpočívej! 💤",
+    sickMsg2: "Tvá série je pozastavena a neztratí se.",
+    readyPlay: "Připraven/a hrát!",
+    restUp: "Odpočívej a uzdrav se!",
+    keepGrind: "Pokračuj v plnění!",
+    buildXp: "Sbírání XP!",
+    almostThere: "Už skoro tam!",
+    questDone: "Úkoly Splněny! 🎉",
+    xpToLevel: "XP do další úrovně",
+    xpMax: "XP (Maximum!)",
+    questLog: "🎮 Záznam Úkolů",
+    doneOf: "hotovo",
+    noQuests: "Žádné úkoly! Odpočívej.",
+    addQuestPlh: "Přidat nový úkol…",
+    diffEasy: "Lehký +10 XP",
+    diffMed: "Střední +20 XP",
+    diffHard: "Těžký +35 XP",
+    freqDaily: "Každý den",
+    freqToday: "Pouze dnes",
+    makeMystery: "🎁 Tajná Odměna",
+    btnAddQuest: "Přidat Úkol",
+    wheelConfig: "🎡 Nastavení Kola (Rodič)",
+    wheelCfgSub: "Nastavte 6 cen pro kolo štěstí:",
+    btnSavePrizes: "Uložit Ceny",
+    howFeel: "😊 Jak se dnes cítíš?",
+    wiped: "😵 Zbitý/á",
+    thriving: "😄 Skvěle",
+    tooEasy: "😎 Snadné",
+    tapAvatar: "Klikni na avatara pro hodnocení!",
+    statDone: "✅ Hotovo",
+    statStreak: "🔥 Série",
+    statLevel: "⭐ Úroveň",
+    thisWeek: "📅 Tento Týden",
+    historyTitle: "📜 Historie Úkolů",
+    historyEmpty: "Dokonči svůj první den!",
+    sickDayPause: "🤒 Nemocný (Pauza)",
+    quests: "úkolů",
+    modalQuestsComplete: "Denní Úkoly Hotové!",
+    modalSpinWheel: "Zatoč si kolem a získej odměnu!",
+    btnSpin: "ZATOČIT KOLEM 🎡",
+    modalYouWon: "Vyhrál/a jsi!",
+    btnAwesome: "Paráda!",
+    holdToClaim: "PODRŽ PRO VYZVEDNUTÍ",
+    holdMystery: "PODRŽ PRO TAJNOU ODMĚNU 🎁",
+    holdBase: "PODRŽ",
+    epicBoss: "🌟 EPICKÝ DENNÍ BOSS",
+    diffTagEasy: "Lehký",
+    diffTagMed: "Střední",
+    diffTagHard: "Těžký",
+    cleared: "HOTOVO",
+    btnUndo: "ZPĚT",
+    jackpot: "Jackpot!",
+    levelUp: "NOVÁ ÚROVEŇ! 🏆",
+    prizesSaved: "Ceny uloženy! ✅",
+    firstQuest: "První úkol hotový! ⭐",
+    defTask1: "Vypij 2 sklenice vody 💧",
+    defTask2: "10 min protahování 🤸",
+    defTask3: "Čti si 15 minut 📖",
+    defTask4: "30 min soustředění 🧠",
+    defPrize1: "Robuxy 💰",
+    defPrize2: "Zmrzlina 🍦",
+    defPrize3: "Filmový večer 🍿",
+    defPrize4: "Zkus to znovu 🍀",
+    defPrize5: "Více času na TV 📺",
+    defPrize6: "Přeskoč úklid 🛑"
+  }
+};
+
+let currentLang = localStorage.getItem('growthLang') || 'en';
+
+function t(key) {
+  return i18n[currentLang][key] || key;
+}
+
+window.switchLang = function(lang) {
+  currentLang = lang;
+  localStorage.setItem('growthLang', lang);
+  
+  document.getElementById('lang-en').style.color = lang === 'en' ? 'var(--text)' : 'var(--text3)';
+  document.getElementById('lang-cs').style.color = lang === 'cs' ? 'var(--text)' : 'var(--text3)';
+  
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (el.tagName === 'INPUT' && el.type !== 'checkbox') el.placeholder = t(key);
+    else if (el.tagName === 'OPTION') el.textContent = t(key);
+    else el.innerHTML = t(key);
+  });
+  
+  // Dynamic updates
+  if (state) {
+    renderTracker();
+  }
+  if (currentUserEmail) {
+    const user = getDB().users[currentUserEmail];
+    if(user && user.role === 'parent') renderParentDashboard();
+  }
+};
+
+// Initialize language after DOM loads
+document.addEventListener('DOMContentLoaded', () => {
+  switchLang(currentLang);
+});
+
+// ── Mock Cloud Database ───────────────────────────────────────────────────────
+function getDB() {
+  return JSON.parse(localStorage.getItem('mockDB')) || { users: {}, requests: {}, childData: {} };
+}
+function saveDB(db) {
+  localStorage.setItem('mockDB', JSON.stringify(db));
+}
+
+let currentUserEmail = sessionStorage.getItem('mockUser');
+let selectedChildEmail = null;
+
+// --- Auth Router ---
+function navigate() {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  
+  if (!currentUserEmail) {
+    document.getElementById('view-login').classList.add('active');
+    return;
+  }
+  
+  const db = getDB();
+  const user = db.users[currentUserEmail];
+  
+  if (!user) {
+    document.getElementById('view-role').classList.add('active');
+    return;
+  }
+  
+  if (user.role === 'parent') {
+    renderParentDashboard();
+    document.getElementById('view-parent').classList.add('active');
+  } else if (user.role === 'child') {
+    if (!user.parentEmail) {
+      document.getElementById('view-child-onboard').classList.add('active');
+    } else if (user.status === 'pending') {
+      document.getElementById('view-waiting').classList.add('active');
+    } else if (user.status === 'approved') {
+      selectedChildEmail = currentUserEmail;
+      document.getElementById('view-tracker').classList.add('active');
+      initTracker();
+    }
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('mockUser');
+  currentUserEmail = null;
+  selectedChildEmail = null;
+  state = null;
+  navigate();
+}
+
+document.getElementById('btn-login-google').addEventListener('click', () => {
+  const email = document.getElementById('mock-email').value.trim().toLowerCase();
+  if(!email) return alert('Enter an email!');
+  currentUserEmail = email;
+  sessionStorage.setItem('mockUser', email);
+  navigate();
+});
+
+document.getElementById('btn-role-parent').addEventListener('click', () => {
+  const db = getDB();
+  db.users[currentUserEmail] = { role: 'parent' };
+  saveDB(db);
+  navigate();
+});
+
+document.getElementById('btn-role-child').addEventListener('click', () => {
+  const db = getDB();
+  db.users[currentUserEmail] = { role: 'child', parentEmail: null, status: null };
+  saveDB(db);
+  navigate();
+});
+
+document.getElementById('btn-send-req').addEventListener('click', () => {
+  const parentEmail = document.getElementById('parent-email').value.trim().toLowerCase();
+  if(!parentEmail) return;
+  const db = getDB();
+  db.users[currentUserEmail].parentEmail = parentEmail;
+  db.users[currentUserEmail].status = 'pending';
+  db.requests[currentUserEmail] = { childEmail: currentUserEmail, parentEmail: parentEmail };
+  saveDB(db);
+  navigate();
+});
+
+document.getElementById('btn-refresh-wait').addEventListener('click', navigate);
+
+function renderParentDashboard() {
+  const db = getDB();
+  const pendingEl = document.getElementById('pending-list');
+  const approvedEl = document.getElementById('approved-list');
+  pendingEl.innerHTML = '';
+  approvedEl.innerHTML = '';
+  
+  let hasPending = false;
+  let hasApproved = false;
+  
+  Object.keys(db.users).forEach(email => {
+    const u = db.users[email];
+    if (u.role === 'child' && u.parentEmail === currentUserEmail) {
+      if (u.status === 'pending') {
+        hasPending = true;
+        pendingEl.innerHTML += `
+          <div class="req-card">
+            <div>
+              <div class="req-email">🧒 ${email}</div>
+              <div style="font-size:11px;color:var(--text3)">Wants to join your family</div>
+            </div>
+            <button class="btn-approve" onclick="approveChild('${email}')">'+t('btnApprove')+'</button>
+          </div>
+        `;
+      } else if (u.status === 'approved') {
+        hasApproved = true;
+        approvedEl.innerHTML += `
+          <div class="req-card" style="cursor:pointer; transition:transform 0.1s; border-color:var(--blue);" 
+               onclick="viewChildProgress('${email}')" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+            <div class="req-email">✅ ${email}</div>
+            <div style="font-size:12px; color:var(--blue); font-weight:800;">View Progress ➔</div>
+          </div>
+        `;
+      }
+    }
+  });
+  
+  if(!hasPending) pendingEl.innerHTML = '<div style="font-size:13px;color:var(--text3)">'+t('noQuests')+'</div>';
+  if(!hasApproved) approvedEl.innerHTML = '<div style="font-size:13px;color:var(--text3)">'+t('historyEmpty')+'</div>';
+}
+
+window.approveChild = function(childEmail) {
+  const db = getDB();
+  if(db.users[childEmail]) {
+    db.users[childEmail].status = 'approved';
+    delete db.requests[childEmail];
+    saveDB(db);
+    renderParentDashboard();
+  }
+}
+
+window.viewChildProgress = function(childEmail) {
+  selectedChildEmail = childEmail;
+  document.getElementById('view-parent').classList.remove('active');
+  document.getElementById('view-tracker').classList.add('active');
+  initTracker();
+}
+
+window.backToParentDashboard = function() {
+  selectedChildEmail = null;
+  state = null;
+  document.getElementById('view-tracker').classList.remove('active');
+  document.getElementById('view-parent').classList.add('active');
+  renderParentDashboard();
+}
+
+// ── Tracker App Logic ─────────────────────────────────────────────────────────
+
+const LEVELS = [
+  {name:'🟢 Noob',        color:'#00e676', bg:'rgba(0,230,118,.15)',   xpNeeded:100, img:'roblox_noob.png'},
+  {name:'🥓 Bacon Hair', color:'#ffb300', bg:'rgba(255,179,0,.15)', xpNeeded:150, img:'roblox_bacon_hair.png'},
+  {name:'😎 Guest',       color:'#29b6f6', bg:'rgba(41,182,246,.15)',  xpNeeded:200, img:'roblox_guest.png'},
+  {name:'🦩 Flamingo',    color:'#ff4081', bg:'rgba(255,64,129,.15)',  xpNeeded:250, img:'roblox_flamingo.png'},
+  {name:'🛠️ Builderman', color:'#e8001b', bg:'rgba(232,0,27,.15)',    xpNeeded:300, img:'roblox_builderman.png'},
+];
+
+const XP = {easy:10,med:20,hard:35};
+const DEFAULT_TASKS = () => [
+  {id:1,name:t('defTask1'),diff:'easy',freq:'daily',done:false},
+  {id:2,name:t('defTask2'),diff:'easy',freq:'daily',done:false},
+  {id:3,name:t('defTask3'),diff:'med',freq:'daily',done:false},
+  {id:4,name:t('defTask4'),diff:'hard',freq:'daily',done:false}
+];
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+let state;
+let comboCount = 0;
+let lastCheckMs = 0;
+
+function initTracker() {
+  const db = getDB();
+  if (!db.childData[selectedChildEmail]) {
+    db.childData[selectedChildEmail] = {
+      tasks: DEFAULT_TASKS(),
+      comfort:0, level:0, xp:0,
+      streak:0, lastDate:'', nextId:10, history:[], isIll:false
+    };
+    saveDB(db);
+  }
+  state = db.childData[selectedChildEmail];
+  
+  const role = db.users[currentUserEmail].role;
+  const actionsContainer = document.getElementById('tracker-actions');
+  const addArea = document.querySelector('.add-area');
+  
+  if (role === 'parent') {
+    actionsContainer.innerHTML = '<button onclick="backToParentDashboard()" class="btn-secondary" style="padding:6px 14px; font-size:12px; margin:0; border-radius:999px;">🔙 Dashboard</button>';
+    addArea.classList.remove('hidden');
+  } else {
+    actionsContainer.innerHTML = '<button onclick="logout()" style="background:none; border:none; color:var(--text3); font-weight:800; cursor:pointer; font-size:12px;">Logout</button>';
+    addArea.classList.add('hidden');
+  }
+  
+  checkNewDay(); 
+  renderComfort(); 
+  renderTracker();
+}
+
+function renderComfort() {
+  const el = document.getElementById('comfort-segs');
+  if(!el) return;
+  el.innerHTML = '';
+  const colors = ['#e8001b', '#ffb300', '#00e676', '#29b6f6', '#9c27b0'];
+  for(let i=1; i<=5; i++) {
+    const seg = document.createElement('div');
+    seg.className = 'c-seg';
+    seg.innerHTML = state.comfort >= i ? '⭐' : '';
+    seg.style.borderColor = state.comfort >= i ? colors[i-1] : 'var(--border)';
+    seg.style.background = state.comfort >= i ? colors[i-1]+'33' : 'var(--surface2)';
+    seg.onclick = () => { state.comfort = i; saveState(); renderComfort(); };
+    el.appendChild(seg);
+  }
+}
+
+function saveState(){ 
+  if(!selectedChildEmail) return;
+  const db = getDB();
+  db.childData[selectedChildEmail] = state;
+  saveDB(db);
+}
+
+function todayStr(){
+  const d=new Date();
+  return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+}
+
+function streakMultiplier(){
+  const s = state.streak;
+  if(s >= 30) return 2.0;
+  if(s >= 14) return 1.75;
+  if(s >= 7)  return 1.5;
+  if(s >= 3)  return 1.25;
+  return 1.0;
+}
+
+function checkNewDay(){
+  const today=todayStr();
+  if(state.lastDate && state.lastDate!==today){
+    const pct=calcPct();
+    state.history.unshift({date:state.lastDate,pct,tasks:state.tasks.length, ill:state.isIll});
+    if(state.history.length>30) state.history.pop();
+    
+    if(!state.isIll) {
+      const yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1);
+      const yStr=yesterday.getFullYear()+'-'+(yesterday.getMonth()+1)+'-'+yesterday.getDate();
+      if(state.lastDate===yStr && pct>=50) state.streak++;
+      else state.streak=0;
+    }
+    
+    state.tasks = state.tasks.filter(t => t.freq !== 'today');
+    state.tasks.forEach(t=>t.done=false);
+    state.comfort=0;
+    state.isIll=false;
+  }
+  state.lastDate=today;
+  saveState();
+}
+
+function calcPct(){
+  if(state.isIll) return 100;
+  if(!state.tasks.length) return 0;
+  return Math.round(state.tasks.filter(t=>t.done).length/state.tasks.length*100);
+}
+
+function grantXP(amount) {
+  state.xp += amount;
+  let lv = state.level;
+  let leveledUp = false;
+  while(lv < LEVELS.length - 1 && state.xp >= LEVELS[lv].xpNeeded) {
+    state.xp -= LEVELS[lv].xpNeeded;
+    state.level++;
+    lv = state.level;
+    leveledUp = true;
+  }
+  if (leveledUp) {
+    launchConfetti();
+    showToast(t("levelUp"), '#e8001b');
+  }
+}
+
+document.getElementById('sick-toggle').addEventListener('change', (e) => {
+  state.isIll = e.target.checked;
+  renderTracker();
+});
+
+
+
+function addTask(){
+  const inp=document.getElementById('task-input');
+  const diff=document.getElementById('diff-sel').value;
+  const freq=document.getElementById('freq-sel').value;
+  const isMystery=document.getElementById('mystery-toggle').checked;
+  const name=inp.value.trim();
+  if(!name) return;
+  state.tasks.push({id:state.nextId++,name,diff,freq,isMystery,done:false});
+  inp.value=''; document.getElementById('mystery-toggle').checked=false; renderTracker();
+}
+document.getElementById('add-btn').addEventListener('click',addTask);
+document.getElementById('task-input').addEventListener('keydown',e=>{if(e.key==='Enter')addTask();});
+
+function launchConfetti() {
+  for(let i=0; i<40; i++) {
+    const conf = document.createElement('div');
+    conf.style.position = 'fixed';
+    conf.style.left = 50 + (Math.random() * 20 - 10) + 'vw';
+    conf.style.top = '-10px';
+    conf.style.width = '10px';
+    conf.style.height = '10px';
+    conf.style.backgroundColor = ['#ff0055', '#00e676', '#29b6f6', '#ffb300'][Math.floor(Math.random()*4)];
+    conf.style.zIndex = '99999';
+    conf.style.pointerEvents = 'none';
+    conf.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+    document.body.appendChild(conf);
+    
+    const duration = 1 + Math.random() * 2;
+    conf.style.transition = `transform ${duration}s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity ${duration}s`;
+    
+    setTimeout(() => {
+      conf.style.transform = `translate(${(Math.random() - 0.5) * 500}px, ${window.innerHeight + 100}px) rotate(${Math.random() * 720}deg)`;
+      conf.style.opacity = '0';
+    }, 50);
+    setTimeout(() => conf.remove(), duration * 1000);
+  }
+}
+
+function showToast(msg, color) {
+  const toast = document.createElement('div');
+  toast.textContent = msg;
+  toast.style.position = 'fixed';
+  toast.style.top = '20px';
+  toast.style.left = '50%';
+  toast.style.transform = 'translateX(-50%)';
+  toast.style.background = color || 'var(--surface2)';
+  toast.style.color = '#121212';
+  toast.style.padding = '10px 20px';
+  toast.style.borderRadius = '999px';
+  toast.style.fontWeight = '900';
+  toast.style.zIndex = '99999';
+  toast.style.boxShadow = '0 4px 15px rgba(0,0,0,0.4)';
+  toast.style.animation = 'toastSlide 2s forwards';
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2000);
+}
+
+function showComboToast(count, bonus, cardEl) {
+  const toast = document.createElement('div');
+  toast.innerHTML = `🔥 ${count}x COMBO! <span style="color:var(--green)">+${bonus} XP</span>`;
+  toast.style.position = 'absolute';
+  toast.style.left = '50%';
+  toast.style.top = '0';
+  toast.style.transform = 'translate(-50%, -50%)';
+  toast.style.background = '#121212';
+  toast.style.color = '#fff';
+  toast.style.padding = '6px 14px';
+  toast.style.borderRadius = '8px';
+  toast.style.fontWeight = '900';
+  toast.style.fontSize = '14px';
+  toast.style.zIndex = '100';
+  toast.style.border = '2px solid var(--amber)';
+  toast.style.animation = 'comboFloat 1.5s forwards';
+  toast.style.pointerEvents = 'none';
+  if(cardEl) cardEl.appendChild(toast);
+  else document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 1500);
+}
+
+function renderWheel() {
+  const wheel = document.getElementById('wheel-spin');
+  wheel.innerHTML = '';
+  const prizes = state.prizes || [t("defPrize1"), t("defPrize2"), t("defPrize3"), t("defPrize4"), t("defPrize5"), t("defPrize6")];
+  const colors = ['#e8001b', '#29b6f6', '#00e676', '#ffb300', '#ff4081', '#9c27b0'];
+  const sliceAngle = 360 / prizes.length;
+  
+  let gradientStr = [];
+  let currentAngle = 0;
+  for(let i=0; i<prizes.length; i++) {
+    gradientStr.push(`${colors[i]} ${currentAngle}deg ${currentAngle + sliceAngle}deg`);
+    currentAngle += sliceAngle;
+  }
+  wheel.style.background = `conic-gradient(${gradientStr.join(', ')})`;
+  
+  for(let i=0; i<prizes.length; i++) {
+    const label = document.createElement('div');
+    label.style.position = 'absolute';
+    label.style.top = '50%';
+    label.style.left = '50%';
+    label.style.width = '50%'; 
+    label.style.height = '20px';
+    label.style.marginTop = '-10px';
+    label.style.transformOrigin = '0 50%'; 
+    const angle = (i * sliceAngle) + (sliceAngle / 2);
+    label.style.transform = `rotate(${angle - 90}deg)`; 
+    label.style.textAlign = 'center';
+    label.style.fontWeight = '900';
+    label.style.fontSize = '12px';
+    label.style.color = '#fff';
+    label.style.textShadow = '0 1px 3px rgba(0,0,0,0.8)';
+    label.style.display = 'flex';
+    label.style.alignItems = 'center';
+    label.style.justifyContent = 'flex-end';
+    label.style.paddingRight = '15px';
+    label.style.whiteSpace = 'nowrap';
+    label.textContent = prizes[i];
+    wheel.appendChild(label);
+  }
+}
+
+let currentRotation = 0;
+document.getElementById('spin-btn').addEventListener('click', () => {
+  const prizes = state.prizes || [t("defPrize1"), t("defPrize2"), t("defPrize3"), t("defPrize4"), t("defPrize5"), t("defPrize6")];
+  const sliceAngle = 360 / prizes.length;
+  const winningIndex = Math.floor(Math.random() * prizes.length);
+  const targetAngle = 360 - (winningIndex * sliceAngle + sliceAngle/2);
+  const spins = 360 * 5;
+  const finalRotation = currentRotation + spins + targetAngle - (currentRotation % 360);
+  
+  const wheel = document.getElementById('wheel-spin');
+  wheel.style.transform = `rotate(${finalRotation}deg)`;
+  currentRotation = finalRotation;
+  
+  document.getElementById('spin-btn').disabled = true;
+  document.getElementById('spin-btn').style.opacity = '0.5';
+  
+  setTimeout(() => {
+    document.getElementById('wheel-modal').classList.remove('show');
+    document.getElementById('prize-won-text').textContent = `You won ${prizes[winningIndex]}!`;
+    document.getElementById('prize-won-modal').classList.add('show');
+    launchConfetti();
+    document.getElementById('spin-btn').disabled = false;
+    document.getElementById('spin-btn').style.opacity = '1';
+  }, 4200); 
+});
+
+// Visual Loot Trajectory Animation
+function spawnLoot(startX, startY, xpAmount) {
+  const xpTrack = document.getElementById('xp-track');
+  const rect = xpTrack.getBoundingClientRect();
+  const targetX = rect.left + rect.width / 2;
+  const targetY = rect.top + rect.height / 2;
+  
+  // Flash summary card
+  const sumCard = document.getElementById('summary-card');
+  setTimeout(() => {
+    sumCard.classList.add('flash');
+    setTimeout(() => sumCard.classList.remove('flash'), 150);
+  }, 400);
+
+  // Spawn +XP text
+  const xpText = document.createElement('div');
+  xpText.className = 'loot-text';
+  xpText.textContent = `+${xpAmount} XP`;
+  xpText.style.left = (startX - 20) + 'px';
+  xpText.style.top = (startY - 40) + 'px';
+  document.body.appendChild(xpText);
+  setTimeout(() => xpText.remove(), 1000);
+
+  // Spawn coins
+  for(let i=0; i<3; i++) {
+    const loot = document.createElement('div');
+    loot.className = 'loot';
+    loot.textContent = '🪙';
+    loot.style.left = startX + 'px';
+    loot.style.top = startY + 'px';
+    document.body.appendChild(loot);
+    
+    // force reflow
+    loot.offsetHeight; 
+    
+    const randomOffsetX = (Math.random() - 0.5) * 80;
+    loot.style.transform = `translate(${targetX - startX + randomOffsetX}px, ${targetY - startY}px) scale(0.6)`;
+    loot.style.opacity = '0';
+    
+    setTimeout(() => loot.remove(), 800);
+  }
+}
+
+// Hold to Claim Logic
+function setupHoldBtn(btn, task, cardEl) {
+  let timer;
+  let progress = 0;
+  const fill = btn.querySelector('.hold-fill');
+  const text = btn.querySelector('.hold-text');
+  
+  const start = (e) => {
+    e.preventDefault();
+    if (task.done) return;
+    btn.style.transform = 'scale(0.95)';
+    // 600ms hold -> 100% in ~38 ticks of 16ms -> 2.6% per tick
+    timer = setInterval(() => {
+      progress += 2.6; 
+      fill.style.width = progress + '%';
+      if(progress >= 100) {
+        clearInterval(timer);
+        finish(e);
+      }
+    }, 16);
+  };
+  
+  const end = () => {
+    clearInterval(timer);
+    if(progress < 100) {
+      progress = 0;
+      fill.style.width = '0%';
+      btn.style.transform = 'scale(1)';
+    }
+  };
+  
+  const finish = (e) => {
+    btn.style.transform = 'scale(1)';
+    btn.style.pointerEvents = 'none';
+    fill.style.background = 'var(--red)';
+    text.textContent = 'BOOM! 💥';
+    
+    // Screen shake
+    document.body.classList.remove('shake');
+    void document.body.offsetWidth;
+    document.body.classList.add('shake');
+    
+    // Visual Loot
+    const rect = btn.getBoundingClientRect();
+    const clientX = e.type.includes('touch') ? e.changedTouches[0].clientX : e.clientX;
+    const clientY = e.type.includes('touch') ? e.changedTouches[0].clientY : e.clientY;
+    
+    if (!task.isMystery) {
+      spawnLoot(clientX || rect.left + rect.width/2, clientY || rect.top + rect.height/2, Math.round(XP[task.diff] * streakMultiplier()));
+    }
+
+    // Wait a brief moment to let animations play before completing
+    setTimeout(() => completeTask(task, cardEl, clientX || rect.left + rect.width/2, clientY || rect.top + rect.height/2), 500);
+  };
+
+  btn.addEventListener('mousedown', start);
+  btn.addEventListener('mouseup', end);
+  btn.addEventListener('mouseleave', end);
+  btn.addEventListener('touchstart', start, {passive: false});
+  btn.addEventListener('touchend', end);
+}
+
+function completeTask(task, cardEl, clientX, clientY) {
+  task.done = true;
+  let xpGained = Math.round(XP[task.diff] * streakMultiplier());
+  
+  if (task.isMystery) {
+    const multipliers = [1.5, 2, 3, 5];
+    const multi = multipliers[Math.floor(Math.random() * multipliers.length)];
+    xpGained = Math.round(xpGained * multi);
+    
+    const toast = document.createElement('div');
+    toast.className = 'mystery-toast';
+    toast.innerHTML = `<div class="mystery-toast-title">Jackpot!</div><div class="mystery-toast-xp">+${xpGained} XP</div>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2600);
+    
+    if(clientX && clientY) {
+      spawnLoot(clientX, clientY, xpGained);
+      spawnLoot(clientX - 50, clientY, xpGained);
+      spawnLoot(clientX + 50, clientY, xpGained);
+    }
+  }
+  
+  grantXP(xpGained);
+  
+  const now = Date.now();
+  if(now - lastCheckMs < 4000) comboCount++; else comboCount = 1;
+  lastCheckMs = now;
+  
+  if(comboCount >= 2){
+    const bonus = comboCount >= 4 ? 15 : comboCount === 3 ? 10 : 5;
+    grantXP(bonus);
+    showComboToast(comboCount, bonus, cardEl);
+  }
+  
+  if(state.tasks.filter(x=>x.done).length === 1) showToast(t("firstQuest"),'#00e676');
+  
+  if(state.tasks.every(x => x.done)){
+    setTimeout(() => {
+      renderWheel();
+      document.getElementById('wheel-modal').classList.add('show');
+    }, 800);
+  }
+  renderTracker();
+}
+
+function undoTask(task) {
+  task.done = false;
+  comboCount = 0; 
+  const xpLost = Math.round(XP[task.diff] * streakMultiplier());
+  state.xp -= xpLost;
+  if (state.xp < 0 && state.level > 0) {
+     state.level--;
+     state.xp += LEVELS[state.level].xpNeeded;
+  } else if (state.xp < 0) {
+     state.xp = 0;
+  }
+  renderTracker();
+}
+
+function renderTasks() {
+  const el = document.getElementById('task-list');
+  el.innerHTML = '';
+  
+  if(!state.tasks.length) {
+    el.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--text3); font-weight: 800;">No quests assigned! Take a break.</div>';
+    return;
+  }
+
+  // 1. Identify the Epic Boss (the incomplete task with the highest XP)
+  let epicTask = null;
+  const incompleteTasks = state.tasks.filter(t => !t.done);
+  if (incompleteTasks.length > 0) {
+    const diffScores = { 'hard': 3, 'med': 2, 'easy': 1 };
+    epicTask = incompleteTasks.reduce((prev, curr) => (diffScores[curr.diff] > diffScores[prev.diff] ? curr : prev));
+  }
+
+  // Render Epic Boss if exists
+  if (epicTask) {
+    const epicCard = document.createElement('div');
+    epicCard.className = 'epic-card task-card';
+    const freqIcon = epicTask.freq === 'today' ? '🕒 ' : '';
+    epicCard.innerHTML = `
+      <div class="epic-title">🌟 EPIC DAILY BOSS</div>
+      <div style="font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 6px;">${freqIcon}${epicTask.name}</div>
+      <div class="hold-btn" id="hold-${epicTask.id}">
+        <div class="hold-fill"></div>
+        <div class="hold-text">HOLD TO CLAIM (+${Math.round(XP[epicTask.diff] * streakMultiplier())} XP)</div>
+      </div>
+    `;
+    el.appendChild(epicCard);
+    setupHoldBtn(epicCard.querySelector('.hold-btn'), epicTask, epicCard);
+  }
+
+  // Render rest of the tasks
+  state.tasks.forEach((t) => {
+    if (t === epicTask) return; // already rendered as epic
+    
+    const card = document.createElement('div');
+    card.className = 'task-card' + (t.done ? ' done' : '');
+    const freqIcon = t.freq === 'today' ? '🕒 ' : '';
+    
+    if (t.done) {
+      card.innerHTML = `
+        <div class="stamp">CLEARED</div>
+        <div style="opacity: 0.4; width: 100%; display: flex; align-items: center; gap: 12px;">
+          <div class="check on"></div>
+          <span class="task-name" style="text-decoration: line-through;">${freqIcon}${t.name}</span>
+          <button class="delete-btn undo-btn" title="Undo" style="opacity:1; font-size: 11px; font-weight: 900; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px;">UNDO</button>
+        </div>
+      `;
+      card.querySelector('.undo-btn').addEventListener('click', (e) => {
+        e.stopPropagation(); undoTask(t);
+      });
+    } else {
+      card.innerHTML = `
+        <div style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
+          <div style="font-size: 14px; font-weight: 700; color: #fff;">${freqIcon}${t.name}</div>
+          <div style="display:flex; gap: 10px; align-items: center;">
+            <span class="diff-tag diff-${t.diff}">${t.diff==='med'?'Medium':t.diff==='easy'?'Easy':'Hard'}</span>
+            <div class="hold-btn ${t.isMystery ? 'mystery-btn' : ''}" style="height: 36px; flex: 1; font-size: 12px;" id="hold-${t.id}">
+              <div class="hold-fill" style="background: var(--blue);"></div>
+              <div class="hold-text">${t.isMystery ? 'HOLD TO OPEN MYSTERY 🎁' : `${t('holdBase')} (+${Math.round(XP[t.diff] * streakMultiplier())} XP)`}</div>
+            </div>
+            ${getDB().users[currentUserEmail].role === 'parent' ? `<button class="delete-btn remove-btn" title="Remove" style="opacity:1">×</button>` : ''}
+          </div>
+        </div>
+      `;
+      setupHoldBtn(card.querySelector('.hold-btn'), t, card);
+      
+      if (getDB().users[currentUserEmail].role === 'parent') {
+        card.querySelector('.remove-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          state.tasks = state.tasks.filter(x => x.id !== t.id);
+          renderTracker();
+        });
+      }
+    }
+    el.appendChild(card);
+  });
+}
+
+function renderTracker(){
+  if(!state) return;
+  const pct=calcPct();
+  const done=state.tasks.filter(t=>t.done).length;
+  const total=state.tasks.length;
+  const lv=Math.min(state.level,LEVELS.length-1);
+  const lvData=LEVELS[lv];
+  const mult=streakMultiplier();
+  const xpPct=Math.min(100,Math.round(state.xp/lvData.xpNeeded*100));
+
+  const now=new Date();
+  document.getElementById('date-chip').textContent=DAYS[now.getDay()]+', '+MONTHS[now.getMonth()]+' '+now.getDate();
+    
+  document.getElementById('sick-toggle').checked = state.isIll;
+  if (state.isIll) {
+    document.getElementById('quests-area').classList.add('sick-mode');
+  } else {
+    document.getElementById('quests-area').classList.remove('sick-mode');
+  }
+
+  const img = lvData.img;
+  let filterStr = '';
+  if (pct < 100 && !state.isIll) {
+    const grayscale = 100 - pct;
+    filterStr = `filter: grayscale(${grayscale}%); opacity: ${0.4 + (pct/100)*0.6};`;
+  }
+  document.getElementById('roblox-char').innerHTML = `<img src="${img}" style="width: 70px; height: 100px; object-fit: contain; border-radius: 8px; ${filterStr} transition: all 0.3s ease;"/>`;
+  document.getElementById('ring-pct').textContent = state.isIll ? t('illToday').split(' ')[0] : pct+'%';
+
+  const badge=document.getElementById('level-badge');
+  badge.textContent='Level '+(lv+1)+' · '+lvData.name;
+  badge.style.background=lvData.bg;
+  badge.style.color=lvData.color;
+  badge.style.border='1px solid '+lvData.color+'44';
+
+  document.getElementById('summary-label').textContent= state.isIll ? t('restUp') : pct===0  ? t('readyPlay') : pct<30   ? t('keepGrind') : pct<60   ? t('buildXp') : pct<90   ? t('almostThere') : t('questDone');
+
+  document.getElementById('xp-fill').style.width=xpPct+'%';
+  document.getElementById('xp-fill').style.background=lvData.color;
+  const isMaxLevel=lv>=LEVELS.length-1;
+  const multStr=mult>1?` 🔥 ${mult}x streak!`:'';
+  document.getElementById('xp-label').textContent= state.xp+' / '+lvData.xpNeeded+(isMaxLevel?' '+t('xpMax')+'':' XP')+multStr;
+
+  document.getElementById('s-done').textContent=state.isIll ? '-' : done+'/'+total;
+  document.getElementById('s-streak').textContent=state.streak;
+  document.getElementById('s-level').textContent=lv+1;
+  document.getElementById('task-count').textContent=done+' / '+total+' '+t('doneOf');
+
+  if (getDB().users[currentUserEmail].role === 'parent') {
+    document.getElementById('parent-prize-config').classList.remove('hidden');
+    renderPrizeConfig();
+  } else {
+    document.getElementById('parent-prize-config').classList.add('hidden');
+  }
+
+  renderTasks(); renderWeek(); renderHistory(); saveState();
+}
+
+function renderPrizeConfig() {
+  if(!state.prizes) state.prizes = [t("defPrize1"), t("defPrize2"), t("defPrize3"), t("defPrize4"), t("defPrize5"), t("defPrize6")];
+  const container = document.getElementById('prize-inputs');
+  container.innerHTML = '';
+  state.prizes.forEach((p, i) => {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = p;
+    input.className = 'auth-input';
+    input.style.margin = '0';
+    input.style.fontSize = '12px';
+    input.id = `prize-input-${i}`;
+    container.appendChild(input);
+  });
+}
+
+function savePrizes() {
+  if(!state.prizes) return;
+  for(let i=0; i<state.prizes.length; i++) {
+    state.prizes[i] = document.getElementById(`prize-input-${i}`).value.trim() || state.prizes[i];
+  }
+  saveState();
+  showToast(t("prizesSaved"), '#00e676');
+}
+
+function renderWeek(){
+  const el=document.getElementById('week-row');
+  el.innerHTML='';
+  const today=new Date();
+  for(let i=6;i>=0;i--){
+    const d=new Date(today); d.setDate(today.getDate()-i);
+    const dStr=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+    const isToday=i===0;
+    let pct=0; let sick=false;
+    if(isToday) { pct=calcPct(); sick=state.isIll; } 
+    else { const h=state.history.find(x=>x.date===dStr); if(h){ pct=h.pct; sick=h.ill; } }
+    
+    const cell=document.createElement('div');
+    let cls='w-cell';
+    if(isToday) cls+=' today';
+    
+    if (sick) {
+      cls += ' part'; 
+      cell.className=cls;
+      cell.innerHTML=`<span class="w-day">${DAYS[d.getDay()]}</span><span class="w-pct">🤒</span>`;
+    } else {
+      if(pct>=80) cls+=' full'; else if(pct>=50) cls+=' good'; else if(pct>0) cls+=' part';
+      cell.className=cls;
+      cell.innerHTML=`<span class="w-day">${DAYS[d.getDay()]}</span><span class="w-pct">${pct?pct+'%':''}</span>`;
+    }
+    el.appendChild(cell);
+  }
+}
+
+function renderHistory(){
+  const el=document.getElementById('history-list');
+  el.innerHTML='';
+  const slice=state.history.slice(0,7);
+  if(!slice.length){
+    el.innerHTML=`<div style="font-size:12px;font-weight:700;color:var(--text3);padding:8px 0">${t('historyEmpty')}</div>`;
+    return;
+  }
+  slice.forEach(h=>{
+    const [y,m,d]=h.date.split('-');
+    const date=new Date(y,m-1,d);
+    const row=document.createElement('div');
+    row.className='history-item';
+    if (h.ill) {
+      row.innerHTML=`<span class="history-date">${DAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${d}</span><span class="history-pct blue">${t('sickDayPause')}</span>`;
+    } else {
+      const cls=h.pct>=80?'green':h.pct>=50?'amber':'red';
+      const icon=h.pct>=80?'🏆':h.pct>=50?'⭐':'💀';
+      row.innerHTML=`<span class="history-date">${DAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${d}</span><span class="history-pct ${cls}">${icon} ${h.pct}% · ${h.tasks} ${t("quests")}</span>`;
+    }
+    el.appendChild(row);
+  });
+}
+
+// Initial Navigation Load
+navigate();
+</script>
+</body>
+</html>
