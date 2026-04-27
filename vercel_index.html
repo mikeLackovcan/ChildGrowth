@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -831,7 +831,7 @@ document.getElementById('btn-login-google').addEventListener('click', async () =
   }
 });
 
-window.testLogin = function(role) {
+window.testLogin = async function(role) {
   const email = role === 'parent' ? 'parent' : 'kid';
   
   if (!localDB.users['parent']) {
@@ -841,17 +841,15 @@ window.testLogin = function(role) {
      localDB.users['kid'] = { role: 'child', parentEmail: 'parent', status: 'approved' };
   }
   
+  await fetchFromSupabase(email);
+  
   currentUserEmail = email;
   sessionStorage.setItem('mockUser', email);
   
   // Force linkage for testing purposes
   localDB.users['parent'] = { role: 'parent', parentEmail: null, status: null };
   localDB.users['kid'] = { role: 'child', parentEmail: 'parent', status: 'approved' };
-  
-  // Background sync, don't block UI
-  fetchFromSupabase(email).then(() => {
-     syncToSupabase(localDB);
-  });
+  syncToSupabase(localDB);
   
   navigate();
 };
@@ -1622,3 +1620,4 @@ navigate();
 </script>
 </body>
 </html>
+
