@@ -430,6 +430,7 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 
 const i18n = {
@@ -650,16 +651,105 @@ document.addEventListener('DOMContentLoaded', () => {
   switchLang(currentLang);
 });
 
-// ── Mock Cloud Database ───────────────────────────────────────────────────────
+// ── Supabase Integration ───────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://malanehplezvrpeaqdze.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hbGFuZWhwbGV6dnJwZWFxZHplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNjUxOTQsImV4cCI6MjA5Mjg0MTE5NH0.47SPXUG2JGG6MCKt3PdZFY54nCLYSOIx1K58AlmD-Po';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let localDB = JSON.parse(localStorage.getItem('mockDB')) || { users: {}, requests: {}, childData: {} };
+
 function getDB() {
-  return JSON.parse(localStorage.getItem('mockDB')) || { users: {}, requests: {}, childData: {} };
+  return localDB;
 }
+
 function saveDB(db) {
+  localDB = db;
   localStorage.setItem('mockDB', JSON.stringify(db));
+  syncToSupabase(db).catch(e => console.error("Supabase sync error:", e));
+}
+
+async function fetchFromSupabase(email) {
+  try {
+    const { data: userData } = await supabase.from('users').select('*').eq('email', email).maybeSingle();
+    if (userData) {
+      localDB.users[email] = {
+        role: userData.role,
+        parentEmail: userData.parent_email,
+        status: userData.status
+      };
+      
+      if (userData.role === 'parent') {
+        const { data: kids } = await supabase.from('users').select('*').eq('parent_email', email);
+        if (kids) {
+          for (const k of kids) {
+            localDB.users[k.email] = { role: 'child', parentEmail: k.parent_email, status: k.status };
+            if (k.status === 'pending') {
+               localDB.requests[k.email] = { childEmail: k.email, parentEmail: email };
+            }
+            if (k.status === 'approved') {
+               const { data: cData } = await supabase.from('child_data').select('state').eq('email', k.email).maybeSingle();
+               if (cData) localDB.childData[k.email] = cData.state;
+            }
+          }
+        }
+      } else if (userData.role === 'child') {
+        const { data: cData } = await supabase.from('child_data').select('state').eq('email', email).maybeSingle();
+        if (cData) localDB.childData[email] = cData.state;
+      }
+    }
+    localStorage.setItem('mockDB', JSON.stringify(localDB));
+  } catch (err) {
+    console.error("Error fetching from Supabase:", err);
+  }
+}
+
+async function syncToSupabase(db) {
+  if (!currentUserEmail || !db.users[currentUserEmail]) return;
+  const u = db.users[currentUserEmail];
+  
+  await supabase.from('users').upsert({
+    email: currentUserEmail,
+    role: u.role,
+    parent_email: u.parentEmail,
+    status: u.status
+  });
+
+  if (u.role === 'child' && db.childData[currentUserEmail]) {
+    await supabase.from('child_data').upsert({
+      email: currentUserEmail,
+      state: db.childData[currentUserEmail]
+    });
+  } else if (u.role === 'parent') {
+     for (const email of Object.keys(db.users)) {
+       const k = db.users[email];
+       if (k.role === 'child' && k.parentEmail === currentUserEmail) {
+          await supabase.from('users').upsert({
+            email: email,
+            role: 'child',
+            parent_email: currentUserEmail,
+            status: k.status
+          });
+          if (k.status === 'approved' && db.childData[email]) {
+             await supabase.from('child_data').upsert({
+                email: email,
+                state: db.childData[email]
+             });
+          }
+       }
+     }
+  }
 }
 
 let currentUserEmail = sessionStorage.getItem('mockUser');
 let selectedChildEmail = null;
+
+// Ensure we fetch latest data if already logged in on refresh
+if (currentUserEmail) {
+  fetchFromSupabase(currentUserEmail).then(() => {
+    if (state) renderTracker();
+    if (getDB().users[currentUserEmail]?.role === 'parent') renderParentDashboard();
+  });
+}
 
 // --- Auth Router ---
 function navigate() {
@@ -702,11 +792,22 @@ function logout() {
   navigate();
 }
 
-document.getElementById('btn-login-google').addEventListener('click', () => {
+document.getElementById('btn-login-google').addEventListener('click', async () => {
   const email = document.getElementById('mock-email').value.trim().toLowerCase();
   if(!email) return alert('Enter an email!');
+  
+  const btn = document.getElementById('btn-login-google');
+  const ogText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = 'Connecting...';
+  
+  await fetchFromSupabase(email);
+  
   currentUserEmail = email;
   sessionStorage.setItem('mockUser', email);
+  
+  btn.disabled = false;
+  btn.innerHTML = ogText;
   navigate();
 });
 
