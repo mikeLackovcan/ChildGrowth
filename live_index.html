@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -662,16 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Supabase Integration ───────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://malanehplezvrpeaqdze.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hbGFuZWhwbGV6dnJwZWFxZHplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNjUxOTQsImV4cCI6MjA5Mjg0MTE5NH0.47SPXUG2JGG6MCKt3PdZFY54nCLYSOIx1K58AlmD-Po';
-let supabase = null;
-try {
-  if (window.supabase) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  } else {
-    console.warn("Supabase CDN failed to load. Operating in local-only mode.");
-  }
-} catch(e) {
-  console.error("Supabase init error:", e);
-}
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let localDB = JSON.parse(localStorage.getItem('mockDB')) || { users: {}, requests: {}, childData: {} };
 
@@ -686,7 +677,6 @@ function saveDB(db) {
 }
 
 async function fetchFromSupabase(email) {
-  if (!supabase) return;
   try {
     const { data: userData } = await supabase.from('users').select('*').eq('email', email).maybeSingle();
     if (userData) {
@@ -722,7 +712,7 @@ async function fetchFromSupabase(email) {
 }
 
 async function syncToSupabase(db) {
-  if (!supabase || !currentUserEmail || !db.users[currentUserEmail]) return;
+  if (!currentUserEmail || !db.users[currentUserEmail]) return;
   const u = db.users[currentUserEmail];
   
   await supabase.from('users').upsert({
@@ -761,19 +751,17 @@ async function syncToSupabase(db) {
 currentUserEmail = sessionStorage.getItem('mockUser');
 selectedChildEmail = null;
 
-if (supabase) {
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    if (session && session.user) {
-      currentUserEmail = session.user.email;
-      await fetchFromSupabase(currentUserEmail);
-      navigate();
-    } else if (!sessionStorage.getItem('mockUser')) {
-      currentUserEmail = null;
-      state = null;
-      navigate();
-    }
-  });
-}
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (session && session.user) {
+    currentUserEmail = session.user.email;
+    await fetchFromSupabase(currentUserEmail);
+    navigate();
+  } else if (!sessionStorage.getItem('mockUser')) {
+    currentUserEmail = null;
+    state = null;
+    navigate();
+  }
+});
 
 // Ensure we fetch latest data if already logged in on refresh
 if (currentUserEmail) {
@@ -817,9 +805,7 @@ function navigate() {
 }
 
 async function logout() {
-  if (supabase) {
-    await supabase.auth.signOut();
-  }
+  await supabase.auth.signOut();
   sessionStorage.removeItem('mockUser');
   currentUserEmail = null;
   selectedChildEmail = null;
@@ -828,10 +814,6 @@ async function logout() {
 }
 
 document.getElementById('btn-login-google').addEventListener('click', async () => {
-  if (!supabase) {
-    alert("Google Login is currently unavailable. Please check your internet connection.");
-    return;
-  }
   const btn = document.getElementById('btn-login-google');
   const ogText = btn.innerHTML;
   btn.disabled = true;
@@ -1640,3 +1622,4 @@ navigate();
 </script>
 </body>
 </html>
+
