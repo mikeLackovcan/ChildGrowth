@@ -433,6 +433,10 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script>
+console.log("🚀 App script starting...");
+let state = null;
 let comboCount = 0;
 let lastCheckMs = 0;
 let currentUserEmail = sessionStorage.getItem('mockUser');
