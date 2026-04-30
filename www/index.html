@@ -433,9 +433,6 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-let state = null;
 let comboCount = 0;
 let lastCheckMs = 0;
 let currentUserEmail = sessionStorage.getItem('mockUser');
@@ -673,7 +670,13 @@ try {
   console.error("Supabase init error:", e);
 }
 
-let localDB = JSON.parse(localStorage.getItem('mockDB')) || { users: {}, requests: {}, childData: {} };
+let localDB;
+try {
+  localDB = JSON.parse(localStorage.getItem('mockDB')) || { users: {}, requests: {}, childData: {} };
+} catch (e) {
+  console.error("LocalDB parse error, resetting:", e);
+  localDB = { users: {}, requests: {}, childData: {} };
+}
 
 function getDB() {
   return localDB;
@@ -922,7 +925,7 @@ function renderParentDashboard() {
               <div class="req-email">🧒 ${email}</div>
               <div style="font-size:11px;color:var(--text3)">Wants to join your family</div>
             </div>
-            <button class="btn-approve" onclick="approveChild('${email}')">'+t('btnApprove')+'</button>
+            <button class="btn-approve" onclick="approveChild('${email}')">${t('btnApprove')}</button>
           </div>
         `;
       } else if (u.status === 'approved') {
@@ -1636,7 +1639,11 @@ function renderHistory(){
 }
 
 // Initial Navigation Load
-navigate();
+window.addEventListener('load', () => {
+  console.log("🏁 Initializing navigation...");
+  navigate();
+  console.log("✅ App script loaded fully.");
+});
 </script>
 </body>
 </html>
