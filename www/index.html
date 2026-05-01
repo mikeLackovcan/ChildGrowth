@@ -1441,6 +1441,8 @@ function renderTasks() {
     epicTask = incompleteTasks.reduce((prev, curr) => (diffScores[curr.diff] > diffScores[prev.diff] ? curr : prev));
   }
 
+  const isParent = getDB().users[currentUserEmail].role === 'parent';
+
   // Render Epic Boss if exists
   if (epicTask) {
     const epicCard = document.createElement('div');
@@ -1448,7 +1450,10 @@ function renderTasks() {
     const freqIcon = epicTask.freq === 'today' ? '🕒 ' : '';
     epicCard.innerHTML = `
       <div class="epic-title">🌟 EPIC DAILY BOSS</div>
-      <div style="font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 6px;">${freqIcon}${epicTask.name}</div>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <div style="font-size: 16px; font-weight: 800; color: #fff;">${freqIcon}${epicTask.name}</div>
+        ${isParent ? `<button class="delete-btn remove-btn-epic" title="Remove" style="opacity:1; font-size:24px;">×</button>` : ''}
+      </div>
       <div class="hold-btn" id="hold-${epicTask.id}">
         <div class="hold-fill"></div>
         <div class="hold-text">HOLD TO CLAIM (+${Math.round(XP[epicTask.diff] * streakMultiplier())} XP)</div>
@@ -1456,6 +1461,14 @@ function renderTasks() {
     `;
     el.appendChild(epicCard);
     setupHoldBtn(epicCard.querySelector('.hold-btn'), epicTask, epicCard);
+    
+    if (isParent) {
+      epicCard.querySelector('.remove-btn-epic').addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.tasks = state.tasks.filter(x => x.id !== epicTask.id);
+        renderTracker();
+      });
+    }
   }
 
   // Render rest of the tasks
@@ -1469,15 +1482,27 @@ function renderTasks() {
     if (t.done) {
       card.innerHTML = `
         <div class="stamp">CLEARED</div>
-        <div style="opacity: 0.4; width: 100%; display: flex; align-items: center; gap: 12px;">
-          <div class="check on"></div>
-          <span class="task-name" style="text-decoration: line-through;">${freqIcon}${t.name}</span>
-          <button class="delete-btn undo-btn" title="Undo" style="opacity:1; font-size: 11px; font-weight: 900; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px;">UNDO</button>
+        <div style="opacity: 0.4; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div class="check on"></div>
+            <span class="task-name" style="text-decoration: line-through;">${freqIcon}${t.name}</span>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="delete-btn undo-btn" title="Undo" style="opacity:1; font-size: 11px; font-weight: 900; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px;">UNDO</button>
+            ${isParent ? `<button class="delete-btn remove-btn-done" title="Remove" style="opacity:1; font-size:20px; line-height:1;">×</button>` : ''}
+          </div>
         </div>
       `;
       card.querySelector('.undo-btn').addEventListener('click', (e) => {
         e.stopPropagation(); undoTask(t);
       });
+      if (isParent) {
+        card.querySelector('.remove-btn-done').addEventListener('click', (e) => {
+          e.stopPropagation();
+          state.tasks = state.tasks.filter(x => x.id !== t.id);
+          renderTracker();
+        });
+      }
     } else {
       card.innerHTML = `
         <div style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
@@ -1488,13 +1513,13 @@ function renderTasks() {
               <div class="hold-fill" style="background: var(--blue);"></div>
               <div class="hold-text">${t.isMystery ? 'HOLD TO OPEN MYSTERY 🎁' : `${t('holdBase')} (+${Math.round(XP[t.diff] * streakMultiplier())} XP)`}</div>
             </div>
-            ${getDB().users[currentUserEmail].role === 'parent' ? `<button class="delete-btn remove-btn" title="Remove" style="opacity:1">×</button>` : ''}
+            ${isParent ? `<button class="delete-btn remove-btn" title="Remove" style="opacity:1; font-size:24px;">×</button>` : ''}
           </div>
         </div>
       `;
       setupHoldBtn(card.querySelector('.hold-btn'), t, card);
       
-      if (getDB().users[currentUserEmail].role === 'parent') {
+      if (isParent) {
         card.querySelector('.remove-btn').addEventListener('click', (e) => {
           e.stopPropagation();
           state.tasks = state.tasks.filter(x => x.id !== t.id);
