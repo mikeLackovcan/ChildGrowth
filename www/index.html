@@ -211,7 +211,8 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 </head>
 <body>
 
-  <!-- LANG TOGGLE -->
+  <a href="/download" style="position:fixed; top:env(safe-area-inset-top, 20px); left:20px; z-index:9999; display:flex; align-items:center; gap:6px; background:linear-gradient(135deg, #4f46e5, #7c3aed); color:#fff; text-decoration:none; padding:6px 14px; border-radius:999px; font-weight:800; font-size:12px; box-shadow:0 4px 12px rgba(79,70,229,.4);">📱 Download APK</a>
+    <!-- LANG TOGGLE -->
   <div style="position:fixed; top:env(safe-area-inset-top, 20px); right:20px; z-index:9999; display:flex; gap:5px; background:var(--surface); padding:4px; border-radius:999px; border:1px solid var(--border); box-shadow:var(--shadow);">
     <button onclick="switchLang('en')" style="background:none; border:none; padding:4px 8px; border-radius:999px; font-weight:800; cursor:pointer; color:var(--text); font-size:12px;" id="lang-en">EN</button>
     <button onclick="switchLang('cs')" style="background:none; border:none; padding:4px 8px; border-radius:999px; font-weight:800; cursor:pointer; color:var(--text3); font-size:12px;" id="lang-cs">CS</button>

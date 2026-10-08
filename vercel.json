@@ -1,10 +1,16 @@
 {
-  "version": 2,
-  "public": true,
+  "buildCommand": null,
+  "installCommand": null,
+  "outputDirectory": "www",
+  "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": "/www/$1"
+      "source": "/download",
+      "destination": "/download.html"
+    },
+    {
+      "source": "/apk",
+      "destination": "/download.html"
     }
   ]
 }

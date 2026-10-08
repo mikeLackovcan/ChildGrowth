@@ -1,0 +1,13 @@
+ChildGrowthNative
+ChildGrowthNative/**
+android
+android/**
+node_modules
+node_modules/**
+temp.js
+temp2.js
+jsdom_output.txt
+schema.sql
+live_index.html
+vercel_index.html
+.env.local

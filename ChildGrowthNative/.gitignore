@@ -1,0 +1,64 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+.env
+.env.*
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# IDE & Assistant
+.vscode/
+.claude/
+.idea/
+
+example
+
+# generated native folders
+/ios
+/android
+
+# Temporary model downloads & extraction caches
+scripts/temp_tripo*
+scripts/temp_tripo_extracted/
+scripts/bridge/
+scripts/bridge.zip
+
+# Battlefield WIP (coming soon - excluded from repository for now)
+src/components/ThreeStreetFighter.tsx
+src/components/PhaserStreetFighter.tsx
+src/assets/models/
+scripts/tripo-*
+scripts/generate-noob-glb.js
+scripts/generate-3d-models.js
+scripts/install-3d-arena.js
+*.apk
+*.aab
