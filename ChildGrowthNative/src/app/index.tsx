@@ -37,14 +37,11 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const googleClientIds = {
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || 'not-configured.apps.googleusercontent.com',
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'not-configured.apps.googleusercontent.com',
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'not-configured.apps.googleusercontent.com',
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '35992182600-oounvs8ja932t3drbsq2e3ru0lemh8c2.apps.googleusercontent.com',
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '35992182600-f4v50jk30bmcb2cs95k430cqqpctlgqd.apps.googleusercontent.com',
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '35992182600-f4v50jk30bmcb2cs95k430cqqpctlgqd.apps.googleusercontent.com',
   };
-  const googleConfigured = Boolean(
-    process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID &&
-    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
-  );
+  const googleConfigured = Boolean(googleClientIds.androidClientId && googleClientIds.webClientId);
 
   const [googleRequest, googleResponse, promptGoogleSignIn] = Google.useAuthRequest({
     ...googleClientIds,
