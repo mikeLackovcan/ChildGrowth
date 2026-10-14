@@ -1,7 +1,8 @@
+import { normalizeBrandState, normalizeAvatarId } from '../lib/brandMigration';
 // App global state store
 import { create } from 'zustand';
 import { auth, db } from '../lib/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendSignInLinkToEmail, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithCredential, GoogleAuthProvider, signOut, sendSignInLinkToEmail, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
 import { doc, setDoc, getDoc, query, collection, where, getDocs } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import i18n from '../i18n';
@@ -9,6 +10,7 @@ import { playSound } from '../lib/sound';
 import { ThemeKey } from '../constants/theme';
 
 export type UserRole = 'parent' | 'child' | null;
+export type AppLanguage = 'en' | 'cs' | 'es' | 'de';
 
 export interface Task {
   id: string;
@@ -73,13 +75,14 @@ interface AppState {
   selectedChildId: string | null;
   approvalStatus: 'pending' | 'approved' | null;
   dailyMood: 'wiped' | 'thriving' | 'too_easy' | null;
-  language: 'en' | 'cs' | 'es' | 'de';
+  language: AppLanguage;
   lastActiveDate: string | null;
   epicBossTask: string;
   epicBossXP: number;
   
   logout: () => Promise<void>;
   setUser: (email: string | null, role: UserRole, fullName?: string, nickname?: string, id?: string) => void;
+  continueAsGuest: () => Promise<void>;
   setSick: (sick: boolean) => void;
   addXP: (amount: number) => void;
   addTask: (task: Omit<Task, 'id' | 'done' | 'date'>) => void;
@@ -121,6 +124,7 @@ interface AppState {
   // Auth & Server Persistence
   registerWithEmail: (email: string, pass: string, fullName: string, nickname: string, role: UserRole) => Promise<{ success: boolean; message?: string }>;
   loginWithEmail: (email: string, pass: string) => Promise<{ success: boolean; message?: string }>;
+  signInWithGoogle: (idToken: string, accessToken: string | undefined, role: UserRole) => Promise<{ success: boolean; message?: string }>;
   sendMagicLink: (email: string) => Promise<{ success: boolean; message?: string }>;
   sendPasswordReset: (email: string) => Promise<{ success: boolean; message?: string }>;
   syncToServer: () => Promise<void>;
@@ -142,7 +146,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   xp: 0,
   level: 1,
   tasks: [], // Kids start with 0 quests first time!
-  prizes: ['Robux 💰', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
+  prizes: ['Family surprise 🎁', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
   wonPrizes: [],
   coins: 0,
   unlockedAvatars: ['default'],
@@ -189,7 +193,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       xp: 0,
       level: 1,
       tasks: [],
-      prizes: ['Robux 💰', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
+      prizes: ['Family surprise 🎁', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
       wonPrizes: [],
       coins: 0,
       unlockedAvatars: ['default'],
@@ -220,6 +224,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     get().loadMockState();
     get().saveMockState();
+  },
+  continueAsGuest: async () => {
+    set({
+      userEmail: 'guest@questblox.local',
+      userId: 'guest-local',
+      fullName: 'Guest Hero',
+      nickname: 'guest',
+      role: 'child',
+    });
+    await AsyncStorage.setItem('active_user_tag', 'guest');
+    await get().loadMockState();
+    await get().saveMockState();
   },
   setSick: (sick) => {
     set({ isSick: sick });
@@ -402,12 +418,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   unlockAvatar: (avatarId) => {
     set((state) => ({
-      unlockedAvatars: [...state.unlockedAvatars, avatarId]
+      unlockedAvatars: [...new Set([...state.unlockedAvatars, normalizeAvatarId(avatarId)])]
     }));
     get().saveMockState();
   },
   setCurrentAvatar: (avatarId) => {
-    set({ currentAvatar: avatarId });
+    set({ currentAvatar: normalizeAvatarId(avatarId) });
     playSound('spin');
     get().saveMockState();
   },
@@ -459,7 +475,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         AsyncStorage.getItem(`mockState_${cleanPTag}`).then(str => {
           if (str) {
             try {
-              const pData = JSON.parse(str);
+              const pData = normalizeBrandState(JSON.parse(str));
               if (Array.isArray(pData.children)) {
                 pData.children = pData.children.map((c: any) => c.nickname?.toLowerCase() === userTag ? { ...c, tasks: updatedTasks } : c);
                 AsyncStorage.setItem(`mockState_${cleanPTag}`, JSON.stringify(pData));
@@ -563,7 +579,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     AsyncStorage.getItem(`mockState_${cleanParentTag}`).then(async str => {
       let parentData: any = {};
       if (str) {
-        try { parentData = JSON.parse(str); } catch(e){}
+        try { parentData = normalizeBrandState(JSON.parse(str)); } catch(e){}
       } else {
         const pEmail = await AsyncStorage.getItem(`user_email_${cleanParentTag}`) || `${cleanParentTag}@growth.app`;
         parentData = {
@@ -574,7 +590,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           children: [],
           linkedParents: [],
           tasks: [],
-          prizes: ['Robux 💰', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑']
+          prizes: ['Family surprise 🎁', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑']
         };
       }
 
@@ -695,7 +711,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       AsyncStorage.getItem(`mockState_${kidTag}`).then(str => {
         if (str) {
           try {
-            const kidData = JSON.parse(str);
+            const kidData = normalizeBrandState(JSON.parse(str));
             kidData.approvalStatus = 'approved';
             kidData.parentEmail = parentTag;
             kidData.linkedParents = Array.from(new Set([...(kidData.linkedParents || []), parentTag]));
@@ -782,7 +798,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     AsyncStorage.getItem(`mockState_${currentParentTag}`).then(str => {
       if (str) {
         try {
-          const parentData = JSON.parse(str);
+          const parentData = normalizeBrandState(JSON.parse(str));
           if (parentData.children) {
             parentData.children = parentData.children.map((c: any) => c.nickname.toLowerCase() === currentKidTag ? { ...c, isApproved: true } : c);
             AsyncStorage.setItem(`mockState_${currentParentTag}`, JSON.stringify(parentData));
@@ -833,7 +849,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     AsyncStorage.getItem(`mockState_${pTag}`).then(str => {
       if (str) {
         try {
-          const parentData = JSON.parse(str);
+          const parentData = normalizeBrandState(JSON.parse(str));
           if (parentData.children) {
             parentData.children = parentData.children.filter((c: any) => c.nickname.toLowerCase() !== currentKidTag);
             AsyncStorage.setItem(`mockState_${pTag}`, JSON.stringify(parentData));
@@ -902,7 +918,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     AsyncStorage.getItem(`mockState_${cleanTag}`).then(async str => {
       let kidData: any = {};
       if (str) {
-        try { kidData = JSON.parse(str); } catch(e){}
+        try { kidData = normalizeBrandState(JSON.parse(str)); } catch(e){}
       } else {
         const kEmail = await AsyncStorage.getItem(`user_email_${cleanTag}`) || `${cleanTag}@growth.app`;
         kidData = {
@@ -994,7 +1010,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       AsyncStorage.getItem(`mockState_${kidTag}`).then(str => {
         if (str) {
           try {
-            const kidData = JSON.parse(str);
+            const kidData = normalizeBrandState(JSON.parse(str));
             kidData.linkedParents = (kidData.linkedParents || []).filter((p: string) => p !== parentTag);
             if (kidData.parentEmail === parentTag) kidData.parentEmail = kidData.linkedParents[0] || null;
             if (kidData.linkedParents.length === 0) kidData.approvalStatus = null;
@@ -1012,7 +1028,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
         getDoc(doc(db, 'user_data', kidDocId)).then(async snap => {
           if (snap.exists()) {
-            const kData = snap.data();
+            const kData = normalizeBrandState(snap.data());
             const parents = (kData.linked_parents || []).filter((p: string) => p !== parentTag);
             await setDoc(doc(db, 'user_data', kidDocId), {
               linked_parents: parents,
@@ -1040,7 +1056,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     AsyncStorage.getItem(`mockState_${cleanPTag}`).then(str => {
       if (str) {
         try {
-          const parentData = JSON.parse(str);
+          const parentData = normalizeBrandState(JSON.parse(str));
           if (parentData.children) {
             parentData.children = parentData.children.filter((c: any) => c.nickname.toLowerCase() !== kidTag);
             AsyncStorage.setItem(`mockState_${cleanPTag}`, JSON.stringify(parentData));
@@ -1139,7 +1155,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     } catch (e) {}
 
-    let firebaseUid = null;
+    let firebaseUid: string | null = null;
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
       await updateProfile(userCredential.user, {
@@ -1147,11 +1163,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
       firebaseUid = userCredential.user.uid;
     } catch (firebaseAuthErr: any) {
-      console.warn('Firebase Auth note (using resilient Firestore + local credential fallback):', firebaseAuthErr?.message || firebaseAuthErr);
+      console.warn('Firebase Auth registration failed:', firebaseAuthErr?.message || firebaseAuthErr);
+      return { success: false, message: firebaseAuthErr?.message || 'Registration failed. Please try again.' };
     }
 
     const chosenRole = role || 'child';
-    const finalUserId = firebaseUid || `usr_${cleanNick}`;
+    const finalUserId = firebaseUid as string;
     const docId = finalUserId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
     set({
@@ -1164,8 +1181,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     await AsyncStorage.setItem(`nickname_owner_${cleanNick}`, cleanEmail);
     await AsyncStorage.setItem(`user_email_${cleanNick}`, cleanEmail);
-    await AsyncStorage.setItem(`user_pass_${cleanEmail}`, password);
-    await AsyncStorage.setItem(`user_pass_${cleanNick}`, password);
     await AsyncStorage.setItem(`user_name_${cleanNick}`, fullName);
     await AsyncStorage.setItem(`user_role_${cleanNick}`, chosenRole);
 
@@ -1236,65 +1251,68 @@ export const useAppStore = create<AppState>((set, get) => ({
       await get().loadMockState();
       return { success: true, message: 'Welcome back! Synced with server.' };
     } catch (err: any) {
-      console.warn('Firebase Auth note (checking Firestore profile fallback):', err?.message || err);
+      console.warn('Firebase Auth login failed:', err?.message || err);
+      return { success: false, message: err?.message || 'Login failed. Please check your credentials.' };
+    }
+  },
 
+  signInWithGoogle: async (idToken, accessToken, role) => {
+    if (!idToken) {
+      return { success: false, message: 'Google did not return an ID token.' };
+    }
+
+    try {
+      const credential = GoogleAuthProvider.credential(idToken, accessToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      const user = userCredential.user;
+      const email = user.email || '';
+      const fallbackNickname = (email.split('@')[0] || 'hero').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+      const docId = user.uid.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      let chosenRole: UserRole = role || 'child';
       try {
-        const docId = `usr_${userTag}`;
-        let profileData: any = null;
-
-        const pSnap = await getDoc(doc(db, 'profiles', docId));
-        if (pSnap.exists()) {
-          profileData = pSnap.data();
-        } else {
-          const q = query(collection(db, 'profiles'), where('nickname', '==', userTag));
-          const qSnap = await getDocs(q);
-          if (!qSnap.empty) {
-            profileData = qSnap.docs[0].data();
-          }
+        const existingProfile = await getDoc(doc(db, 'profiles', docId));
+        const existingRole = existingProfile.data()?.role;
+        if (existingRole === 'parent' || existingRole === 'child') {
+          chosenRole = existingRole;
         }
-
-        if (profileData) {
-          const chosenRole: UserRole = profileData.role === 'parent' ? 'parent' : 'child';
-          set({
-            userEmail: profileData.email || cleanEmail,
-            userId: docId,
-            fullName: profileData.full_name || userTag,
-            nickname: userTag,
-            role: chosenRole,
-            coins: typeof profileData.coins === 'number' ? profileData.coins : 0,
-            xp: typeof profileData.xp === 'number' ? profileData.xp : 0,
-            level: typeof profileData.level === 'number' ? profileData.level : 1,
-            currentAvatar: profileData.current_avatar || 'default'
-          });
-
-          await AsyncStorage.setItem('active_user_tag', userTag);
-          await AsyncStorage.setItem(`user_role_${userTag}`, chosenRole);
-          await get().loadMockState();
-          return { success: true, message: 'Welcome back! Synced with server.' };
-        }
-      } catch (firestoreErr) {
-        console.warn('Firestore fallback note:', firestoreErr);
+      } catch (profileError) {
+        console.warn('Google profile lookup note:', profileError);
       }
 
-      try {
-        const localPass = await AsyncStorage.getItem(`user_pass_${cleanInput}`) || await AsyncStorage.getItem(`user_pass_${cleanEmail}`);
-        if (localPass && localPass === password) {
-          const localRole = await AsyncStorage.getItem(`user_role_${userTag}`) as UserRole || 'child';
-          const localName = await AsyncStorage.getItem(`user_name_${userTag}`) || userTag;
-          set({
-            userEmail: cleanEmail,
-            userId: `usr_${userTag}`,
-            fullName: localName,
-            nickname: userTag,
-            role: localRole
-          });
-          await AsyncStorage.setItem('active_user_tag', userTag);
-          await get().loadMockState();
-          return { success: true, message: 'Welcome back!' };
-        }
-      } catch (localErr) {}
+      set({
+        userEmail: email,
+        userId: user.uid,
+        fullName: user.displayName || fallbackNickname,
+        nickname: fallbackNickname,
+        role: chosenRole,
+      });
 
-      return { success: false, message: err?.message || 'Login failed. Please check your credentials.' };
+      await setDoc(doc(db, 'profiles', docId), {
+        email,
+        full_name: user.displayName || fallbackNickname,
+        nickname: fallbackNickname,
+        role: chosenRole,
+        updated_at: new Date().toISOString(),
+      }, { merge: true });
+
+      await setDoc(doc(db, 'user_data', docId), {
+        tasks: get().tasks || [],
+        prizes: get().prizes || [],
+        won_prizes: get().wonPrizes || [],
+        unlocked_avatars: get().unlockedAvatars || ['default'],
+        children: get().children || [],
+        linked_parents: get().linkedParents || [],
+        updated_at: new Date().toISOString(),
+      }, { merge: true });
+
+      await AsyncStorage.setItem(`user_role_${fallbackNickname}`, chosenRole || 'child');
+      await AsyncStorage.setItem('active_user_tag', fallbackNickname);
+      await get().saveMockState();
+      return { success: true, message: 'Welcome to QuestBlox!' };
+    } catch (err: any) {
+      console.warn('Firebase Google sign-in failed:', err?.message || err);
+      return { success: false, message: err?.message || 'Google sign-in failed.' };
     }
   },
 
@@ -1307,7 +1325,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
       return { success: true, message: `Magic link sent to ${email}! Check your inbox.` };
     } catch (err: any) {
-      return { success: true, message: `Magic link dispatched to ${email}! Check your email inbox.` };
+      return { success: false, message: err?.message || 'Could not send the magic link.' };
     }
   },
 
@@ -1319,7 +1337,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
       return { success: true, message: `Password reset instructions sent to ${email}!` };
     } catch (err: any) {
-      return { success: true, message: `Password reset request sent to ${email}!` };
+      return { success: false, message: err?.message || 'Could not send the password reset email.' };
     }
   },
 
@@ -1327,7 +1345,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const isOnline = typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' ? navigator.onLine : true;
       const { userEmail, fullName, nickname, role, coins, xp, level, currentAvatar, tasks, prizes, wonPrizes, unlockedAvatars, userId, children, linkedParents, epicBossTask, epicBossXP } = get();
-      if (!userEmail) return;
+      if (!userEmail || userId === 'guest-local') return;
 
       const profileData = { userEmail, fullName, nickname, role, coins, xp, level, currentAvatar, tasks, prizes, wonPrizes, unlockedAvatars, userId, children, linkedParents, epicBossTask, epicBossXP };
       await AsyncStorage.setItem(`user_profile_${userEmail}`, JSON.stringify(profileData));
@@ -1383,7 +1401,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             const pDocId = `usr_${cleanPTag}`;
             getDoc(doc(db, 'user_data', pDocId)).then(async pSnap => {
               if (pSnap.exists()) {
-                const pData = pSnap.data();
+                const pData = normalizeBrandState(pSnap.data());
                 const pChildren = Array.isArray(pData.children) ? pData.children : [];
                 const idx = pChildren.findIndex((c: any) => (c.nickname || '').toLowerCase() === userTag);
                 if (idx >= 0) {
@@ -1415,9 +1433,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       const activeTag = await AsyncStorage.getItem('active_user_tag');
       const currentNick = (get().nickname || get().userEmail?.split('@')[0] || activeTag || '').toLowerCase().replace(/^@/, '');
       
-      let lang: 'en' | 'cs' = 'en';
-      if (savedLang === 'cs' || savedLang === 'en') {
-        lang = savedLang;
+      let lang: AppLanguage = 'en';
+      if (savedLang === 'cs' || savedLang === 'en' || savedLang === 'es' || savedLang === 'de') {
+        lang = savedLang as AppLanguage;
       }
 
       if (!currentNick && !activeTag && !get().userEmail) {
@@ -1440,14 +1458,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         const todayStr = new Date().toISOString().split('T')[0];
 
         if (data) {
-          const parsed = JSON.parse(data);
+          const parsed = normalizeBrandState(JSON.parse(data));
           if (parsed && typeof parsed === 'object') {
             if (!parsed.userEmail) {
               set({ userEmail: null, role: null, nickname: null, fullName: null, userId: null, language: lang });
               return;
             }
-            if (!savedLang && (parsed.language === 'cs' || parsed.language === 'en')) {
-              lang = parsed.language;
+            if (!savedLang && (parsed.language === 'cs' || parsed.language === 'en' || parsed.language === 'es' || parsed.language === 'de')) {
+              lang = parsed.language as AppLanguage;
             }
             const rawTasks: Task[] = Array.isArray(parsed.tasks) ? parsed.tasks : [];
             const storedLastDate = parsed.lastActiveDate || null;
@@ -1497,7 +1515,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               linkedParents: Array.isArray(parsed.linkedParents) ? parsed.linkedParents : [],
               approvalStatus: parsed.approvalStatus || null,
               lastActiveDate: todayStr,
-              prizes: Array.isArray(parsed.prizes) && parsed.prizes.length > 0 ? parsed.prizes : ['Robux 💰', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
+              prizes: Array.isArray(parsed.prizes) && parsed.prizes.length > 0 ? parsed.prizes : ['Family surprise 🎁', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
               wonPrizes: normalizedWonPrizes,
               coins: typeof parsed.coins === 'number' ? parsed.coins : 0,
               unlockedAvatars: Array.isArray(parsed.unlockedAvatars) && parsed.unlockedAvatars.length > 0 ? parsed.unlockedAvatars : ['default'],
@@ -1515,7 +1533,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               get().saveMockState();
             }
           }
-        } else if (savedLang === 'cs' || savedLang === 'en') {
+        } else if (savedLang === 'cs' || savedLang === 'en' || savedLang === 'es' || savedLang === 'de') {
           i18n.changeLanguage(savedLang);
           set({ language: savedLang });
         }
@@ -1528,7 +1546,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           const docId = `usr_${effectiveTag}`;
           const userDocSnap = await getDoc(doc(db, 'user_data', docId));
           if (userDocSnap.exists()) {
-            const cloudData = userDocSnap.data();
+            const cloudData = normalizeBrandState(userDocSnap.data());
             const currentRole = get().role;
 
             if (currentRole === 'parent') {
@@ -1609,7 +1627,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       xp: 0,
       level: 1,
       tasks: [], // 0 quests for kids starting first time!
-      prizes: ['Robux 💰', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
+      prizes: ['Family surprise 🎁', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
       wonPrizes: [],
       coins: 0,
       unlockedAvatars: ['default'],

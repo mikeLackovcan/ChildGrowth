@@ -6,6 +6,10 @@ import { useAppStore } from '../store/useAppStore';
 import { Lock, Mail, User, Tag, KeyRound, Sparkles, Wand2, Eye, EyeOff } from 'lucide-react-native';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const { t } = useTranslation();
@@ -13,12 +17,14 @@ export default function LoginScreen() {
   const userEmail = useAppStore((state) => state.userEmail);
   const role = useAppStore((state) => state.role);
   const setUser = useAppStore((state) => state.setUser);
+  const continueAsGuest = useAppStore((state) => state.continueAsGuest);
   const coins = useAppStore((state) => state.coins);
   
   const registerWithEmail = useAppStore((state) => state.registerWithEmail);
   const loginWithEmail = useAppStore((state) => state.loginWithEmail);
   const sendMagicLink = useAppStore((state) => state.sendMagicLink);
   const sendPasswordReset = useAppStore((state) => state.sendPasswordReset);
+  const signInWithGoogle = useAppStore((state) => state.signInWithGoogle);
 
   const [authMode, setAuthMode] = useState<'signin' | 'register'>('signin');
   const [selectedRole, setSelectedRole] = useState<'child' | 'parent'>('child');
@@ -29,6 +35,20 @@ export default function LoginScreen() {
   const [nickname, setNickname] = useState('');
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const googleClientIds = {
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || 'not-configured.apps.googleusercontent.com',
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'not-configured.apps.googleusercontent.com',
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'not-configured.apps.googleusercontent.com',
+  };
+  const googleConfigured = Boolean(
+    process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID &&
+    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+  );
+
+  const [googleRequest, googleResponse, promptGoogleSignIn] = Google.useAuthRequest({
+    ...googleClientIds,
+  });
 
   useEffect(() => {
     loadMockState();
@@ -46,17 +66,37 @@ export default function LoginScreen() {
     }
   }, [userEmail, role]);
 
+  useEffect(() => {
+    if (googleResponse?.type !== 'success') return;
+
+    const finishGoogleSignIn = async () => {
+      setLoading(true);
+      setAuthMessage(null);
+      const result = await signInWithGoogle(
+        googleResponse.authentication?.idToken || '',
+        googleResponse.authentication?.accessToken,
+        selectedRole,
+      );
+      setAuthMessage(result.success ? null : (result.message || 'Google sign-in failed.'));
+      setLoading(false);
+    };
+
+    finishGoogleSignIn();
+  }, [googleResponse, selectedRole, signInWithGoogle]);
+
   const handleGoogleSignIn = async () => {
-    try {
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        console.warn('Google Sign-In is not fully configured for Firebase yet.');
-      } else {
-        console.warn('Google Sign-In is not fully configured for Firebase yet.');
-      }
-    } catch (err: any) {
-      console.warn('Google Sign-In notice:', err?.message || err);
-      setUser('google.user@growth.app', null);
+    if (!googleConfigured || !googleRequest) {
+      setAuthMessage('Google sign-in is not configured yet. Add the Google OAuth client IDs to the Expo environment.');
+      return;
     }
+    await promptGoogleSignIn();
+  };
+
+  const handleGuestMode = async () => {
+    setLoading(true);
+    setAuthMessage(null);
+    await continueAsGuest();
+    setLoading(false);
   };
 
   const handleTestLogin = (testRole: 'parent' | 'child') => {
@@ -116,14 +156,14 @@ export default function LoginScreen() {
           {/* App Logo & Branding */}
           <View style={styles.logoBox}>
             <Image 
-              source={require('../assets/images/questblox_logo.png')} 
+              source={require('../../assets/images/quest-hero-v2.png')}
               style={{ width: 88, height: 88, borderRadius: 22 }}
               resizeMode="contain"
             />
           </View>
           
           <Text style={styles.title}>{t('app_title', 'QuestBlox')}</Text>
-          <Text style={styles.subtitle}>{t('app_subtitle', 'Roblox Habit & Battle Arena ⚔️')}</Text>
+          <Text style={styles.subtitle}>{t('app_subtitle', 'Small wins. Everyday adventures.')}</Text>
 
           {/* Auth Mode Selection Tabs: Clean 2 Tabs (Login & Register) */}
           <View style={styles.modeTabsRow}>
@@ -131,7 +171,7 @@ export default function LoginScreen() {
               style={[styles.modeTab, authMode === 'signin' && styles.modeTabActive]} 
               onPress={() => { setAuthMode('signin'); setAuthMessage(null); }}
             >
-              <KeyRound size={16} color={authMode === 'signin' ? Colors.red : Colors.textMuted} />
+              <KeyRound size={16} color={authMode === 'signin' ? Colors.primary : Colors.textMuted} />
               <Text style={[styles.modeTabText, authMode === 'signin' && styles.modeTabTextActive]}>{t('auth_signin', 'Sign In')}</Text>
             </TouchableOpacity>
 
@@ -139,7 +179,7 @@ export default function LoginScreen() {
               style={[styles.modeTab, authMode === 'register' && styles.modeTabActive]} 
               onPress={() => { setAuthMode('register'); setAuthMessage(null); }}
             >
-              <User size={16} color={authMode === 'register' ? Colors.red : Colors.textMuted} />
+              <User size={16} color={authMode === 'register' ? Colors.primary : Colors.textMuted} />
               <Text style={[styles.modeTabText, authMode === 'register' && styles.modeTabTextActive]}>{t('auth_register', 'Create Account')}</Text>
             </TouchableOpacity>
           </View>
@@ -153,17 +193,17 @@ export default function LoginScreen() {
               </Text>
               <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
                 <TouchableOpacity
-                  style={[{ flex: 1, backgroundColor: Colors.surface2, borderRadius: 12, padding: 10, borderWidth: 1.5, borderColor: Colors.border, flexDirection: 'row', alignItems: 'center', gap: 8 }, selectedRole === 'child' && { borderColor: Colors.red, backgroundColor: Colors.cardPink }]}
+                  style={[{ flex: 1, backgroundColor: Colors.surface2, borderRadius: 14, padding: 10, borderWidth: 1.5, borderColor: Colors.border, flexDirection: 'row', alignItems: 'center', gap: 8 }, selectedRole === 'child' && { borderColor: Colors.primary, backgroundColor: Colors.blueDim }]}
                   onPress={() => setSelectedRole('child')}
                   activeOpacity={0.8}
                 >
-                  <Text style={{ fontSize: 20 }}>🎮</Text>
+                  <Text style={{ fontSize: 20 }}>⭐</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={[{ fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 13 }, selectedRole === 'child' && { color: Colors.red }]}>
+                    <Text style={[{ fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 13 }, selectedRole === 'child' && { color: Colors.primary }]}>
                       {t('child_role', 'Kid')}
                     </Text>
                     <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, fontSize: 10 }} numberOfLines={1}>
-                      {t('child_role_sub', 'Quests & Battles')}
+                      {t('child_role_sub', 'Habits & chores')}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -202,7 +242,7 @@ export default function LoginScreen() {
                 <Tag size={18} color={Colors.textMuted} />
                 <TextInput
                   style={styles.input}
-                  placeholder={t('nickname_placeholder', 'Roblox Nickname / Tag (e.g. AlexRoblox2026)')}
+                  placeholder={t('nickname_placeholder', 'QuestBlox Nickname / Tag (e.g. AlexQuest2026)')}
                   placeholderTextColor={Colors.textMuted}
                   autoComplete="username"
                   textContentType="nickname"
@@ -300,8 +340,18 @@ export default function LoginScreen() {
             style={styles.googleBtn}
             activeOpacity={0.8}
             onPress={handleGoogleSignIn}
+            disabled={loading}
           >
             <Text style={styles.googleBtnText}>Sign in with Google</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.guestBtn}
+            activeOpacity={0.8}
+            onPress={handleGuestMode}
+            disabled={loading}
+          >
+            <Text style={styles.guestBtnText}>Continue as guest</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -326,14 +376,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 16,
-    padding: 30,
+    borderRadius: 28,
+    padding: 24,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 4,
   },
   coinBadge: {
     backgroundColor: Colors.amberDim,
@@ -355,21 +405,20 @@ const styles = StyleSheet.create({
     color: Colors.amber,
   },
   logoBox: {
-    width: 60,
-    height: 60,
-    backgroundColor: Colors.red,
-    borderRadius: 12,
+    width: 98,
+    height: 98,
+    backgroundColor: Colors.blueDim,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
-    transform: [{ rotate: '-10deg' }],
-    shadowColor: Colors.red,
+    marginBottom: 14,
+    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 4,
   },
-  robloxDiamond: {
+  questDiamond: {
     width: 24,
     height: 24,
     backgroundColor: '#FFFFFF',
@@ -377,8 +426,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 28,
-    color: Colors.text,
+    fontSize: 31,
+    color: Colors.primary,
     marginBottom: 4,
   },
   subtitle: {
@@ -389,22 +438,36 @@ const styles = StyleSheet.create({
   },
   googleBtn: {
     width: '100%',
-    backgroundColor: Colors.red,
+    backgroundColor: Colors.surface,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
     paddingVertical: 14,
-    borderRadius: 8,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.red,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
     marginBottom: 16,
   },
   googleBtnText: {
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 16,
-    color: '#FFFFFF',
+    color: Colors.text,
+  },
+  guestBtn: {
+    width: '100%',
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guestBtnText: {
+    fontFamily: 'Nunito_700Bold',
+    color: Colors.textSecondary,
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
   divider: {
     width: '100%',
@@ -431,7 +494,7 @@ const styles = StyleSheet.create({
   modeTabsRow: {
     flexDirection: 'row',
     backgroundColor: Colors.surface2,
-    borderRadius: 10,
+    borderRadius: 14,
     padding: 4,
     width: '100%',
     marginBottom: 20,
@@ -444,7 +507,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 11,
   },
   modeTabActive: {
     backgroundColor: Colors.surface,
@@ -462,7 +525,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   modeTabTextActive: {
-    color: Colors.red,
+    color: Colors.primary,
     fontFamily: 'Nunito_800ExtraBold',
   },
   inputBox: {
@@ -472,7 +535,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface2,
     borderWidth: 1,
     borderColor: Colors.border2,
-    borderRadius: 10,
+    borderRadius: 14,
     paddingHorizontal: 14,
     height: 48,
     width: '100%',
@@ -487,16 +550,16 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     width: '100%',
-    backgroundColor: Colors.red,
+    backgroundColor: Colors.primary,
     paddingVertical: 14,
-    borderRadius: 10,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 6,
     marginBottom: 10,
-    shadowColor: Colors.red,
+    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },

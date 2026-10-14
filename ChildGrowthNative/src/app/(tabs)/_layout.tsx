@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Colors } from '../../constants/theme';
-import { LayoutDashboard, Swords, Gift, ShoppingBag } from 'lucide-react-native';
+import { ListChecks, Gift, ShoppingBag } from 'lucide-react-native';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -14,25 +14,30 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.red,
+        tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
-          backgroundColor: Colors.surface,
+          backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: Colors.border,
-          elevation: 10,
+          elevation: 8,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.3,
+          shadowOpacity: 0.08,
           shadowRadius: 12,
-          height: (Platform.OS === 'ios' ? 88 : 64) + insets.bottom,
-          paddingBottom: (Platform.OS === 'ios' ? 28 : 10) + insets.bottom,
-          paddingTop: 12,
+          height: (Platform.OS === 'ios' ? 82 : 66) + insets.bottom,
+          paddingBottom: (Platform.OS === 'ios' ? 28 : 8) + insets.bottom,
+          paddingTop: Platform.OS === 'android' ? 8 : 12,
+        },
+        tabBarItemStyle: {
+          minHeight: 52,
         },
         tabBarLabelStyle: {
           fontFamily: 'Nunito_600SemiBold',
-          fontSize: 12,
+          fontSize: Platform.OS === 'android' ? 11 : 12,
+          marginBottom: Platform.OS === 'android' ? 1 : 0,
         },
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tabs.Screen
@@ -40,16 +45,7 @@ export default function TabLayout() {
         options={{
           title: t('tab_tracker', 'Quests'),
           tabBarIcon: ({ color }) => (
-            <LayoutDashboard size={24} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="battle"
-        options={{
-          title: t('tab_battle', 'Battle'),
-          tabBarIcon: ({ color }) => (
-            <Swords size={24} color={color} />
+            <ListChecks size={24} color={color} />
           ),
         }}
       />
@@ -71,6 +67,7 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen name="tips" options={{ href: null }} />
     </Tabs>
   );
 }

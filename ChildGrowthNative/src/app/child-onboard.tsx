@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Typography, Layout } from '../constants/theme';
+import { useAppStore } from '../store/useAppStore';
 
 export default function ChildOnboardScreen() {
   const [email, setEmail] = useState('');
+  const sendParentInvite = useAppStore((state) => state.sendParentInvite);
 
   const handleSendRequest = () => {
     if (email.trim() !== '') {
-      // In a real app, send request to backend
+      sendParentInvite(email.trim());
       router.replace('/waiting');
     }
   };

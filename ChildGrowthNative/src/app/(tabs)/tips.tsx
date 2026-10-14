@@ -30,7 +30,7 @@ const TIPS = [
 
 export default function TipsScreen() {
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.headerRow}>
           <BookOpen size={32} color={Colors.text} />

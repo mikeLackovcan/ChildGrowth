@@ -1,0 +1,7 @@
+<svg width="720" height="180" viewBox="0 0 720 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">QuestBlox</title>
+  <desc id="desc">QuestBlox wordmark in cobalt blue and warm gold</desc>
+  <text x="18" y="124" font-family="Nunito, Arial, sans-serif" font-size="112" font-weight="900" letter-spacing="-4" fill="#1264E8">Quest</text>
+  <text x="346" y="124" font-family="Nunito, Arial, sans-serif" font-size="112" font-weight="900" letter-spacing="-4" fill="#F5A900">Blox</text>
+  <path d="M22 145h676" stroke="#F5A900" stroke-width="10" stroke-linecap="round"/>
+</svg>

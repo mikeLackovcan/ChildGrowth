@@ -332,7 +332,7 @@ export default function ParentDashboardScreen() {
                 />
                 <TextInput
                   style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                  placeholder={t('nickname_input_placeholder', "Child's Nickname / Tag (e.g. AlexRoblox)")}
+                  placeholder={t('nickname_input_placeholder', "Child's Nickname / Tag (e.g. AlexQuest)")}
                   placeholderTextColor={Colors.textMuted}
                   autoCapitalize="none"
                   value={childNicknameInput}
@@ -540,7 +540,7 @@ export default function ParentDashboardScreen() {
             <Text style={[styles.secTitle, { marginBottom: 0 }]}>{t('kid_unlocked_figures_title', 'UNLOCKED FIGURES & PRICES')}</Text>
           </View>
           <View style={styles.card}>
-            <Text style={styles.settingsSub}>{t('kid_unlocked_figures_sub', 'Roblox figures purchased by your child using earned coins:')}</Text>
+            <Text style={styles.settingsSub}>{t('kid_unlocked_figures_sub', 'Quest heroes unlocked by your child using earned coins:')}</Text>
             
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface2, padding: 12, borderRadius: 12, marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -567,7 +567,7 @@ export default function ParentDashboardScreen() {
                       <View>
                         <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 15 }}>{av.name}</Text>
                         <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textSecondary, fontSize: 12 }}>
-                          {av.battleClass} · HP {av.hp} · ATK {av.attack}
+                          {av.skillName} · {av.skillDesc}
                         </Text>
                       </View>
                     </View>

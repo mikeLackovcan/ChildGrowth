@@ -4,6 +4,7 @@
 node_modules/
 .env
 .env.*
+!.env.example
 
 # Expo
 .expo/
@@ -52,7 +53,7 @@ scripts/temp_tripo_extracted/
 scripts/bridge/
 scripts/bridge.zip
 
-# Battlefield WIP (coming soon - excluded from repository for now)
+# Legacy prototype files (excluded from the production app)
 src/components/ThreeStreetFighter.tsx
 src/components/PhaserStreetFighter.tsx
 src/assets/models/

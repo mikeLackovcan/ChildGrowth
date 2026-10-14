@@ -1,16 +1,16 @@
 {
-  "buildCommand": null,
-  "installCommand": null,
-  "outputDirectory": "www",
+  "installCommand": "cd ChildGrowthNative && npm install",
+  "buildCommand": "cd ChildGrowthNative && npx expo export -p web",
+  "outputDirectory": "ChildGrowthNative/dist",
   "cleanUrls": true,
   "rewrites": [
     {
       "source": "/download",
-      "destination": "/download.html"
+      "destination": "/index.html"
     },
     {
       "source": "/apk",
-      "destination": "/download.html"
+      "destination": "/index.html"
     }
   ]
 }

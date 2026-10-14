@@ -1,0 +1,17 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // QuestBlox uses Firebase Authentication for every app session.
+    // This removes anonymous database access while preserving the current
+    // parent/child document-sync model. Relationship-level authorization
+    // should be tightened further when linking moves to a server function.
+    match /profiles/{profileId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /user_data/{userDataId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

@@ -1,6 +1,6 @@
-# Welcome to your Expo app 👋
+# QuestBlox — React Native app
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+QuestBlox is the canonical React Native/Expo app in this repository. It uses Firebase Authentication and Firestore for the cloud backend.
 
 ## Get started
 
@@ -10,11 +10,27 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Configure Google sign-in
+
+   Copy `.env.example` to `.env` and add the Firebase Google OAuth client IDs.
+
+3. Start the app
 
    ```bash
    npx expo start
    ```
+
+## Google Play internal testing
+
+Set the three `EXPO_PUBLIC_GOOGLE_*_CLIENT_ID` values in the EAS project environment, then build an Android App Bundle:
+
+```bash
+eas login
+eas build:configure
+eas build --platform android --profile production
+```
+
+Upload the resulting `.aab` to Play Console → Testing → Internal testing. The release checklist and store copy are in `assets/branding/GOOGLE_PLAY.md`.
 
 In the output, you'll find options to open the app in a
 

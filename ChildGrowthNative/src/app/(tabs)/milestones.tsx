@@ -1,378 +1,114 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
-import { Colors, Typography, Layout } from '../../constants/theme';
+import { Settings } from 'lucide-react-native';
+import { Colors } from '../../constants/theme';
 import { useAppStore } from '../../store/useAppStore';
-import { Trophy, Star, Gift, Calendar, CheckCircle2, Circle, Settings } from 'lucide-react-native';
-import LanguageSwitcher from '../../components/LanguageSwitcher';
 import SettingsModal from '../../components/SettingsModal';
 
 export default function MilestonesScreen() {
-  const { t } = useTranslation();
   const xp = useAppStore((state) => state.xp);
   const level = useAppStore((state) => state.level);
   const wonPrizes = useAppStore((state) => state.wonPrizes);
   const togglePrizeRedeemed = useAppStore((state) => state.togglePrizeRedeemed);
-
   const [settingsVisible, setSettingsVisible] = useState(false);
-
-  const xpNeeded = 100;
-  const progressPercent = Math.min((xp / xpNeeded) * 100, 100);
+  const progress = Math.min(xp % 100, 100);
+  const remaining = 100 - progress;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <Text style={styles.headerTitle}>{t('winnings_prizes_title', 'Winnings & Prizes 🎁')}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <LanguageSwitcher />
-            <TouchableOpacity 
-              style={{ backgroundColor: Colors.surface2, padding: 8, borderRadius: 10, borderWidth: 1, borderColor: Colors.border }}
-              onPress={() => setSettingsVisible(true)}
-            >
-              <Settings size={20} color={Colors.amber} />
-            </TouchableOpacity>
-          </View>
+        <View style={styles.header}>
+          <Text style={styles.title}>Your prizes</Text>
+          <TouchableOpacity style={styles.settings} onPress={() => setSettingsVisible(true)} accessibilityLabel="Settings">
+            <Settings size={21} color={Colors.textSecondary} />
+          </TouchableOpacity>
         </View>
-        
-        {/* Level Tracker */}
+
         <View style={styles.levelCard}>
-          <View style={styles.levelHeader}>
-            <View style={styles.levelBadge}>
-              <Star size={24} color="#FFF" fill="#FFF" />
-              <Text style={styles.levelText}>{level}</Text>
-            </View>
-            <View style={styles.levelInfo}>
-              <Text style={styles.levelTitle}>Level {level}</Text>
-              <Text style={styles.xpText}>{xp} / {xpNeeded} XP</Text>
-            </View>
+          <View style={{ flex: 1, zIndex: 2 }}>
+            <Text style={styles.levelTitle}>Level {level}</Text>
+            <Text style={styles.xpText}>{progress} / 100 XP</Text>
+            <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progress}%` }]} /></View>
+            <Text style={styles.nextLevel}>{remaining} XP to your next level</Text>
           </View>
-          
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
-          </View>
-          <Text style={styles.progressSubText}>
-            Earn {xpNeeded - xp} more XP to reach Level {level + 1}!
-          </Text>
+          <Image source={require('../../../assets/images/quest-hero-v2.png')} style={styles.hero} resizeMode="cover" />
         </View>
 
-        {/* Reward Days Summary Header */}
-        <View style={styles.rewardDaysCard}>
-          <Calendar size={20} color={Colors.amber} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rewardDaysTitle}>{t('total_reward_days', 'Reward Days Logged')}</Text>
-            <Text style={styles.rewardDaysCount}>
-              {wonPrizes.length} {t('rewards_and_prizes', 'Rewards')} · {wonPrizes.filter(p => p.redeemed).length} {t('redeemed_status', 'Redeemed ✅')}
-            </Text>
-          </View>
-        </View>
-
-        {/* Trophy Cabinet & Winnings Checklist */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Trophy size={24} color={Colors.cardYellow} />
-            <Text style={styles.sectionTitle}>{t('won_prizes_history', 'Awarded Winnings')}</Text>
-          </View>
-          
+        <Text style={styles.sectionTitle}>Your rewards</Text>
+        <View style={styles.rewardList}>
           {wonPrizes.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Gift size={48} color={Colors.textSecondary} opacity={0.5} />
-              <Text style={styles.emptyText}>{t('no_prizes_won_yet', 'Complete quests to win prizes on the spin wheel!')}</Text>
+              <Text style={styles.emptyEmoji}>🎁</Text>
+              <Text style={styles.emptyTitle}>Your reward shelf is ready</Text>
+              <Text style={styles.emptyText}>Complete your daily quests to add family-chosen rewards here.</Text>
             </View>
-          ) : (
-            <View style={styles.grid}>
-              {wonPrizes.map((item, index) => {
-                const rewardDate = item.date ? new Date(item.date) : new Date();
-                const now = new Date();
-                const diffTime = Math.abs(now.getTime() - rewardDate.getTime());
-                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                
-                let dayMarker = t('reward_day_today', 'Today (Day 1) 📅');
-                if (diffDays === 1) {
-                  dayMarker = t('reward_day_yesterday', '1 day ago 📅');
-                } else if (diffDays > 1) {
-                  dayMarker = t('reward_days_ago', { count: diffDays, defaultValue: `${diffDays} days ago 📅` });
-                }
+          ) : wonPrizes.map((item, index) => {
+            const emoji = item.prize.match(/[\uD800-\uDBFF][\uDC00-\uDFFF]/)?.[0] || '🎁';
+            const name = item.prize.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/, '').trim();
+            return (
+              <View key={item.id || index} style={styles.rewardCard}>
+                <View style={[styles.rewardIcon, item.redeemed && styles.rewardIconDone]}><Text style={styles.rewardEmoji}>{emoji}</Text></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rewardName}>{name}</Text>
+                  <Text style={styles.rewardMeta}>{item.redeemed ? 'Enjoyed with your family' : 'Ready to enjoy'}</Text>
+                </View>
+                <TouchableOpacity
+                  disabled={item.redeemed}
+                  style={[styles.claimButton, item.redeemed && styles.claimedButton]}
+                  onPress={() => togglePrizeRedeemed(item.id || index)}
+                >
+                  <Text style={[styles.claimText, item.redeemed && styles.claimedText]}>{item.redeemed ? '✓ Claimed' : 'Mark claimed'}</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </View>
 
-                const itemKey = item.id || `prize_${index}`;
-
-                return (
-                  <TouchableOpacity 
-                    key={itemKey} 
-                    style={[styles.prizeCard, item.redeemed && styles.prizeCardRedeemed]}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      if (item.redeemed) {
-                        alert(t('cannot_unpick_prize_alert', '🔒 Prize already claimed! Kids cannot un-claim prizes once picked.'));
-                        return;
-                      }
-                      togglePrizeRedeemed(item.id || index);
-                    }}
-                  >
-                    <Text style={[styles.prizeIcon, item.redeemed && { opacity: 0.6 }]}>
-                      {item.prize.match(/[\uD800-\uDBFF][\uDC00-\uDFFF]/)?.[0] || '🎁'}
-                    </Text>
-                    <Text style={[styles.prizeName, item.redeemed && styles.prizeNameRedeemed]} numberOfLines={2}>
-                      {item.prize.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/, '').trim()}
-                    </Text>
-                    
-                    {/* Day Badge */}
-                    <View style={styles.dayBadgeContainer}>
-                      <Text style={styles.dayBadgeLabel}>{dayMarker}</Text>
-                    </View>
-
-                    {/* Checkbox / Redemption Status Toggle Pill */}
-                    <View style={[styles.redeemBtn, item.redeemed ? styles.redeemBtnDone : styles.redeemBtnReady]}>
-                      {item.redeemed ? (
-                        <>
-                          <CheckCircle2 size={14} color={Colors.green} />
-                          <Text style={styles.redeemBtnDoneText}>{t('locked_claimed', 'Claimed (Locked) 🔒')}</Text>
-                        </>
-                      ) : (
-                        <>
-                          <Gift size={14} color={Colors.amber} />
-                          <Text style={styles.redeemBtnReadyText}>{t('ready_to_redeem', 'Ready to Claim 🎁')}</Text>
-                        </>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
+        <View style={styles.encouragementCard}>
+          <Image source={require('../../../assets/images/quest-hero-v2.png')} style={styles.avatar} resizeMode="cover" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.encouragementTitle}>Every little effort counts.</Text>
+            <Text style={styles.encouragementText}>You’re building great habits for a brighter tomorrow!</Text>
+          </View>
         </View>
       </ScrollView>
-
-      <SettingsModal 
-        visible={settingsVisible} 
-        onClose={() => setSettingsVisible(false)} 
-      />
+      <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  container: {
-    padding: Layout.padding,
-    paddingBottom: 60,
-    maxWidth: 500,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  headerTitle: {
-    ...Typography.header,
-    marginBottom: 24,
-    marginTop: 10,
-  },
-  levelCard: {
-    backgroundColor: Colors.cardBlue,
-    padding: 24,
-    borderRadius: Layout.borderRadius,
-    marginBottom: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  levelHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 20,
-  },
-  levelBadge: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  levelText: {
-    position: 'absolute',
-    color: Colors.primary,
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 16,
-    marginTop: 2,
-  },
-  levelInfo: {
-    flex: 1,
-  },
-  levelTitle: {
-    ...Typography.title,
-    fontSize: 24,
-    color: '#1E3A8A', // Dark blue
-  },
-  xpText: {
-    ...Typography.body,
-    color: '#1E3A8A',
-    opacity: 0.8,
-    fontWeight: '700',
-  },
-  progressBarBg: {
-    height: 16,
-    backgroundColor: 'rgba(255,255,255,0.5)',
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: Colors.primary,
-    borderRadius: 8,
-  },
-  progressSubText: {
-    ...Typography.small,
-    color: '#1E3A8A',
-    fontWeight: '600',
-  },
-  section: {
-    flex: 1,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    ...Typography.title,
-  },
-  emptyCard: {
-    backgroundColor: Colors.surface,
-    padding: 40,
-    borderRadius: Layout.borderRadius,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    borderStyle: 'dashed',
-  },
-  emptyText: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  prizeCard: {
-    width: '47%',
-    backgroundColor: Colors.surface,
-    padding: 16,
-    borderRadius: Layout.borderRadius,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  prizeCardRedeemed: {
-    backgroundColor: Colors.surface2,
-    borderColor: Colors.green,
-    opacity: 0.85,
-  },
-  prizeIcon: {
-    fontSize: 40,
-    marginBottom: 8,
-  },
-  prizeName: {
-    ...Typography.body,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  prizeNameRedeemed: {
-    color: Colors.textMuted,
-    textDecorationLine: 'line-through',
-  },
-  prizeDate: {
-    ...Typography.small,
-    color: Colors.textSecondary,
-  },
-  rewardDaysCard: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1.5,
-    borderColor: Colors.amber,
-    borderRadius: Layout.borderRadius,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    marginBottom: 24,
-    shadowColor: Colors.amber,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  rewardDaysTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 11,
-    color: Colors.textMuted,
-    letterSpacing: 1,
-    marginBottom: 2,
-    textTransform: 'uppercase',
-  },
-  rewardDaysCount: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 16,
-    color: Colors.amber,
-  },
-  dayBadgeContainer: {
-    backgroundColor: Colors.surface2,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: Colors.border2,
-    marginVertical: 6,
-  },
-  dayBadgeLabel: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 10,
-    color: Colors.blue,
-  },
-  redeemBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    marginTop: 4,
-  },
-  redeemBtnReady: {
-    backgroundColor: Colors.amberDim,
-    borderWidth: 1,
-    borderColor: Colors.amber,
-  },
-  redeemBtnDone: {
-    backgroundColor: Colors.greenDim,
-    borderWidth: 1,
-    borderColor: Colors.green,
-  },
-  redeemBtnReadyText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 11,
-    color: Colors.amber,
-  },
-  redeemBtnDoneText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 11,
-    color: Colors.green,
-  },
+  safeArea: { flex: 1, backgroundColor: Colors.background },
+  container: { width: '100%', maxWidth: 620, alignSelf: 'center', padding: 20, paddingBottom: 38 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
+  title: { fontFamily: 'Nunito_800ExtraBold', fontSize: 29, color: Colors.text },
+  settings: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
+  levelCard: { minHeight: 168, padding: 22, borderRadius: 24, backgroundColor: Colors.primary, overflow: 'hidden', marginBottom: 27 },
+  levelTitle: { color: '#FFFFFF', fontFamily: 'Nunito_800ExtraBold', fontSize: 28 },
+  xpText: { color: '#FFFFFF', fontFamily: 'Nunito_700Bold', fontSize: 16, marginTop: 3 },
+  progressTrack: { width: '64%', height: 11, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 8, overflow: 'hidden', marginTop: 13 },
+  progressFill: { height: '100%', borderRadius: 8, backgroundColor: '#CBF250' },
+  nextLevel: { color: '#E2ECFF', fontFamily: 'Nunito_700Bold', fontSize: 12, marginTop: 9 },
+  hero: { position: 'absolute', right: -4, bottom: -46, width: 170, height: 170, borderRadius: 85 },
+  sectionTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 22, color: Colors.text, marginBottom: 12 },
+  rewardList: { gap: 11 },
+  rewardCard: { minHeight: 86, flexDirection: 'row', alignItems: 'center', padding: 13, borderRadius: 20, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
+  rewardIcon: { width: 55, height: 55, borderRadius: 16, backgroundColor: '#FFF0ED', alignItems: 'center', justifyContent: 'center' },
+  rewardIconDone: { backgroundColor: Colors.greenDim },
+  rewardEmoji: { fontSize: 29 },
+  rewardName: { marginLeft: 12, fontFamily: 'Nunito_800ExtraBold', fontSize: 15, color: Colors.text },
+  rewardMeta: { marginLeft: 12, marginTop: 2, fontFamily: 'Nunito_600SemiBold', fontSize: 11, color: Colors.textSecondary },
+  claimButton: { minHeight: 40, minWidth: 104, paddingHorizontal: 12, borderRadius: 13, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+  claimedButton: { backgroundColor: '#CBF250' },
+  claimText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 11, color: '#FFFFFF' },
+  claimedText: { color: Colors.text },
+  emptyCard: { padding: 28, backgroundColor: Colors.surface, borderRadius: 22, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+  emptyEmoji: { fontSize: 38 },
+  emptyTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 17, color: Colors.text, marginTop: 8 },
+  emptyText: { fontFamily: 'Nunito_600SemiBold', fontSize: 13, color: Colors.textSecondary, textAlign: 'center', marginTop: 4 },
+  encouragementCard: { marginTop: 22, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 15, borderRadius: 20, backgroundColor: Colors.blueDim, borderWidth: 1, borderColor: '#C9D9FA' },
+  avatar: { width: 58, height: 58, borderRadius: 29 },
+  encouragementTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 15, color: Colors.text },
+  encouragementText: { fontFamily: 'Nunito_600SemiBold', fontSize: 12, lineHeight: 17, color: Colors.textSecondary, marginTop: 2 },
 });

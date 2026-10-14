@@ -27,7 +27,7 @@ const RADIUS = CENTER - 12; // 128
 
 // Exact slice colors matching the initial app screenshot
 const SLICE_COLORS = [
-  '#E52521', // Red (Robux 💰)
+  '#E52521', // Red (family surprise)
   '#21B8F6', // Cyan Blue (Ice Cream 🍦)
   '#00E676', // Bright Green (Movie Night 🍿)
   '#FF9800', // Orange Yellow (Try Again 🍀)
@@ -36,7 +36,7 @@ const SLICE_COLORS = [
 ];
 
 const DEFAULT_PRIZES = [
-  'Robux 💰',
+  'Family surprise 🎁',
   'Ice Cream 🍦',
   'Movie Night 🍿',
   'Try Again 🍀',

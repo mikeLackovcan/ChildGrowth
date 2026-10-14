@@ -64,7 +64,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
               <Text style={styles.userName}>{fullName || nickname || 'Kid Hero'}</Text>
               <Text style={styles.userEmail}>{userEmail || `@${nickname || 'hero'}`}</Text>
               {nickname && (
-                <Text style={styles.userTag}>Roblox Tag: @{nickname}</Text>
+                <Text style={styles.userTag}>QuestBlox Tag: @{nickname}</Text>
               )}
             </View>
           </View>
@@ -73,7 +73,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
           <View style={styles.infoRow}>
             <View style={styles.infoPill}>
               <Text style={styles.infoPillLabel}>Role:</Text>
-              <Text style={styles.infoPillVal}>{role === 'parent' ? '👨‍👩‍👧 Parent' : '🎮 Roblox Kid'}</Text>
+              <Text style={styles.infoPillVal}>{role === 'parent' ? '👨‍👩‍👧 Parent' : '🎮 QuestBlox Kid'}</Text>
             </View>
 
             <View style={styles.infoPill}>
