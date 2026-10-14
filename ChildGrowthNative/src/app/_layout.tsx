@@ -13,7 +13,7 @@ import '../i18n';
 import { useAppStore } from '../store/useAppStore';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -26,7 +26,7 @@ export default function RootLayout() {
   useEffect(() => {
     useAppStore.getState().loadMockState();
     if (loaded || error) {
-      SplashScreen.hideAsync();
+      SplashScreen.hideAsync().catch(() => undefined);
     }
   }, [loaded, error]);
 

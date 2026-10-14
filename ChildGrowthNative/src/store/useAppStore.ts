@@ -1,7 +1,7 @@
 // App global state store
 import { create } from 'zustand';
 import { auth, db } from '../lib/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendSignInLinkToEmail, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithCredential, GoogleAuthProvider, signOut, sendSignInLinkToEmail, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
 import { doc, setDoc, getDoc, query, collection, where, getDocs } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import i18n from '../i18n';
@@ -80,6 +80,7 @@ interface AppState {
   
   logout: () => Promise<void>;
   setUser: (email: string | null, role: UserRole, fullName?: string, nickname?: string, id?: string) => void;
+  continueAsGuest: () => Promise<void>;
   setSick: (sick: boolean) => void;
   addXP: (amount: number) => void;
   addTask: (task: Omit<Task, 'id' | 'done' | 'date'>) => void;
@@ -121,6 +122,7 @@ interface AppState {
   // Auth & Server Persistence
   registerWithEmail: (email: string, pass: string, fullName: string, nickname: string, role: UserRole) => Promise<{ success: boolean; message?: string }>;
   loginWithEmail: (email: string, pass: string) => Promise<{ success: boolean; message?: string }>;
+  signInWithGoogle: (idToken: string, accessToken: string | undefined, role: UserRole) => Promise<{ success: boolean; message?: string }>;
   sendMagicLink: (email: string) => Promise<{ success: boolean; message?: string }>;
   sendPasswordReset: (email: string) => Promise<{ success: boolean; message?: string }>;
   syncToServer: () => Promise<void>;
@@ -220,6 +222,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     get().loadMockState();
     get().saveMockState();
+  },
+  continueAsGuest: async () => {
+    set({
+      userEmail: 'guest@questblox.local',
+      userId: 'guest-local',
+      fullName: 'Guest Hero',
+      nickname: 'guest',
+      role: 'child',
+    });
+    await AsyncStorage.setItem('active_user_tag', 'guest');
+    await get().loadMockState();
+    await get().saveMockState();
   },
   setSick: (sick) => {
     set({ isSick: sick });
@@ -1139,7 +1153,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     } catch (e) {}
 
-    let firebaseUid = null;
+    let firebaseUid: string | null = null;
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
       await updateProfile(userCredential.user, {
@@ -1147,11 +1161,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
       firebaseUid = userCredential.user.uid;
     } catch (firebaseAuthErr: any) {
-      console.warn('Firebase Auth note (using resilient Firestore + local credential fallback):', firebaseAuthErr?.message || firebaseAuthErr);
+      console.warn('Firebase Auth registration failed:', firebaseAuthErr?.message || firebaseAuthErr);
+      return { success: false, message: firebaseAuthErr?.message || 'Registration failed. Please try again.' };
     }
 
     const chosenRole = role || 'child';
-    const finalUserId = firebaseUid || `usr_${cleanNick}`;
+    const finalUserId = firebaseUid as string;
     const docId = finalUserId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
     set({
@@ -1164,8 +1179,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     await AsyncStorage.setItem(`nickname_owner_${cleanNick}`, cleanEmail);
     await AsyncStorage.setItem(`user_email_${cleanNick}`, cleanEmail);
-    await AsyncStorage.setItem(`user_pass_${cleanEmail}`, password);
-    await AsyncStorage.setItem(`user_pass_${cleanNick}`, password);
     await AsyncStorage.setItem(`user_name_${cleanNick}`, fullName);
     await AsyncStorage.setItem(`user_role_${cleanNick}`, chosenRole);
 
@@ -1236,65 +1249,56 @@ export const useAppStore = create<AppState>((set, get) => ({
       await get().loadMockState();
       return { success: true, message: 'Welcome back! Synced with server.' };
     } catch (err: any) {
-      console.warn('Firebase Auth note (checking Firestore profile fallback):', err?.message || err);
+      console.warn('Firebase Auth login failed:', err?.message || err);
+      return { success: false, message: err?.message || 'Login failed. Please check your credentials.' };
+    }
+  },
 
+  signInWithGoogle: async (idToken, accessToken, role) => {
+    if (!idToken) {
+      return { success: false, message: 'Google did not return an ID token.' };
+    }
+
+    try {
+      const credential = GoogleAuthProvider.credential(idToken, accessToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      const user = userCredential.user;
+      const email = user.email || '';
+      const fallbackNickname = (email.split('@')[0] || 'hero').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+      const docId = user.uid.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      let chosenRole: UserRole = role || 'child';
       try {
-        const docId = `usr_${userTag}`;
-        let profileData: any = null;
-
-        const pSnap = await getDoc(doc(db, 'profiles', docId));
-        if (pSnap.exists()) {
-          profileData = pSnap.data();
-        } else {
-          const q = query(collection(db, 'profiles'), where('nickname', '==', userTag));
-          const qSnap = await getDocs(q);
-          if (!qSnap.empty) {
-            profileData = qSnap.docs[0].data();
-          }
-        }
-
-        if (profileData) {
-          const chosenRole: UserRole = profileData.role === 'parent' ? 'parent' : 'child';
-          set({
-            userEmail: profileData.email || cleanEmail,
-            userId: docId,
-            fullName: profileData.full_name || userTag,
-            nickname: userTag,
-            role: chosenRole,
-            coins: typeof profileData.coins === 'number' ? profileData.coins : 0,
-            xp: typeof profileData.xp === 'number' ? profileData.xp : 0,
-            level: typeof profileData.level === 'number' ? profileData.level : 1,
-            currentAvatar: profileData.current_avatar || 'default'
-          });
-
-          await AsyncStorage.setItem('active_user_tag', userTag);
-          await AsyncStorage.setItem(`user_role_${userTag}`, chosenRole);
-          await get().loadMockState();
-          return { success: true, message: 'Welcome back! Synced with server.' };
-        }
-      } catch (firestoreErr) {
-        console.warn('Firestore fallback note:', firestoreErr);
+        const existingProfile = await getDoc(doc(db, 'profiles', docId));
+        const existingRole = existingProfile.data()?.role;
+        if (existingRole === 'parent' || existingRole === 'child') chosenRole = existingRole;
+      } catch (profileError) {
+        console.warn('Google profile lookup note:', profileError);
       }
 
-      try {
-        const localPass = await AsyncStorage.getItem(`user_pass_${cleanInput}`) || await AsyncStorage.getItem(`user_pass_${cleanEmail}`);
-        if (localPass && localPass === password) {
-          const localRole = await AsyncStorage.getItem(`user_role_${userTag}`) as UserRole || 'child';
-          const localName = await AsyncStorage.getItem(`user_name_${userTag}`) || userTag;
-          set({
-            userEmail: cleanEmail,
-            userId: `usr_${userTag}`,
-            fullName: localName,
-            nickname: userTag,
-            role: localRole
-          });
-          await AsyncStorage.setItem('active_user_tag', userTag);
-          await get().loadMockState();
-          return { success: true, message: 'Welcome back!' };
-        }
-      } catch (localErr) {}
+      set({
+        userEmail: email,
+        userId: user.uid,
+        fullName: user.displayName || fallbackNickname,
+        nickname: fallbackNickname,
+        role: chosenRole,
+      });
 
-      return { success: false, message: err?.message || 'Login failed. Please check your credentials.' };
+      await setDoc(doc(db, 'profiles', docId), {
+        email,
+        full_name: user.displayName || fallbackNickname,
+        nickname: fallbackNickname,
+        role: chosenRole,
+        updated_at: new Date().toISOString(),
+      }, { merge: true });
+
+      await AsyncStorage.setItem(`user_role_${fallbackNickname}`, chosenRole || 'child');
+      await AsyncStorage.setItem('active_user_tag', fallbackNickname);
+      await get().saveMockState();
+      return { success: true, message: 'Welcome to QuestBlox!' };
+    } catch (err: any) {
+      console.warn('Firebase Google sign-in failed:', err?.message || err);
+      return { success: false, message: err?.message || 'Google sign-in failed.' };
     }
   },
 
@@ -1307,7 +1311,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
       return { success: true, message: `Magic link sent to ${email}! Check your inbox.` };
     } catch (err: any) {
-      return { success: true, message: `Magic link dispatched to ${email}! Check your email inbox.` };
+      return { success: false, message: err?.message || 'Could not send the magic link.' };
     }
   },
 
@@ -1319,7 +1323,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
       return { success: true, message: `Password reset instructions sent to ${email}!` };
     } catch (err: any) {
-      return { success: true, message: `Password reset request sent to ${email}!` };
+      return { success: false, message: err?.message || 'Could not send the password reset email.' };
     }
   },
 
@@ -1327,7 +1331,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const isOnline = typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' ? navigator.onLine : true;
       const { userEmail, fullName, nickname, role, coins, xp, level, currentAvatar, tasks, prizes, wonPrizes, unlockedAvatars, userId, children, linkedParents, epicBossTask, epicBossXP } = get();
-      if (!userEmail) return;
+      if (!userEmail || userId === 'guest-local') return;
 
       const profileData = { userEmail, fullName, nickname, role, coins, xp, level, currentAvatar, tasks, prizes, wonPrizes, unlockedAvatars, userId, children, linkedParents, epicBossTask, epicBossXP };
       await AsyncStorage.setItem(`user_profile_${userEmail}`, JSON.stringify(profileData));

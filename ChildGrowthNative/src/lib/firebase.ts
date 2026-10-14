@@ -5,7 +5,7 @@ import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBO1MM4BuAqeORW3o9tG4EMS7lEyrQHviQ",
+  apiKey: "AIzaSyCffkIqBs-D67W-mL_7cTKR0W2L1tAUPhg",
   authDomain: "questblox-10c14.firebaseapp.com",
   projectId: "questblox-10c14",
   storageBucket: "questblox-10c14.firebasestorage.app",
@@ -14,24 +14,14 @@ const firebaseConfig = {
   measurementId: "G-XLE1BS1JLN"
 };
 
-let app: FirebaseApp;
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApp();
-}
+const app: FirebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 let auth: Auth;
-// React Native requires using initializeAuth with getReactNativePersistence
-if (!getApps().length || !getAuth(app)) {
-  try {
-    auth = initializeAuth(app, {
-      persistence: getReactNativePersistence(AsyncStorage)
-    });
-  } catch (e) {
-    auth = getAuth(app);
-  }
-} else {
+try {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+} catch {
   auth = getAuth(app);
 }
 

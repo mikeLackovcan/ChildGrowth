@@ -1,5 +1,7 @@
 import { Platform } from 'react-native';
 
+const CHANNEL_ID = 'quest-reminders';
+
 export async function requestNotificationPermissions(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
   try {
@@ -20,11 +22,23 @@ export async function scheduleDailyQuestReminder(hour = 19, minute = 0): Promise
     
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
-        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
       }),
     });
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+        name: 'Quest reminders',
+        description: 'Reminders for unfinished QuestBlox habits and tasks.',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 120, 250],
+        sound: 'default',
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      });
+    }
 
     await Notifications.cancelAllScheduledNotificationsAsync();
 
@@ -32,7 +46,8 @@ export async function scheduleDailyQuestReminder(hour = 19, minute = 0): Promise
       content: {
         title: '⚔️ QuestBlox Daily Quests Reminder!',
         body: 'Your daily hero quests are waiting! Complete them before bedtime to maintain your streak 🚀',
-        sound: true,
+        sound: 'default',
+        ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,

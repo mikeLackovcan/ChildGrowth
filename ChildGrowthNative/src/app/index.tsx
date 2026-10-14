@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Platform, TextInput, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput, ScrollView, Image } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Typography } from '../constants/theme';
 import { useAppStore } from '../store/useAppStore';
 import { Lock, Mail, User, Tag, KeyRound, Sparkles, Wand2, Eye, EyeOff } from 'lucide-react-native';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const { t } = useTranslation();
@@ -13,12 +17,14 @@ export default function LoginScreen() {
   const userEmail = useAppStore((state) => state.userEmail);
   const role = useAppStore((state) => state.role);
   const setUser = useAppStore((state) => state.setUser);
+  const continueAsGuest = useAppStore((state) => state.continueAsGuest);
   const coins = useAppStore((state) => state.coins);
   
   const registerWithEmail = useAppStore((state) => state.registerWithEmail);
   const loginWithEmail = useAppStore((state) => state.loginWithEmail);
   const sendMagicLink = useAppStore((state) => state.sendMagicLink);
   const sendPasswordReset = useAppStore((state) => state.sendPasswordReset);
+  const signInWithGoogle = useAppStore((state) => state.signInWithGoogle);
 
   const [authMode, setAuthMode] = useState<'signin' | 'register'>('signin');
   const [selectedRole, setSelectedRole] = useState<'child' | 'parent'>('child');
@@ -29,6 +35,18 @@ export default function LoginScreen() {
   const [nickname, setNickname] = useState('');
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const googleClientIds = {
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || 'not-configured.apps.googleusercontent.com',
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'not-configured.apps.googleusercontent.com',
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'not-configured.apps.googleusercontent.com',
+  };
+  const googleConfigured = Boolean(
+    process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID &&
+    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+  );
+
+  const [googleRequest, googleResponse, promptGoogleSignIn] = Google.useAuthRequest(googleClientIds);
 
   useEffect(() => {
     loadMockState();
@@ -46,17 +64,37 @@ export default function LoginScreen() {
     }
   }, [userEmail, role]);
 
+  useEffect(() => {
+    if (googleResponse?.type !== 'success') return;
+
+    const finishGoogleSignIn = async () => {
+      setLoading(true);
+      setAuthMessage(null);
+      const result = await signInWithGoogle(
+        googleResponse.authentication?.idToken || '',
+        googleResponse.authentication?.accessToken,
+        selectedRole,
+      );
+      setAuthMessage(result.success ? null : (result.message || 'Google sign-in failed.'));
+      setLoading(false);
+    };
+
+    finishGoogleSignIn();
+  }, [googleResponse, selectedRole, signInWithGoogle]);
+
   const handleGoogleSignIn = async () => {
-    try {
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        console.warn('Google Sign-In is not fully configured for Firebase yet.');
-      } else {
-        console.warn('Google Sign-In is not fully configured for Firebase yet.');
-      }
-    } catch (err: any) {
-      console.warn('Google Sign-In notice:', err?.message || err);
-      setUser('google.user@growth.app', null);
+    if (!googleConfigured || !googleRequest) {
+      setAuthMessage('Google sign-in is not configured yet. Add the Google OAuth client IDs to the Expo environment.');
+      return;
     }
+    await promptGoogleSignIn();
+  };
+
+  const handleGuestMode = async () => {
+    setLoading(true);
+    setAuthMessage(null);
+    await continueAsGuest();
+    setLoading(false);
   };
 
   const handleTestLogin = (testRole: 'parent' | 'child') => {
@@ -300,8 +338,18 @@ export default function LoginScreen() {
             style={styles.googleBtn}
             activeOpacity={0.8}
             onPress={handleGoogleSignIn}
+            disabled={loading}
           >
             <Text style={styles.googleBtnText}>Sign in with Google</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.guestBtn}
+            activeOpacity={0.8}
+            onPress={handleGuestMode}
+            disabled={loading}
+          >
+            <Text style={styles.guestBtnText}>Continue as guest</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -405,6 +453,18 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 16,
     color: '#FFFFFF',
+  },
+  guestBtn: {
+    width: '100%',
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guestBtnText: {
+    fontFamily: 'Nunito_700Bold',
+    color: Colors.textSecondary,
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
   divider: {
     width: '100%',
