@@ -476,21 +476,23 @@ export default function TrackerScreen() {
             <Text style={styles.secCount}>{completedCount}/{totalCount} DONE</Text>
           </View>
 
-          {/* Chunky Tactile Quest Game Blocks */}
-          <View style={styles.verticalList}>
-            {tasks.map((task) => {
+          {/* Unified Clean Quest Board */}
+          <View style={styles.questBoard}>
+            {tasks.map((task, idx) => {
               const isSupercharged = superchargedTaskId === task.id;
               const baseRewardCoins = task.diff === 'hard' ? 35 : (task.diff === 'med' ? 20 : 10) + (task.mystery ? 10 : 0);
               const boostedCoins = isSupercharged ? baseRewardCoins * 2 : baseRewardCoins;
               const taskDisplayName = getDisplayTaskName(task.name);
+              const isLast = idx === tasks.length - 1;
 
               return (
                 <BouncingButton 
                   key={task.id} 
                   style={[
-                    styles.questBlock, 
-                    task.done && styles.questBlockDone,
-                    isSupercharged && styles.questBlockSupercharged
+                    styles.questRow, 
+                    !isLast && styles.questRowDivider,
+                    task.done && styles.questRowDone,
+                    isSupercharged && styles.questRowSupercharged
                   ]}
                   onPress={() => handleTaskCompletion(task.id)}
                 >
@@ -867,20 +869,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   heroArenaStage: {
-    backgroundColor: '#1E2235',
+    backgroundColor: '#1C2133',
     borderRadius: 22,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     marginBottom: 14,
-    borderBottomWidth: 4,
-    borderBottomColor: 'rgba(0,0,0,0.35)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 184, 0, 0.2)',
+    shadowColor: Colors.amber,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
     shadowRadius: 10,
-    elevation: 4,
+    elevation: 3,
   },
   charArea: {
     alignItems: 'center',
@@ -1084,25 +1086,34 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 10,
   },
-  verticalList: {
-    gap: 10,
-  },
-  questBlock: {
+  questBoard: {
     backgroundColor: '#1E2235',
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  questRow: {
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     position: 'relative',
     overflow: 'hidden',
-    borderBottomWidth: 4,
-    borderBottomColor: 'rgba(0,0,0,0.35)',
   },
-  questBlockDone: {
-    backgroundColor: '#151724',
-    borderBottomWidth: 2,
-    borderBottomColor: 'rgba(0,0,0,0.2)',
+  questRowDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  questRowDone: {
+    backgroundColor: 'rgba(0, 0, 0, 0.22)',
     opacity: 0.72,
   },
-  questBlockSupercharged: {
+  questRowSupercharged: {
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
     borderLeftWidth: 4,
     borderLeftColor: Colors.amber,
   },
@@ -1244,17 +1255,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   moodSection: {
-    backgroundColor: '#1E2235',
-    borderRadius: 18,
-    padding: 14,
-    borderBottomWidth: 4,
-    borderBottomColor: 'rgba(0,0,0,0.3)',
+    marginVertical: 14,
     marginBottom: 20,
+    alignItems: 'center',
   },
   moodSectionTitle: {
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: Colors.textMuted,
     letterSpacing: 0.5,
     marginBottom: 10,
     textAlign: 'center',
@@ -1262,24 +1270,27 @@ const styles = StyleSheet.create({
   moodButtonsRow: {
     flexDirection: 'row',
     gap: 10,
+    width: '100%',
   },
   moodPill: {
     flex: 1,
-    backgroundColor: '#272B40',
-    paddingVertical: 10,
-    borderRadius: 14,
+    backgroundColor: '#1C2133',
+    paddingVertical: 12,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    borderBottomWidth: 3,
-    borderBottomColor: 'rgba(0,0,0,0.25)',
+    gap: 4,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   moodPillActive: {
-    backgroundColor: '#373D54',
-    borderBottomColor: Colors.amber,
-    borderBottomWidth: 3,
+    backgroundColor: '#272B40',
     borderColor: Colors.amber,
-    borderWidth: 1,
+    borderWidth: 1.5,
+    shadowColor: Colors.amber,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   moodPillEmoji: {
     fontSize: 22,
