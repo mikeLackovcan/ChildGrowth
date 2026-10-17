@@ -71,6 +71,12 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="tips"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

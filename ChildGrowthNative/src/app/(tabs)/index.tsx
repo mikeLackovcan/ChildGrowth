@@ -629,13 +629,14 @@ export default function TrackerScreen() {
               const isSupercharged = superchargedTaskId === task.id;
               const baseRewardCoins = task.diff === 'hard' ? 35 : (task.diff === 'med' ? 20 : 10) + (task.mystery ? 10 : 0);
               const boostedCoins = isSupercharged ? baseRewardCoins * 2 : baseRewardCoins;
+              const taskDisplayName = t(task.name, task.name);
 
               // Tier 2: Medium / Hard Quests -> Option C (Slide Left-to-Right)
               if (isMediumOrHard) {
                 return (
                   <View key={task.id} style={[styles.slideCardWrap, isSupercharged && styles.superchargedCard]}>
                     <SlideToComplete
-                      title={task.mystery ? `${task.name} 🎁` : task.name}
+                      title={task.mystery ? `${taskDisplayName} 🎁` : taskDisplayName}
                       icon={task.icon || '⭐'}
                       isDone={task.done}
                       badgeLabel={isSupercharged ? '⚡ 2X' : (task.mystery ? '🎁 BONUS' : undefined)}
@@ -683,7 +684,7 @@ export default function TrackerScreen() {
                     {/* Quest Title & Reward */}
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.taskName, task.done && styles.taskNameDone]}>
-                        {task.name}
+                        {taskDisplayName}
                       </Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
                         <Text style={styles.questCoinReward}>

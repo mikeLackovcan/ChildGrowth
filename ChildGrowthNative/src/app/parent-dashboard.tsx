@@ -142,11 +142,11 @@ export default function ParentDashboardScreen() {
                         <UserPlus size={22} color={Colors.amber} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.childName}>{t('kid_label', 'Kid: {{name}} (@{{nickname}})', { name: child.name, nickname: child.nickname })}</Text>
+                        <Text style={styles.childName}>{t('kid_label', 'Kid: {{name}} (@{{nickname}})', { name: child.name || child.nickname || 'Kid', nickname: child.nickname || 'guest' })}</Text>
                         <Text style={{ fontFamily: 'Nunito_700Bold', color: Colors.amber, fontSize: 12, marginTop: 2 }}>
                           {child.initiatedBy === 'parent' 
-                            ? t('parent_sent_invite_notice', 'Invitation sent to @{{nickname}}! Waiting for kid to accept on their app ⏳', { nickname: child.nickname })
-                            : t('kid_requested_link_notice', 'Kid @{{nickname}} ({{name}}) requested parent link with you! Tap Approve to accept link ⏳', { nickname: child.nickname, name: child.name })}
+                            ? t('parent_sent_invite_notice', 'Invitation sent to @{{nickname}}! Waiting for kid approval on their app ⏳', { nickname: child.nickname || 'guest' })
+                            : t('kid_requested_link_notice', 'Kid @{{nickname}} ({{name}}) requested to link with you! Tap Approve to accept ⏳', { nickname: child.nickname || 'guest', name: child.name || child.nickname || 'Kid' })}
                         </Text>
                       </View>
                     </View>
@@ -157,7 +157,7 @@ export default function ParentDashboardScreen() {
                           style={{ flex: 1, backgroundColor: Colors.green, paddingVertical: 10, borderRadius: 10, alignItems: 'center' }}
                           onPress={() => {
                             approveChildByParent(child.id);
-                            alert(`🎉 Approved ${child.name} (@${child.nickname})! Account linked successfully.`);
+                            alert(`🎉 Approved ${child.name || child.nickname || 'Kid'} (@${child.nickname})! Account linked successfully.`);
                           }}
                         >
                           <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: '#FFF', fontSize: 13 }}>
@@ -271,7 +271,7 @@ export default function ParentDashboardScreen() {
                     >
                       <Text style={{ fontSize: 18 }}>🎮</Text>
                       <View>
-                        <Text style={[styles.childPillName, isSelected && styles.childPillNameActive]}>{child.name}</Text>
+                        <Text style={[styles.childPillName, isSelected && styles.childPillNameActive]}>{child.name || child.nickname || 'Kid'}</Text>
                         <Text style={[styles.childPillTag, isSelected && { color: Colors.amber }]}>@{child.nickname}</Text>
                       </View>
                     </TouchableOpacity>
@@ -288,7 +288,7 @@ export default function ParentDashboardScreen() {
                         <User size={22} color={Colors.green} />
                       </View>
                       <View>
-                        <Text style={styles.childName}>{t('kid_label', 'Kid: {{name}} (@{{nickname}})', { name: activeChild.name, nickname: activeChild.nickname })}</Text>
+                        <Text style={styles.childName}>{t('kid_label', 'Kid: {{name}} (@{{nickname}})', { name: activeChild.name || activeChild.nickname || 'Kid', nickname: activeChild.nickname || 'guest' })}</Text>
                         <Text style={styles.childSub}>Level {activeChild.level} • {activeChild.xp} XP • 💰 {activeChild.coins} Coins</Text>
                         {activeChild.linkedParents && activeChild.linkedParents.length > 0 && (
                           <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.blue, fontSize: 11, marginTop: 2 }}>
@@ -300,7 +300,7 @@ export default function ParentDashboardScreen() {
                     <TouchableOpacity 
                       style={{ backgroundColor: 'rgba(232,0,27,0.15)', borderWidth: 1, borderColor: Colors.red, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
                       onPress={() => {
-                        if (confirm(`Remove ${activeChild.name} (@${activeChild.nickname})?`)) {
+                        if (confirm(`Remove ${activeChild.name || activeChild.nickname || 'Kid'} (@${activeChild.nickname})?`)) {
                           removeChild(activeChild.id);
                         }
                       }}
@@ -431,7 +431,7 @@ export default function ParentDashboardScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                     <Text style={{ fontSize: 20 }}>{task.icon || '⭐'}</Text>
                     <Text style={[styles.questCheckName, task.done && styles.questCheckNameDone]}>
-                      {task.name}
+                      {t(task.name, task.name)}
                     </Text>
                   </View>
                   <View style={styles.checkStatusPill}>

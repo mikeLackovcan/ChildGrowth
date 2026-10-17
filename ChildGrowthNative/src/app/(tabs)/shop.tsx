@@ -514,7 +514,7 @@ export default function ShopScreen() {
                     </View>
                     <View style={styles.pacePill}>
                       <Text style={styles.pacePillText}>
-                        📅 {weeksNeeded <= 1 ? t('pace_half_week', '~1 Week Quests') : t('pace_weeks', { count: weeksNeeded, defaultValue: `~${weeksNeeded} Weeks Quests` })}
+                        📅 {weeksNeeded <= 1 ? t('pace_half_week', '~1 Week Quests') : t('pace_weeks', { count: weeksNeeded, weeks: weeksNeeded, defaultValue: `~${weeksNeeded} Weeks Quests` })}
                       </Text>
                     </View>
                   </View>

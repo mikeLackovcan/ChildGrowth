@@ -42,6 +42,12 @@ export default function ManageTasksScreen() {
   const removeTask = useAppStore((state) => state.removeTask);
   const updateTask = useAppStore((state) => state.updateTask);
   const toggleTaskDone = useAppStore((state) => state.toggleTaskDone);
+  const children = useAppStore((state) => state.children);
+  const selectedChildId = useAppStore((state) => state.selectedChildId);
+
+  const approvedChildren = children.filter((c) => c.isApproved === true);
+  const activeChild = approvedChildren.find((c) => c.id === selectedChildId) || approvedChildren[0] || children[0];
+  const childDisplayName = activeChild?.name || activeChild?.nickname;
 
   const [newTaskName, setNewTaskName] = useState('');
   const [selectedFreq, setSelectedFreq] = useState<Task['freq']>('daily');
@@ -88,7 +94,11 @@ export default function ManageTasksScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <ChevronLeft size={22} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.title, { flex: 1 }]}>{t('manage_quests_title')}</Text>
+          <Text style={[styles.title, { flex: 1 }]}>
+            {childDisplayName
+              ? t('manage_quests_for', `Manage Quests for ${childDisplayName}`, { name: childDisplayName })
+              : t('manage_quests_title', 'Manage Quests 📋')}
+          </Text>
           <LanguageSwitcher />
         </View>
 
@@ -109,13 +119,13 @@ export default function ManageTasksScreen() {
                   onPress={() => {
                     setSelectedIcon(item.icon);
                     if (!newTaskName.trim()) {
-                      setNewTaskName(t(item.key));
+                      setNewTaskName(t(item.key, item.label));
                     }
                   }}
                 >
                   <Text style={{ fontSize: 18 }}>{item.icon}</Text>
                   <Text style={[styles.freqPillText, selectedIcon === item.icon && styles.freqPillTextActive]}>
-                    {t(item.key)}
+                    {t(item.key, item.label)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -214,12 +224,12 @@ export default function ManageTasksScreen() {
                         <Text style={{ fontSize: 22 }}>{task.icon || '⭐'}</Text>
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.taskName, task.done && styles.taskNameDone]}>{task.name}</Text>
+                        <Text style={[styles.taskName, task.done && styles.taskNameDone]}>{t(task.name, task.name)}</Text>
                         <View style={styles.badgeRow}>
                           <Calendar size={12} color={Colors.red} />
                           <Text style={styles.freqBadgeText}>{getFreqLabel(task.freq || 'daily')}</Text>
                           <Text style={[styles.statusBadgeText, { color: task.done ? Colors.green : Colors.amber }]}>
-                            • {task.done ? 'DONE ✅' : 'PENDING ⏳'}
+                            • {task.done ? t('done_status', 'DONE ✅') : t('pending_status', 'PENDING ⏳')}
                           </Text>
                         </View>
                       </View>
@@ -228,7 +238,7 @@ export default function ManageTasksScreen() {
                     <View style={styles.actionRow}>
                       <TouchableOpacity 
                         style={styles.actionButton} 
-                        onPress={() => startEditing(task.id, task.name)}
+                        onPress={() => startEditing(task.id, t(task.name, task.name))}
                       >
                         <Edit2 size={16} color={Colors.blue} />
                       </TouchableOpacity>
