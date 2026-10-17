@@ -21,6 +21,9 @@ export interface Task {
   done: boolean;
   date: string;
   icon?: string;
+  reminderEnabled?: boolean;
+  reminderTime?: string;
+  questMapGoal?: string;
   requiresApproval?: boolean;
   pendingApproval?: boolean;
   verificationNote?: string;

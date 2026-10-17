@@ -39,6 +39,7 @@ export async function configureNotifications(): Promise<void> {
 }
 
 export async function requestNotificationPermissions(): Promise<boolean> {
+  if (Platform.OS === 'web') return true;
   const Notifications = await getNotifications();
   if (!Notifications) return false;
   const current = await Notifications.getPermissionsAsync();
@@ -47,7 +48,28 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   return requested.status === 'granted';
 }
 
-export async function scheduleTaskReminders(tasks: Task[], hour = 19, minute = 0): Promise<void> {
+const WEEKDAYS: Record<Task['freq'], number[]> = {
+  daily: [],
+  sunday: [1],
+  monday: [2],
+  tuesday: [3],
+  wednesday: [4],
+  thursday: [5],
+  friday: [6],
+  saturday: [7],
+  weekdays: [2, 3, 4, 5, 6],
+  weekends: [1, 7],
+};
+
+function parseReminderTime(value?: string): { hour: number; minute: number } | null {
+  if (!value) return null;
+  const [hourValue, minuteValue] = value.split(':').map(Number);
+  if (!Number.isInteger(hourValue) || !Number.isInteger(minuteValue)) return null;
+  if (hourValue < 0 || hourValue > 23 || minuteValue < 0 || minuteValue > 59) return null;
+  return { hour: hourValue, minute: minuteValue };
+}
+
+export async function scheduleTaskReminders(tasks: Task[]): Promise<void> {
   const Notifications = await getNotifications();
   if (!Notifications) return;
 
@@ -56,25 +78,49 @@ export async function scheduleTaskReminders(tasks: Task[], hour = 19, minute = 0
   if (permission.status !== 'granted') return;
   await Notifications.cancelAllScheduledNotificationsAsync();
 
-  const activeTasks = tasks.filter((task) => !task.done).slice(0, 12);
-  for (const [index, task] of activeTasks.entries()) {
-    const totalMinutes = hour * 60 + minute + index * 3;
-    const reminderHour = Math.floor((totalMinutes % (24 * 60)) / 60);
-    const reminderMinute = totalMinutes % 60;
+  const activeTasks = tasks
+    .filter((task) => !task.done && task.reminderEnabled && parseReminderTime(task.reminderTime))
+    .slice(0, 12);
 
-    await Notifications.scheduleNotificationAsync({
+  for (const task of activeTasks) {
+    const reminder = parseReminderTime(task.reminderTime);
+    if (!reminder) continue;
+    const content = {
+      title: `⏰ ${task.name}`,
+      body: `Your quest is due at ${task.reminderTime}. You’ve got this!`,
+      sound: 'default' as const,
+      data: { taskId: task.id, route: '/(tabs)' },
+    };
+    const androidChannel = Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {};
+    const weekdays = WEEKDAYS[task.freq];
+
+    if (weekdays.length === 0) {
+      await Notifications.scheduleNotificationAsync({
+        content,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: reminder.hour,
+          minute: reminder.minute,
+          ...androidChannel,
+        },
+      });
+      continue;
+    }
+
+    for (const weekday of weekdays) {
+      await Notifications.scheduleNotificationAsync({
       content: {
-        title: `⚔️ Quest reminder: ${task.name}`,
-        body: 'Your quest is waiting. Complete it to keep your streak alive!',
-        sound: 'default',
-        ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
+          ...content,
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: reminderHour,
-        minute: reminderMinute,
+          type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+          weekday,
+          hour: reminder.hour,
+          minute: reminder.minute,
+          ...androidChannel,
       },
-    });
+      });
+    }
   }
 }
 
