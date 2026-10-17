@@ -327,45 +327,75 @@ export default function TrackerScreen() {
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         
-        {/* Top Micro Utility Bar: Language Switcher & Settings */}
-        <View style={styles.topUtilityBar}>
+        {/* Top Micro Utility Row: Language Switcher & Settings */}
+        <View style={styles.topMicroBar}>
           <LanguageSwitcher />
           <TouchableOpacity 
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} 
-            style={styles.iconButton} 
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} 
+            style={styles.cleanSettingBtn} 
             onPress={() => setSettingsVisible(true)}
           >
-            <Settings size={18} color={Colors.amber} />
+            <Settings size={16} color={Colors.amber} />
           </TouchableOpacity>
         </View>
 
-        {/* Player Game HUD Bar */}
-        <View style={styles.playerHudRow}>
-          <View style={styles.playerInfo}>
-            <View style={[styles.avatarMiniFrame, { borderColor: themeColors.accent }]}>
+        {/* Clean Hero Player Card */}
+        <View style={styles.cleanHeader}>
+          <View style={styles.cleanPlayerRow}>
+            {/* Left: Avatar + Name + Level */}
+            <View style={[styles.cleanAvatarFrame, { borderColor: themeColors.accent }]}>
               {getAvatarDisplay().image ? (
-                <Image source={getAvatarDisplay().image} style={styles.avatarMiniImg} resizeMode="contain" />
+                <Image source={getAvatarDisplay().image} style={styles.cleanAvatarImg} resizeMode="contain" />
               ) : (
-                <Text style={{ fontSize: 20 }}>{getAvatarDisplay().emoji || '⭐'}</Text>
+                <Text style={{ fontSize: 24 }}>{getAvatarDisplay().emoji || '⭐'}</Text>
               )}
             </View>
-            <View>
-              <Text style={styles.appTitle} numberOfLines={1}>{fullName || nickname || 'Kid Hero'}</Text>
-              <View style={styles.lvlPill}>
-                <Trophy size={11} color="#FFD700" />
-                <Text style={styles.lvlPillText}>LVL {currentLevel}</Text>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.cleanAppTitle} numberOfLines={1}>{fullName || nickname || 'Kid Hero'}</Text>
+                <View style={styles.cleanLvlPill}>
+                  <Trophy size={10} color="#FFD700" />
+                  <Text style={styles.cleanLvlPillText}>LVL {currentLevel}</Text>
+                </View>
+              </View>
+              <Text style={styles.cleanCompanionText} numberOfLines={1}>
+                💬 {companionMessage}
+              </Text>
+            </View>
+
+            {/* Right: Streak & Coins */}
+            <View style={styles.cleanStatsCluster}>
+              <View style={styles.streakPill}>
+                <Text style={styles.statIcon}>🔥</Text>
+                <Text style={styles.streakText}>{currentStreak}</Text>
+              </View>
+              <View style={styles.coinPill}>
+                <Text style={styles.statIcon}>💰</Text>
+                <Text style={styles.coinText}>{coins}</Text>
               </View>
             </View>
           </View>
 
-          <View style={styles.statsCluster}>
-            <View style={styles.streakPill}>
-              <Text style={styles.statIcon}>🔥</Text>
-              <Text style={styles.streakText}>{currentStreak}</Text>
+          {/* Clean Progress & Candy XP Track */}
+          <View style={styles.cleanProgressLine}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+              <Text style={styles.cleanProgressText}>⭐ {completedCount} of {totalCount} Done</Text>
+              
+              {hasUnclaimedDailyChest ? (
+                <TouchableOpacity 
+                  style={styles.giftClaimPill}
+                  onPress={handleOpenSupplyCrate}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ fontSize: 13 }}>🎁</Text>
+                  <Text style={styles.giftClaimPillText}>CLAIM +{25 + currentStreak * 5} 💰</Text>
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.cleanXpText}>{xp}/100 XP · {avatarSkill.shortBuff}</Text>
+              )}
             </View>
-            <View style={styles.coinPill}>
-              <Text style={styles.statIcon}>💰</Text>
-              <Text style={styles.coinText}>{coins}</Text>
+            <View style={styles.cleanXpTrack}>
+              <View style={[styles.cleanXpFill, { width: `${progressPct}%`, backgroundColor: themeColors.accent }]} />
             </View>
           </View>
         </View>
@@ -478,100 +508,7 @@ export default function TrackerScreen() {
           </TouchableOpacity>
         )}
 
-        {/* 1. HERO ARENA STAGE (Centerpiece Character + Candy XP Bar) */}
-        <View style={styles.heroArenaStage}>
-          {/* Character Avatar with Glow & Speech Bubble */}
-          <View style={styles.charArea}>
-            <View style={[styles.avatarBorder, { borderColor: themeColors.accent }]}>
-              {getAvatarDisplay().image ? (
-                <Image source={getAvatarDisplay().image} style={styles.avatarImg} resizeMode="contain" />
-              ) : (
-                <Text style={{ fontSize: 44 }}>{getAvatarDisplay().emoji || '⭐'}</Text>
-              )}
-            </View>
-            <View style={styles.companionBubble}>
-              <Text style={styles.companionBubbleText}>{companionMessage}</Text>
-            </View>
-          </View>
-
-          {/* Star Progress & Skill Buff */}
-          <View style={styles.heroProgressArea}>
-            <View style={styles.starRow}>
-              <Text style={styles.starRatioText}>⭐ {completedCount} / {totalCount}</Text>
-              <Text style={styles.xpRatioText}>{xp} / 100 XP</Text>
-            </View>
-
-            {/* Glowing Candy XP Bar */}
-            <View style={styles.xpTrack}>
-              <View style={[styles.xpFill, { width: `${progressPct}%`, backgroundColor: themeColors.accent }]} />
-            </View>
-
-            {/* Hero Buff Tag (Punchy 2 Words!) */}
-            <View style={styles.buffBadgeRow}>
-              <Zap size={13} color={Colors.amber} />
-              <Text style={styles.buffBadgeText} numberOfLines={1}>
-                {avatarSkill.name}: {avatarSkill.shortBuff}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Daily Mystery Supply Drop Crate (Bouncy Golden Present) */}
-        {hasUnclaimedDailyChest && (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={handleOpenSupplyCrate}
-            style={styles.crateCard}
-          >
-            <Text style={{ fontSize: 38 }}>🎁</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.crateTitle}>FREE GIFT! 🎁</Text>
-              <Text style={styles.crateSub}>+{25 + currentStreak * 5} 💰 WAITING</Text>
-            </View>
-            <View style={styles.crateBtn}>
-              <Text style={styles.crateBtnText}>OPEN! 🎁</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* 2. EPIC DAILY BOSS (The Monster Challenge) */}
-        <View style={[styles.epicBossCard, isBossVulnerable && styles.epicBossCardVulnerable]}>
-          <View style={styles.epicHeaderRow}>
-            <Crown size={18} color={Colors.amber} />
-            <Text style={styles.epicTitleText}>BOSS FIGHT 👑</Text>
-          </View>
-          
-          <Text style={styles.epicQuestName}>
-            {epicBossTask || t('epic_boss_task')}
-          </Text>
-
-          {/* Interactive Boss Monster Shield Bar */}
-          <View style={{ marginVertical: 8 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 11, color: isBossVulnerable ? Colors.green : Colors.amber }}>
-                {isBossVulnerable ? '💥 SHIELD BROKEN!' : `🛡️ SHIELD: ${bossShieldPct}%`}
-              </Text>
-              <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 11, color: Colors.textSecondary }}>
-                {regularDoneCount}/{regularTasksCount} 💥
-              </Text>
-            </View>
-            <View style={styles.shieldTrack}>
-              <View style={[styles.shieldFill, { width: `${bossShieldPct}%`, backgroundColor: isBossVulnerable ? Colors.green : Colors.red }]} />
-            </View>
-          </View>
-          
-          {/* Hold to claim button */}
-          <HoldToClaim 
-            isClaimed={epicClaimed} 
-            onClaim={handleEpicClaim}
-            title={t('hold_to_claim_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) + (isBossVulnerable ? 25 : 0) })}
-            claimedTitle={t('claimed_banner_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) + (isBossVulnerable ? 25 : 0) })}
-            durationMs={avatarSkill.bossHoldDurationMs || 1500}
-            fastChargeLabel={avatarSkill.bossHoldDurationMs ? `⚡ 2x Speed!` : undefined}
-          />
-        </View>
-
-        {/* 3. DAILY QUESTS (Tactile 3D Game Blocks) */}
+        {/* TODAY'S QUEST BOARD (Visual-First & Tactile) */}
         <View style={styles.section}>
           {/* Preview Mode Notification Banner when looking at another day */}
           {!isViewingToday && (
@@ -720,6 +657,36 @@ export default function TrackerScreen() {
                   </BouncingButton>
                 );
               })
+            )}
+
+            {/* Featured Daily Boss Climax Quest */}
+            {isViewingToday && (
+              <View style={[styles.epicBossCard, isBossVulnerable && styles.epicBossCardVulnerable]}>
+                <View style={styles.epicHeaderRow}>
+                  <Crown size={17} color={Colors.amber} />
+                  <Text style={styles.epicTitleText}>BOSS FIGHT 👑</Text>
+                  <Text style={[styles.bossShieldBadge, isBossVulnerable && { color: Colors.green }]}>
+                    {isBossVulnerable ? '💥 SHIELD BROKEN!' : `🛡️ SHIELD: ${bossShieldPct}%`}
+                  </Text>
+                </View>
+                
+                <Text style={styles.epicQuestName}>
+                  {epicBossTask || t('epic_boss_task')}
+                </Text>
+
+                <View style={styles.shieldTrack}>
+                  <View style={[styles.shieldFill, { width: `${bossShieldPct}%`, backgroundColor: isBossVulnerable ? Colors.green : Colors.red }]} />
+                </View>
+                
+                <HoldToClaim 
+                  isClaimed={epicClaimed} 
+                  onClaim={handleEpicClaim}
+                  title={t('hold_to_claim_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) + (isBossVulnerable ? 25 : 0) })}
+                  claimedTitle={t('claimed_banner_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) + (isBossVulnerable ? 25 : 0) })}
+                  durationMs={avatarSkill.bossHoldDurationMs || 1500}
+                  fastChargeLabel={avatarSkill.bossHoldDurationMs ? `⚡ 2x Speed!` : undefined}
+                />
+              </View>
             )}
           </View>
         </View>
@@ -891,6 +858,141 @@ const styles = StyleSheet.create({
     maxWidth: 540,
     width: '100%',
     alignSelf: 'center',
+  },
+  topMicroBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  cleanHeader: {
+    backgroundColor: '#161A28',
+    borderRadius: 20,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.07)',
+  },
+  cleanPlayerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  cleanAvatarFrame: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#272B40',
+    borderWidth: 2,
+    borderColor: Colors.amber,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  cleanAvatarImg: {
+    width: 40,
+    height: 40,
+  },
+  cleanAppTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 16,
+    color: Colors.text,
+    letterSpacing: -0.2,
+  },
+  cleanLvlPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.35)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 999,
+  },
+  cleanLvlPillText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 10,
+    color: '#FFD700',
+    letterSpacing: 0.5,
+  },
+  cleanCompanionText: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  cleanProgressLine: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  cleanProgressText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 11,
+    color: Colors.textSecondary,
+  },
+  cleanXpText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  cleanBuffPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: 'rgba(255, 184, 0, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  cleanBuffText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 9,
+    color: Colors.amber,
+  },
+  cleanSettingBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cleanStatsCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  giftClaimPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2A1F0D',
+    borderWidth: 1.5,
+    borderColor: Colors.amber,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    gap: 4,
+  },
+  giftClaimPillText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 11,
+    color: Colors.amber,
+  },
+  cleanXpTrack: {
+    width: '100%',
+    height: 6,
+    backgroundColor: '#272B40',
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  cleanXpFill: {
+    height: '100%',
+    borderRadius: 999,
   },
   topUtilityBar: {
     flexDirection: 'row',
@@ -1190,46 +1292,47 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   epicBossCard: {
-    backgroundColor: '#1E1414',
-    borderBottomWidth: 5,
-    borderBottomColor: '#991B1B',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: Colors.red,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 5,
+    backgroundColor: '#1C1318',
+    borderRadius: 18,
+    padding: 14,
+    marginTop: 8,
+    borderWidth: 1.5,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
   },
   epicBossCardVulnerable: {
     backgroundColor: '#112215',
-    borderBottomColor: '#166534',
-    shadowColor: Colors.green,
+    borderColor: 'rgba(0, 230, 118, 0.4)',
   },
   epicHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   epicTitleText: {
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 12,
     color: Colors.amber,
-    letterSpacing: 1,
+    letterSpacing: 0.5,
+  },
+  bossShieldBadge: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 11,
+    color: Colors.amber,
+    marginLeft: 'auto',
   },
   epicQuestName: {
     fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 18,
+    fontSize: 15,
     color: '#FFFFFF',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   shieldTrack: {
-    height: 8,
+    height: 6,
     backgroundColor: '#272B40',
     borderRadius: 999,
     overflow: 'hidden',
+    marginBottom: 10,
   },
   shieldFill: {
     height: '100%',
