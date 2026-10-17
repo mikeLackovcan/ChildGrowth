@@ -70,6 +70,7 @@ export default function TrackerScreen() {
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const todayStr = new Date().toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(todayStr);
   const alreadySpunToday = lastSpinDate === todayStr;
   const epicClaimed = epicClaimedDate === todayStr;
   const avatarSkill = getAvatarSkillConfig(currentAvatar);
@@ -266,15 +267,55 @@ export default function TrackerScreen() {
     return { label: t('diff_easy'), color: Colors.green, bg: Colors.greenDim };
   };
 
-  // 7-day week summary dataset (0% default for past days until tasks completed)
-  const todayDayIndex = new Date().getDay();
-  const weekDaysData = [t('day_sun'), t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat')].map((dayName, idx) => {
-    const isToday = idx === todayDayIndex;
-    if (isToday) {
-      return { day: dayName, pct: isSick ? '🤒' : `${progressPct}%`, isToday: true, isSick };
+  // Task frequency matcher for calendar days
+  const isTaskScheduledForDay = (task: typeof tasks[0], dayKey: string, isWeekend: boolean) => {
+    const freq = (task.freq || 'daily').toLowerCase();
+    if (freq === 'daily') return true;
+    if (freq === 'weekdays') return !isWeekend;
+    if (freq === 'weekends') return isWeekend;
+    return freq === dayKey.toLowerCase();
+  };
+
+  // Generate 7-day week dates starting from Monday
+  const getWeekDates = () => {
+    const now = new Date();
+    const currentDay = now.getDay(); // 0 is Sunday, 1 is Monday ... 6 is Saturday
+    const mondayOffset = (currentDay + 6) % 7;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - mondayOffset);
+
+    const week = [];
+    const dayNames = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      const isToday = dateStr === todayStr;
+      week.push({
+        dayName: dayNames[i],
+        dayKey: dayKeys[i],
+        dateNum: d.getDate(),
+        monthName: months[d.getMonth()],
+        formattedDate: `${months[d.getMonth()]} ${d.getDate()}`,
+        dateStr,
+        isToday,
+        isPast: dateStr < todayStr,
+        isFuture: dateStr > todayStr,
+        isWeekend: i >= 5,
+      });
     }
-    return { day: dayName, pct: '0%', isToday: false, isSick: false };
-  });
+    return week;
+  };
+
+  const weekDates = getWeekDates();
+  const isViewingToday = selectedDate === todayStr;
+  const selectedDayInfo = weekDates.find(d => d.dateStr === selectedDate) || weekDates.find(d => d.isToday) || weekDates[0];
+  const displayedTasks = isViewingToday 
+    ? tasks 
+    : tasks.filter(t => isTaskScheduledForDay(t, selectedDayInfo.dayKey, selectedDayInfo.isWeekend));
 
   // History Log dataset (only active when user has completed quests)
   const historyLog = completedCount > 0 ? [
@@ -327,6 +368,65 @@ export default function TrackerScreen() {
               <Text style={styles.coinText}>{coins}</Text>
             </View>
           </View>
+        </View>
+
+        {/* Top Weekly Interactive Calendar Strip */}
+        <View style={styles.topCalendarStrip}>
+          {weekDates.map((item) => {
+            const isSelected = selectedDate === item.dateStr;
+            const scheduledTasks = tasks.filter(t => isTaskScheduledForDay(t, item.dayKey, item.isWeekend));
+            const count = scheduledTasks.length;
+            
+            return (
+              <TouchableOpacity
+                key={item.dateStr}
+                style={[
+                  styles.calendarDayCell,
+                  item.isToday && styles.calendarDayToday,
+                  isSelected && styles.calendarDaySelected,
+                ]}
+                onPress={() => setSelectedDate(item.dateStr)}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.calendarDayName,
+                  item.isToday && styles.calendarDayNameToday,
+                  isSelected && styles.calendarDayNameSelected,
+                ]}>
+                  {item.dayName}
+                </Text>
+                
+                <View style={[
+                  styles.calendarDateCircle,
+                  item.isToday && styles.calendarDateCircleToday,
+                  isSelected && styles.calendarDateCircleSelected,
+                ]}>
+                  <Text style={[
+                    styles.calendarDateNum,
+                    item.isToday && styles.calendarDateNumToday,
+                    isSelected && styles.calendarDateNumSelected,
+                  ]}>
+                    {item.dateNum}
+                  </Text>
+                </View>
+
+                {/* Micro indicators: Checkmark if today complete, count if tasks exist, or dot */}
+                {item.isToday && completedCount === totalCount && totalCount > 0 ? (
+                  <View style={styles.calCheckDot}>
+                    <CheckCircle2 size={10} color="#00E676" />
+                  </View>
+                ) : count > 0 ? (
+                  <View style={[styles.calCountDot, isSelected && { backgroundColor: Colors.amber }]}>
+                    <Text style={[styles.calCountDotText, isSelected && { color: '#121212' }]}>
+                      {count}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.calEmptyDot} />
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Compact 1-Line Parent Approval Pending Action Banner (If applicable) */}
@@ -473,11 +573,37 @@ export default function TrackerScreen() {
 
         {/* 3. DAILY QUESTS (Tactile 3D Game Blocks) */}
         <View style={styles.section}>
+          {/* Preview Mode Notification Banner when looking at another day */}
+          {!isViewingToday && (
+            <View style={styles.previewModeBanner}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                <Calendar size={20} color="#FFB800" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.previewModeTitle}>
+                    {selectedDayInfo.dayName}'S EXPECTED QUESTS 📅
+                  </Text>
+                  <Text style={styles.previewModeSub}>
+                    {selectedDayInfo.formattedDate} · {displayedTasks.length} quests scheduled
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity 
+                style={styles.backToTodayBtn}
+                onPress={() => setSelectedDate(todayStr)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.backToTodayBtnText}>TODAY 📍</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={styles.sectionHeader}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Gamepad2 size={20} color="#ab47bc" />
-              <Text style={styles.secTitle}>TODAY'S QUESTS ⚔️</Text>
-              {comboInfo.multiplier > 1.0 && (
+              <Text style={styles.secTitle}>
+                {isViewingToday ? "TODAY'S QUESTS ⚔️" : `${selectedDayInfo.dayName}'S SCHEDULE 📅`}
+              </Text>
+              {isViewingToday && comboInfo.multiplier > 1.0 && (
                 <View style={[styles.comboPill, { borderColor: comboInfo.color }]}>
                   <Text style={[styles.comboPillText, { color: comboInfo.color }]}>
                     {comboInfo.label}
@@ -485,92 +611,116 @@ export default function TrackerScreen() {
                 </View>
               )}
             </View>
-            <Text style={styles.secCount}>{completedCount}/{totalCount} DONE</Text>
+            <Text style={styles.secCount}>
+              {isViewingToday ? `${completedCount}/${totalCount} DONE` : `${displayedTasks.length} SCHEDULED`}
+            </Text>
           </View>
 
           {/* Unified Clean Quest Board */}
           <View style={styles.questBoard}>
-            {tasks.map((task, idx) => {
-              const isSupercharged = superchargedTaskId === task.id;
-              const baseRewardCoins = task.diff === 'hard' ? 35 : (task.diff === 'med' ? 20 : 10) + (task.mystery ? 10 : 0);
-              const boostedCoins = isSupercharged ? baseRewardCoins * 2 : baseRewardCoins;
-              const taskDisplayName = getDisplayTaskName(task.name);
-              const isLast = idx === tasks.length - 1;
+            {displayedTasks.length === 0 ? (
+              <View style={styles.noQuestsCard}>
+                <Text style={{ fontSize: 28, marginBottom: 4 }}>🏖️</Text>
+                <Text style={styles.noQuestsTitle}>No Quests for {selectedDayInfo.dayName}!</Text>
+                <Text style={styles.noQuestsSub}>Enjoy your free time champion!</Text>
+              </View>
+            ) : (
+              displayedTasks.map((task, idx) => {
+                const isSupercharged = isViewingToday && superchargedTaskId === task.id;
+                const baseRewardCoins = task.diff === 'hard' ? 35 : (task.diff === 'med' ? 20 : 10) + (task.mystery ? 10 : 0);
+                const boostedCoins = isSupercharged ? baseRewardCoins * 2 : baseRewardCoins;
+                const taskDisplayName = getDisplayTaskName(task.name);
+                const isLast = idx === displayedTasks.length - 1;
 
-              return (
-                <BouncingButton 
-                  key={task.id} 
-                  style={[
-                    styles.questRow, 
-                    !isLast && styles.questRowDivider,
-                    task.done && styles.questRowDone,
-                    isSupercharged && styles.questRowSupercharged
-                  ]}
-                  onPress={() => handleTaskCompletion(task.id)}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                    {/* Big Visual Chore Halo */}
-                    <View style={[styles.choreHalo, task.done && styles.choreHaloDone]}>
-                      <Text style={styles.choreEmoji}>{task.icon || '⭐'}</Text>
-                    </View>
+                return (
+                  <BouncingButton 
+                    key={task.id} 
+                    style={[
+                      styles.questRow, 
+                      !isLast && styles.questRowDivider,
+                      isViewingToday && task.done && styles.questRowDone,
+                      isSupercharged && styles.questRowSupercharged
+                    ]}
+                    onPress={() => {
+                      if (!isViewingToday) {
+                        alert(`📅 This quest is scheduled for ${selectedDayInfo.dayName} (${selectedDayInfo.formattedDate}). Return to Today to complete active quests!`);
+                        return;
+                      }
+                      handleTaskCompletion(task.id);
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                      {/* Big Visual Chore Halo */}
+                      <View style={[styles.choreHalo, isViewingToday && task.done && styles.choreHaloDone]}>
+                        <Text style={styles.choreEmoji}>{task.icon || '⭐'}</Text>
+                      </View>
 
-                    {/* Quest Title & Reward */}
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.questTitle, task.done && styles.questTitleDone]} numberOfLines={2}>
-                        {taskDisplayName}
-                      </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                        <Text style={[styles.coinRewardText, task.done && { color: Colors.textMuted }]}>
-                          +{boostedCoins} 💰
+                      {/* Quest Title & Reward */}
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.questTitle, isViewingToday && task.done && styles.questTitleDone]} numberOfLines={2}>
+                          {taskDisplayName}
                         </Text>
-                        {task.mystery && !task.done && (
-                          <View style={styles.mysteryBadge}>
-                            <Text style={styles.mysteryBadgeText}>🎁 BONUS</Text>
-                          </View>
-                        )}
-                        {isSupercharged && !task.done && (
-                          <View style={styles.superchargedBadge}>
-                            <Text style={styles.superchargedBadgeText}>⚡ 2X</Text>
-                          </View>
-                        )}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                          <Text style={[styles.coinRewardText, isViewingToday && task.done && { color: Colors.textMuted }]}>
+                            +{boostedCoins} 💰
+                          </Text>
+                          {task.mystery && (!isViewingToday || !task.done) && (
+                            <View style={styles.mysteryBadge}>
+                              <Text style={styles.mysteryBadgeText}>🎁 BONUS</Text>
+                            </View>
+                          )}
+                          {isSupercharged && !task.done && (
+                            <View style={styles.superchargedBadge}>
+                              <Text style={styles.superchargedBadgeText}>⚡ 2X</Text>
+                            </View>
+                          )}
+                        </View>
                       </View>
-                    </View>
 
-                    {/* Supercharge icon & Chunky Checkbox */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      {!task.done && (
-                        <TouchableOpacity
-                          onPress={(e) => {
-                            e.stopPropagation?.();
-                            setSuperchargedTask(isSupercharged ? null : task.id);
-                          }}
-                          style={[styles.zapBtn, isSupercharged && styles.zapBtnActive]}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Zap size={16} color={isSupercharged ? '#121212' : Colors.amber} />
-                        </TouchableOpacity>
-                      )}
-                      
-                      <View style={[styles.checkCircle, task.done && styles.checkCircleDone]}>
-                        {task.done ? (
-                          <CheckCircle2 size={24} color="#121212" />
+                      {/* Supercharge icon & Chunky Checkbox / Scheduled Badge */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        {!isViewingToday ? (
+                          <View style={styles.scheduledPill}>
+                            <Text style={styles.scheduledPillText}>SCHEDULED 📅</Text>
+                          </View>
                         ) : (
-                          <Star size={20} color={Colors.textMuted} />
+                          <>
+                            {!task.done && (
+                              <TouchableOpacity
+                                onPress={(e) => {
+                                  e.stopPropagation?.();
+                                  setSuperchargedTask(isSupercharged ? null : task.id);
+                                }}
+                                style={[styles.zapBtn, isSupercharged && styles.zapBtnActive]}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              >
+                                <Zap size={16} color={isSupercharged ? '#121212' : Colors.amber} />
+                              </TouchableOpacity>
+                            )}
+                            
+                            <View style={[styles.checkCircle, task.done && styles.checkCircleDone]}>
+                              {task.done ? (
+                                <CheckCircle2 size={24} color="#121212" />
+                              ) : (
+                                <Star size={20} color={Colors.textMuted} />
+                              )}
+                            </View>
+                          </>
                         )}
                       </View>
                     </View>
-                  </View>
 
-                  {task.done && (
-                    <View style={[styles.completedStamp, alreadySpunToday && styles.completedStampLocked]}>
-                      <Text style={[styles.completedStampText, alreadySpunToday && styles.completedStampTextLocked]}>
-                        {alreadySpunToday ? '🔒 LOCKED' : t('completed_stamp')}
-                      </Text>
-                    </View>
-                  )}
-                </BouncingButton>
-              );
-            })}
+                    {isViewingToday && task.done && (
+                      <View style={[styles.completedStamp, alreadySpunToday && styles.completedStampLocked]}>
+                        <Text style={[styles.completedStampText, alreadySpunToday && styles.completedStampTextLocked]}>
+                          {alreadySpunToday ? '🔒 LOCKED' : t('completed_stamp')}
+                        </Text>
+                      </View>
+                    )}
+                  </BouncingButton>
+                );
+              })
+            )}
           </View>
         </View>
 
@@ -1366,5 +1516,180 @@ const styles = StyleSheet.create({
   },
   moodPillTextActive: {
     color: Colors.amber,
+  },
+  topCalendarStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#181D2D',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 4,
+  },
+  calendarDayCell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+    borderRadius: 14,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  calendarDayToday: {
+    backgroundColor: 'rgba(255, 184, 0, 0.08)',
+    borderColor: 'rgba(255, 184, 0, 0.35)',
+  },
+  calendarDaySelected: {
+    backgroundColor: '#262D4A',
+    borderColor: Colors.amber,
+    shadowColor: Colors.amber,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  calendarDayName: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 10,
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  calendarDayNameToday: {
+    color: Colors.amber,
+  },
+  calendarDayNameSelected: {
+    color: '#FFFFFF',
+  },
+  calendarDateCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  calendarDateCircleToday: {
+    backgroundColor: 'rgba(255, 184, 0, 0.2)',
+    borderWidth: 1.5,
+    borderColor: Colors.amber,
+  },
+  calendarDateCircleSelected: {
+    backgroundColor: Colors.amber,
+  },
+  calendarDateNum: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 13,
+    color: '#D1D5DB',
+  },
+  calendarDateNumToday: {
+    color: Colors.amber,
+  },
+  calendarDateNumSelected: {
+    color: '#121212',
+  },
+  calCheckDot: {
+    marginTop: 4,
+    height: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calCountDot: {
+    marginTop: 4,
+    minWidth: 16,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#2A3048',
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calCountDotText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 9,
+    color: Colors.textMuted,
+  },
+  calEmptyDot: {
+    marginTop: 4,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'transparent',
+  },
+  previewModeBanner: {
+    backgroundColor: '#1C2236',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 184, 0, 0.35)',
+    gap: 10,
+  },
+  previewModeTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 13,
+    color: Colors.amber,
+    letterSpacing: 0.4,
+  },
+  previewModeSub: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  backToTodayBtn: {
+    backgroundColor: Colors.amber,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: '#B38000',
+  },
+  backToTodayBtnText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 11,
+    color: '#121212',
+  },
+  scheduledPill: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderWidth: 1,
+    borderColor: '#38BDF8',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  scheduledPillText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 10,
+    color: '#38BDF8',
+    letterSpacing: 0.3,
+  },
+  noQuestsCard: {
+    backgroundColor: '#181D2D',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    marginVertical: 12,
+  },
+  noQuestsTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 15,
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  noQuestsSub: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 12,
+    color: Colors.textMuted,
   },
 });
