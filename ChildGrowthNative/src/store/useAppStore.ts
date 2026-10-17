@@ -10,9 +10,9 @@ import { ThemeKey } from '../constants/theme';
 import { calculateQuestReward, getAvatarSkillConfig, QuestRewardCalculation } from '../utils/avatarSkills';
 
 export const DEFAULT_STARTER_TASKS: Task[] = [
-  { id: 'starter_1', name: 'Brush your teeth 🪥', icon: '🪥', done: false, diff: 'easy', freq: 'daily', mystery: false, date: new Date().toISOString().split('T')[0] },
-  { id: 'starter_2', name: 'Make your bed 🛏️', icon: '🛏️', done: false, diff: 'easy', freq: 'daily', mystery: true, date: new Date().toISOString().split('T')[0] },
-  { id: 'starter_3', name: '15m Reading or Homework 📚', icon: '📚', done: false, diff: 'med', freq: 'weekdays', mystery: false, date: new Date().toISOString().split('T')[0] },
+  { id: 'starter_1', name: 'habit_brush_teeth', icon: '🪥', done: false, diff: 'easy', freq: 'daily', mystery: false, date: new Date().toISOString().split('T')[0] },
+  { id: 'starter_2', name: 'habit_cleaning', icon: '🧹', done: false, diff: 'easy', freq: 'daily', mystery: true, date: new Date().toISOString().split('T')[0] },
+  { id: 'starter_3', name: 'habit_reading', icon: '📚', done: false, diff: 'med', freq: 'weekdays', mystery: false, date: new Date().toISOString().split('T')[0] },
 ];
 
 export type UserRole = 'parent' | 'child' | null;
@@ -165,8 +165,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   prizes: ['Robux 💰', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
   wonPrizes: [],
   coins: 0,
-  unlockedAvatars: ['default'],
-  currentAvatar: 'default',
+  unlockedAvatars: ['questblox_hero'],
+  currentAvatar: 'questblox_hero',
   activeTheme: 'classic',
   unlockedThemes: ['classic'],
   lastSpinDate: null,
@@ -215,8 +215,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       prizes: ['Robux 💰', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
       wonPrizes: [],
       coins: 0,
-      unlockedAvatars: ['default'],
-      currentAvatar: 'default',
+      unlockedAvatars: ['questblox_hero'],
+      currentAvatar: 'questblox_hero',
       parentEmail: null,
       linkedParents: [],
       children: [],
@@ -245,15 +245,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveMockState();
   },
   continueAsGuest: async () => {
+    const existingTasks = get().tasks;
     set({
       userEmail: 'guest@questblox.local',
       userId: 'guest-local',
       fullName: 'Guest Hero',
       nickname: 'guest',
       role: 'child',
+      tasks: existingTasks && existingTasks.length > 0 ? existingTasks : DEFAULT_STARTER_TASKS,
     });
     await AsyncStorage.setItem('active_user_tag', 'guest');
     await get().loadMockState();
+    if (!get().tasks || get().tasks.length === 0) {
+      set({ tasks: DEFAULT_STARTER_TASKS });
+    }
     await get().saveMockState();
   },
   setSick: (sick) => {
@@ -987,8 +992,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         coins: 0,
         tasks: [],
         wonPrizes: [],
-        unlockedAvatars: ['default'],
-        currentAvatar: 'default',
+        unlockedAvatars: ['questblox_hero'],
+        currentAvatar: 'questblox_hero',
         linkedParents: [currentParentTag],
         isApproved: false,
         initiatedBy: 'parent'
@@ -1026,7 +1031,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           id: 'usr_' + cleanTag,
           name: kidData.fullName || cleanTag,
           nickname: cleanTag,
-          level: 1, xp: 0, coins: 0, tasks: [], wonPrizes: [], unlockedAvatars: ['default'], currentAvatar: 'default',
+          level: 1, xp: 0, coins: 0, tasks: [], wonPrizes: [], unlockedAvatars: ['questblox_hero'], currentAvatar: 'questblox_hero',
           linkedParents: kidData.linkedParents,
           isApproved: false,
           initiatedBy: 'parent'
@@ -1601,8 +1606,10 @@ export const useAppStore = create<AppState>((set, get) => ({
               prizes: Array.isArray(parsed.prizes) && parsed.prizes.length > 0 ? parsed.prizes : ['Robux 💰', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
               wonPrizes: normalizedWonPrizes,
               coins: typeof parsed.coins === 'number' ? parsed.coins : 0,
-              unlockedAvatars: Array.isArray(parsed.unlockedAvatars) && parsed.unlockedAvatars.length > 0 ? parsed.unlockedAvatars : ['default'],
-              currentAvatar: parsed.currentAvatar || 'default',
+              unlockedAvatars: Array.isArray(parsed.unlockedAvatars) && parsed.unlockedAvatars.length > 0 
+                ? Array.from(new Set(parsed.unlockedAvatars.map((a: string) => a === 'default' ? 'questblox_hero' : a).concat(['questblox_hero'])))
+                : ['questblox_hero'],
+              currentAvatar: (!parsed.currentAvatar || parsed.currentAvatar === 'default') ? 'questblox_hero' : parsed.currentAvatar,
               activeTheme: parsed.activeTheme || 'classic',
               unlockedThemes: Array.isArray(parsed.unlockedThemes) && parsed.unlockedThemes.length > 0 ? parsed.unlockedThemes : ['classic'],
               lastSpinDate: parsed.lastSpinDate || null,
@@ -1715,8 +1722,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       prizes: ['Robux 💰', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
       wonPrizes: [],
       coins: 0,
-      unlockedAvatars: ['default'],
-      currentAvatar: 'default',
+      unlockedAvatars: ['questblox_hero'],
+      currentAvatar: 'questblox_hero',
       parentEmail: null,
       linkedParents: [],
       children: [],
