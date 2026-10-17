@@ -144,13 +144,28 @@ export interface QuestRewardCalculation {
   coinGain: number;
   skillLabel: string;
   isCritical: boolean;
+  comboMultiplier?: number;
+  isSupercharged?: boolean;
+}
+
+export function getComboMultiplier(completedCount: number): { multiplier: number; label: string; color: string } {
+  if (completedCount >= 3) {
+    return { multiplier: 2.0, label: '👑 2.0x ROBLOX FRENZY!', color: '#ff007f' };
+  } else if (completedCount === 2) {
+    return { multiplier: 1.5, label: '⚡ 1.5x ULTRA COMBO!', color: '#ffb300' };
+  } else if (completedCount === 1) {
+    return { multiplier: 1.2, label: '🔥 1.2x COMBO!', color: '#00e5ff' };
+  }
+  return { multiplier: 1.0, label: '1.0x NORMAL', color: '#AAAAAA' };
 }
 
 export function calculateQuestReward(
   baseXp: number,
   diff: 'easy' | 'med' | 'hard' | 'boss',
   avatarId?: string | null,
-  forceCritical?: boolean
+  forceCritical?: boolean,
+  completedCount: number = 0,
+  isSupercharged: boolean = false
 ): QuestRewardCalculation {
   const config = getAvatarSkillConfig(avatarId);
   let xp = baseXp * config.xpMultiplier;
@@ -167,18 +182,70 @@ export function calculateQuestReward(
     coins += Math.round(config.bossBonusXP * 0.5);
   }
 
+  // Hero's Choice 2x Supercharge (Bucher Autonomy + Seduced by Logic)
+  if (isSupercharged) {
+    coins *= 2;
+    xp = Math.round(xp * 1.5);
+  }
+
+  // Live Session Combo Multiplier (Hooked + Evil by Design Gluttony)
+  const combo = getComboMultiplier(completedCount);
+  if (combo.multiplier > 1.0) {
+    coins = Math.round(coins * combo.multiplier);
+    xp = Math.round(xp * Math.min(1.5, combo.multiplier));
+  }
+
   const isCritical = Boolean(forceCritical);
   if (isCritical) {
     coins = Math.round(coins * 1.5) + 5;
     xp = Math.round(xp * 1.25);
   }
 
+  let skillLabel = config.shortBuff;
+  if (isSupercharged) skillLabel = `⚡ 2X SUPERCHARGE · ${skillLabel}`;
+  if (combo.multiplier > 1.0) skillLabel = `${combo.label} · ${skillLabel}`;
+
   return {
     xpGain: Math.max(1, Math.round(xp)),
     coinGain: Math.max(1, Math.round(coins)),
-    skillLabel: config.shortBuff,
+    skillLabel,
     isCritical,
+    comboMultiplier: combo.multiplier,
+    isSupercharged,
   };
+}
+
+export function getHeroCompanionMessage(
+  avatarId: string | null | undefined,
+  context: {
+    progressPct: number;
+    hasUnclaimedChest: boolean;
+    comboCount: number;
+    isBossVulnerable: boolean;
+    streak: number;
+  }
+): string {
+  const avatar = getAvatarSkillConfig(avatarId);
+
+  if (context.hasUnclaimedChest) {
+    return `🎁 Yo! Tap your Daily Mystery Supply Crate for free coins & XP!`;
+  }
+  if (context.progressPct === 100) {
+    return `👑 LEGENDARY SWEEP! All daily quests defeated today! You're a true champion!`;
+  }
+  if (context.isBossVulnerable) {
+    return `💥 Boss shield is SHATTERED! Hold to claim your massive victory bonus!`;
+  }
+  if (context.comboCount >= 2) {
+    return `🔥 COMBO FRENZY! ${context.comboCount} quests crushed in a row — keep the multiplier going!`;
+  }
+  if (context.progressPct >= 70) {
+    return `⚡ Almost there! Just 1 or 2 quests left to crack open today's Vault!`;
+  }
+  if (context.streak >= 3) {
+    return `🔥 You're on a ${context.streak}-day streak! ${avatar.name} is proud of you!`;
+  }
+  return `⚔️ Ready for today's quests? Tap the ⚡ Supercharge to double your loot!`;
 }
 
 export interface NextAvatarGoal {

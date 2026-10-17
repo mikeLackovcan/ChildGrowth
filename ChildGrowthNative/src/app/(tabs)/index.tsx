@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Colors, getThemeColors, WORLD_THEMES } from '../../constants/theme';
 import { useAppStore, DEFAULT_STARTER_TASKS } from '../../store/useAppStore';
-import { LogOut, Thermometer, Moon, CheckCircle2, Star, Trophy, Gamepad2, Sun, Calendar, ScrollText, Settings, Sparkles, Shield, Zap } from 'lucide-react-native';
+import { LogOut, Thermometer, Moon, CheckCircle2, Star, Trophy, Gamepad2, Sun, Calendar, ScrollText, Settings, Sparkles, Shield, Zap, Gift, Flame, Crosshair, Lock } from 'lucide-react-native';
 import HoldToClaim from '../../components/HoldToClaim';
 import PrizeWheelModal from '../../components/PrizeWheelModal';
 import BouncingButton from '../../components/BouncingButton';
@@ -16,7 +16,7 @@ import DancingBananaModal from '../../components/DancingBananaModal';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
 import SlideToComplete from '../../components/SlideToComplete';
 import SettingsModal from '../../components/SettingsModal';
-import { getAvatarSkillConfig, getNextLockedAvatar, QuestRewardCalculation } from '../../utils/avatarSkills';
+import { getAvatarSkillConfig, getNextLockedAvatar, QuestRewardCalculation, getComboMultiplier, getHeroCompanionMessage } from '../../utils/avatarSkills';
 
 const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -34,6 +34,10 @@ export default function TrackerScreen() {
   const toggleTaskDone = useAppStore((state) => state.toggleTaskDone);
   const claimEpicBoss = useAppStore((state) => state.claimEpicBoss);
   const epicClaimedDate = useAppStore((state) => state.epicClaimedDate);
+  const dailyChestClaimedDate = useAppStore((state) => state.dailyChestClaimedDate);
+  const superchargedTaskId = useAppStore((state) => state.superchargedTaskId);
+  const claimDailyLoginChest = useAppStore((state) => state.claimDailyLoginChest);
+  const setSuperchargedTask = useAppStore((state) => state.setSuperchargedTask);
   const streak = useAppStore((state) => state.streak);
   const level = useAppStore((state) => state.level);
   const xp = useAppStore((state) => state.xp);
@@ -105,6 +109,40 @@ export default function TrackerScreen() {
   const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   const currentStreak = Math.max(streak || 0, completedCount > 0 ? 1 : 0);
   const currentLevel = level || 1;
+
+  const completedToday = tasks.filter(t => t.done).length;
+  const comboInfo = getComboMultiplier(completedToday);
+  const regularTasksCount = tasks.length;
+  const regularDoneCount = tasks.filter(t => t.done).length;
+  const bossShieldPct = regularTasksCount > 0 ? Math.max(0, Math.round(100 - (regularDoneCount / regularTasksCount) * 100)) : 0;
+  const isBossVulnerable = bossShieldPct === 0;
+
+  const hasUnclaimedDailyChest = dailyChestClaimedDate !== todayStr;
+  const companionMessage = getHeroCompanionMessage(currentAvatar, {
+    progressPct,
+    hasUnclaimedChest: hasUnclaimedDailyChest,
+    comboCount: completedToday,
+    isBossVulnerable,
+    streak: currentStreak,
+  });
+
+  // Loss Aversion: Pending Vault Calculations (Harry Brignull + Eva de Lera)
+  const remainingTasks = tasks.filter(t => !t.done);
+  const pendingVaultCoins = remainingTasks.length * 15 + (epicClaimed ? 0 : 35);
+  const pendingVaultXP = remainingTasks.length * 15 + (epicClaimed ? 0 : (epicBossXP || 35));
+
+  const handleOpenSupplyCrate = () => {
+    const result = claimDailyLoginChest();
+    if (result) {
+      playSuccessChime();
+      triggerRewardToast({
+        xpGain: result.xp,
+        coinGain: result.coins,
+        skillLabel: `🎁 ${currentStreak}-Day Streak Login Crate!`,
+        isCritical: true,
+      }, "Daily Mystery Supply Drop");
+    }
+  };
 
   const handleTaskCompletion = (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
@@ -368,6 +406,53 @@ export default function TrackerScreen() {
           <Text style={styles.dateChipText}>{getFormatDate().toUpperCase()}</Text>
         </View>
 
+        {/* Hero Companion Speech Bubble (Micro-Messaging & Relatedness - Susan Weinschenk & Amy Bucher) */}
+        <View style={{ backgroundColor: themeColors.surface, borderWidth: 1.5, borderColor: themeColors.accent, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Text style={{ fontSize: 20 }}>💬</Text>
+          <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: Colors.text, flex: 1, lineHeight: 18 }}>
+            {companionMessage}
+          </Text>
+        </View>
+
+        {/* Daily Mystery Supply Drop Crate (Webs of Influence Reciprocity + 100 Things Dopamine Seeking) */}
+        {hasUnclaimedDailyChest && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={handleOpenSupplyCrate}
+            style={{
+              backgroundColor: '#1e1604',
+              borderWidth: 2,
+              borderColor: Colors.amber,
+              borderRadius: 14,
+              padding: 14,
+              marginBottom: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              shadowColor: Colors.amber,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.35,
+              shadowRadius: 10,
+              elevation: 5,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+              <Text style={{ fontSize: 28 }}>🎁</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.amber, fontSize: 14 }}>
+                  DAILY MYSTERY SUPPLY CRATE!
+                </Text>
+                <Text style={{ fontFamily: 'Nunito_700Bold', color: Colors.textSecondary, fontSize: 11, marginTop: 2 }}>
+                  Free coins & XP for your {currentStreak}-day streak! Tap to unbox 📦
+                </Text>
+              </View>
+            </View>
+            <View style={{ backgroundColor: Colors.amber, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
+              <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: '#121212', fontSize: 12 }}>UNBOX 🎁</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Level & XP Summary Card (Original Roblox Summary Row + Avatar Passive Skill Badge) */}
         <View style={[styles.summaryCard, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
           <View style={styles.charArea}>
@@ -475,18 +560,77 @@ export default function TrackerScreen() {
           </View>
         )}
 
+        {/* Loss-Aversion Pending Daily Vault & Zeigarnik Quest Chain Stepper (Harry Brignull + Susan Weinschenk) */}
+        <View style={{ backgroundColor: themeColors.surface, borderWidth: 1.5, borderColor: Colors.border, borderRadius: 14, padding: 14, marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Lock size={15} color={Colors.amber} />
+              <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 11, color: Colors.textMuted, letterSpacing: 0.5 }}>
+                TODAY'S PENDING VAULT (UNLOCKED AT 100%)
+              </Text>
+            </View>
+            <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: Colors.amber }}>
+              +{pendingVaultCoins} 💰 · +{pendingVaultXP} XP
+            </Text>
+          </View>
+
+          {/* Connected Zeigarnik Quest Chain Stepper */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            {tasks.map((t, idx) => (
+              <React.Fragment key={t.id}>
+                <View style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: 13,
+                  backgroundColor: t.done ? Colors.green : Colors.surface2,
+                  borderWidth: 1.5,
+                  borderColor: t.done ? Colors.green : (superchargedTaskId === t.id ? Colors.amber : Colors.border),
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Text style={{ fontSize: 11, color: t.done ? '#121212' : Colors.textSecondary, fontFamily: 'Nunito_800ExtraBold' }}>
+                    {t.done ? '✓' : idx + 1}
+                  </Text>
+                </View>
+                <View style={{ flex: 1, height: 2, backgroundColor: t.done ? Colors.green : Colors.border, marginHorizontal: 2 }} />
+              </React.Fragment>
+            ))}
+            <View style={{
+              paddingHorizontal: 8,
+              height: 26,
+              borderRadius: 13,
+              backgroundColor: epicClaimed ? Colors.amber : Colors.surface2,
+              borderWidth: 1.5,
+              borderColor: Colors.amber,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Text style={{ fontSize: 10, color: epicClaimed ? '#121212' : Colors.amber, fontFamily: 'Nunito_800ExtraBold' }}>
+                👑 BOSS
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {/* QUEST LOG Section (Matching User Screenshot 1) */}
         <View style={[styles.section, isSick && styles.disabledSection]} pointerEvents={isSick ? 'none' : 'auto'}>
           <View style={styles.sectionHeader}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Gamepad2 size={18} color="#ab47bc" />
               <Text style={styles.secTitle}>{t('quest_log')}</Text>
+              {comboInfo.multiplier > 1.0 && (
+                <View style={{ backgroundColor: 'rgba(255, 0, 127, 0.2)', borderWidth: 1, borderColor: comboInfo.color, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                  <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 10, color: comboInfo.color }}>
+                    {comboInfo.label}
+                  </Text>
+                </View>
+              )}
             </View>
             <Text style={styles.secCount}>{completedCount} / {totalCount} done</Text>
           </View>
 
-          {/* EPIC DAILY BOSS Card */}
-          <View style={styles.epicBossCard}>
+          {/* EPIC DAILY BOSS Card with Monster Shield Bar (Chris Nodder Wrath/Pride + Amy Bucher Competence) */}
+          <View style={[styles.epicBossCard, isBossVulnerable && { borderColor: Colors.green, shadowColor: Colors.green }]}>
             <View style={styles.epicHeaderRow}>
               <Sun size={14} color={Colors.amber} />
               <Text style={styles.epicTitleText}>{t('epic_daily_boss')}</Text>
@@ -495,13 +639,28 @@ export default function TrackerScreen() {
             <Text style={styles.epicQuestName}>
               {epicBossTask || t('epic_boss_task')}
             </Text>
+
+            {/* Interactive Boss Monster Shield Bar */}
+            <View style={{ marginVertical: 10 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 10, color: isBossVulnerable ? Colors.green : Colors.amber }}>
+                  {isBossVulnerable ? '⚡ SHIELD BROKEN! BOSS VULNERABLE (+25 COINS BONUS)' : `🛡️ BOSS SHIELD: ${bossShieldPct}% (Complete quests to break!)`}
+                </Text>
+                <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 10, color: Colors.textSecondary }}>
+                  {regularDoneCount}/{regularTasksCount} hits
+                </Text>
+              </View>
+              <View style={{ height: 6, backgroundColor: Colors.surface2, borderRadius: 999, overflow: 'hidden' }}>
+                <View style={{ height: '100%', width: `${bossShieldPct}%`, backgroundColor: isBossVulnerable ? Colors.green : Colors.red, borderRadius: 999 }} />
+              </View>
+            </View>
             
             {/* Hold to claim button inside the Epic Boss card */}
             <HoldToClaim 
               isClaimed={epicClaimed} 
               onClaim={handleEpicClaim}
-              title={t('hold_to_claim_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) })}
-              claimedTitle={t('claimed_banner_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) })}
+              title={t('hold_to_claim_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) + (isBossVulnerable ? 25 : 0) })}
+              claimedTitle={t('claimed_banner_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) + (isBossVulnerable ? 25 : 0) })}
               durationMs={avatarSkill.bossHoldDurationMs || 1500}
               fastChargeLabel={avatarSkill.bossHoldDurationMs ? `${avatarSkill.skillName} (2x Speed!)` : undefined}
             />
@@ -512,20 +671,40 @@ export default function TrackerScreen() {
             {tasks.map((task) => {
               const diff = getDiffBadge(task.freq);
               const isMediumOrHard = task.diff === 'med' || task.diff === 'hard' || task.freq === 'weekdays' || task.freq === 'weekends' || task.freq === 'saturday' || task.freq === 'sunday';
+              const isSupercharged = superchargedTaskId === task.id;
+              const baseRewardCoins = task.diff === 'hard' ? 35 : (task.diff === 'med' ? 20 : 10) + (task.mystery ? 10 : 0);
+              const boostedCoins = isSupercharged ? baseRewardCoins * 2 : baseRewardCoins;
 
               // Tier 2: Medium / Hard Quests -> Option C (Slide Left-to-Right)
               if (isMediumOrHard) {
                 return (
-                  <SlideToComplete
-                    key={task.id}
-                    title={task.mystery ? `${task.name} 🎁` : task.name}
-                    icon={task.icon || '⭐'}
-                    isDone={task.done}
-                    badgeLabel={task.mystery ? `🎁 MYSTERY · ${diff.label}` : diff.label}
-                    badgeColor={task.mystery ? Colors.amber : diff.color}
-                    badgeBg={task.mystery ? Colors.amberDim : diff.bg}
-                    onComplete={() => handleTaskCompletion(task.id)}
-                  />
+                  <View key={task.id} style={isSupercharged && { borderWidth: 2, borderColor: Colors.amber, borderRadius: 14 }}>
+                    <SlideToComplete
+                      title={task.mystery ? `${task.name} 🎁` : task.name}
+                      icon={task.icon || '⭐'}
+                      isDone={task.done}
+                      badgeLabel={task.mystery ? `🎁 MYSTERY · ${diff.label}` : (isSupercharged ? `⚡ 2X SUPERCHARGED · ${diff.label}` : diff.label)}
+                      badgeColor={isSupercharged ? Colors.amber : (task.mystery ? Colors.amber : diff.color)}
+                      badgeBg={isSupercharged ? Colors.amberDim : (task.mystery ? Colors.amberDim : diff.bg)}
+                      onComplete={() => handleTaskCompletion(task.id)}
+                    />
+                    {!task.done && (
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4 }}>
+                        <TouchableOpacity
+                          onPress={() => setSuperchargedTask(isSupercharged ? null : task.id)}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                        >
+                          <Zap size={12} color={isSupercharged ? Colors.amber : Colors.textMuted} />
+                          <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 10, color: isSupercharged ? Colors.amber : Colors.textMuted }}>
+                            {isSupercharged ? '⚡ SUPERCHARGED (ACTIVE)' : 'Tap to 2X Supercharge'}
+                          </Text>
+                        </TouchableOpacity>
+                        <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 10, color: Colors.green }}>
+                          +{boostedCoins} 💰
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 );
               }
 
@@ -535,7 +714,8 @@ export default function TrackerScreen() {
                   key={task.id} 
                   style={[
                     styles.taskCard, 
-                    task.done && styles.taskDone
+                    task.done && styles.taskDone,
+                    isSupercharged && { borderWidth: 2, borderColor: Colors.amber }
                   ]}
                   onPress={() => handleTaskCompletion(task.id)}
                 >
@@ -564,7 +744,33 @@ export default function TrackerScreen() {
                             <Text style={[styles.diffTagText, { color: Colors.amber }]}>🎁 MYSTERY DROP</Text>
                           </View>
                         )}
+                        {isSupercharged && (
+                          <View style={[styles.diffTag, { backgroundColor: Colors.amberDim, borderWidth: 1, borderColor: Colors.amber }]}>
+                            <Text style={[styles.diffTagText, { color: Colors.amber }]}>⚡ 2X SUPERCHARGED</Text>
+                          </View>
+                        )}
                       </View>
+                    </View>
+
+                    {/* Anchored Reward Math (Eva de Lera: Seduced by Logic) */}
+                    <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                      <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: task.done ? Colors.textMuted : Colors.green }}>
+                        +{boostedCoins} 💰
+                      </Text>
+                      {!task.done && (
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            setSuperchargedTask(isSupercharged ? null : task.id);
+                          }}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
+                        >
+                          <Zap size={10} color={isSupercharged ? Colors.amber : Colors.textMuted} />
+                          <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 9, color: isSupercharged ? Colors.amber : Colors.textMuted }}>
+                            {isSupercharged ? '2X ON' : 'Boost'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </View>
 
