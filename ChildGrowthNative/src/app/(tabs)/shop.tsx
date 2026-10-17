@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Colors, Typography, Layout, WORLD_THEMES, ThemeKey } from '../../constants/theme';
+import { Colors, Typography, Layout, WORLD_THEMES, ThemeKey, getThemeColors } from '../../constants/theme';
 import { useAppStore } from '../../store/useAppStore';
 import { ShoppingBag, Coins, Check, Zap, X, Shield, Sparkles, Star, Lock } from 'lucide-react-native';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
@@ -316,7 +316,7 @@ export default function ShopScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: getThemeColors(activeTheme).background }]}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         
         {/* Header */}

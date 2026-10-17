@@ -16,16 +16,38 @@ interface HoldToClaimProps {
   isClaimed: boolean;
   title?: string;
   claimedTitle?: string;
+  durationMs?: number;
+  fastChargeLabel?: string;
 }
 
-const DURATION = 1500; // 1.5 seconds hold to claim
+const DEFAULT_DURATION = 1500; // 1.5 seconds hold to claim
 
-export default function HoldToClaim({ onClaim, isClaimed, title = 'HOLD TO CLAIM (+35 XP)', claimedTitle = 'CLAIMED (+35 XP)' }: HoldToClaimProps) {
+export default function HoldToClaim({
+  onClaim,
+  isClaimed,
+  title = 'HOLD TO CLAIM (+35 XP)',
+  claimedTitle = 'CLAIMED (+35 XP)',
+  durationMs = DEFAULT_DURATION,
+  fastChargeLabel,
+}: HoldToClaimProps) {
   const progress = useSharedValue(0);
   const scale = useSharedValue(1);
   const [holding, setHolding] = useState(false);
+  const pulseTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearPulseTimer = () => {
+    if (pulseTimerRef.current) {
+      clearInterval(pulseTimerRef.current);
+      pulseTimerRef.current = null;
+    }
+  };
+
+  React.useEffect(() => {
+    return () => clearPulseTimer();
+  }, []);
 
   const triggerSuccessHaptic = () => {
+    clearPulseTimer();
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (_) {}
@@ -37,8 +59,16 @@ export default function HoldToClaim({ onClaim, isClaimed, title = 'HOLD TO CLAIM
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (_) {}
+
+    clearPulseTimer();
+    pulseTimerRef.current = setInterval(() => {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } catch (_) {}
+    }, 320);
+
     scale.value = withTiming(0.96, { duration: 150 });
-    progress.value = withTiming(1, { duration: DURATION, easing: Easing.linear }, (finished) => {
+    progress.value = withTiming(1, { duration: durationMs, easing: Easing.linear }, (finished) => {
       if (finished) {
         runOnJS(triggerSuccessHaptic)();
         runOnJS(onClaim)();
@@ -48,6 +78,7 @@ export default function HoldToClaim({ onClaim, isClaimed, title = 'HOLD TO CLAIM
   };
 
   const handlePressOut = () => {
+    clearPulseTimer();
     if (isClaimed || progress.value >= 1) return;
     setHolding(false);
     scale.value = withTiming(1, { duration: 200 });
@@ -79,7 +110,11 @@ export default function HoldToClaim({ onClaim, isClaimed, title = 'HOLD TO CLAIM
         <Animated.View style={[styles.progressBar, progressStyle]} />
         <View style={styles.content}>
           <Text style={[styles.text, isClaimed && styles.textClaimed]}>
-            {isClaimed ? claimedTitle : holding ? 'HOLDING...' : title}
+            {isClaimed
+              ? claimedTitle
+              : holding
+                ? (fastChargeLabel ? `⚡ ${fastChargeLabel} CHARGING...` : '⚡ CHARGING BOSS XP...')
+                : title}
           </Text>
         </View>
       </Pressable>

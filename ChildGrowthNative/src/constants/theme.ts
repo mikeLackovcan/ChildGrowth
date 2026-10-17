@@ -155,6 +155,21 @@ export const Colors = {
   dark: defaultColors,
 };
 
+export function getThemeColors(themeKey?: ThemeKey) {
+  const active = (themeKey && WORLD_THEMES[themeKey]) ? WORLD_THEMES[themeKey] : defaultColors;
+  return {
+    ...Colors,
+    ...active,
+    primary: active.accent,
+    red: active.accent,
+    redDim: active.accentDim,
+    tint: active.accent,
+    tabIconSelected: active.accent,
+    backgroundSelected: active.surface2,
+    backgroundElement: active.surface,
+  };
+}
+
 export const Spacing = {
   half: 4,
   one: 8,

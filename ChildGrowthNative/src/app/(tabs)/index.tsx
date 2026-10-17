@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Colors } from '../../constants/theme';
-import { useAppStore } from '../../store/useAppStore';
-import { LogOut, Thermometer, Moon, CheckCircle2, Star, Trophy, Gamepad2, Sun, Calendar, ScrollText, Settings } from 'lucide-react-native';
+import { Colors, getThemeColors, WORLD_THEMES } from '../../constants/theme';
+import { useAppStore, DEFAULT_STARTER_TASKS } from '../../store/useAppStore';
+import { LogOut, Thermometer, Moon, CheckCircle2, Star, Trophy, Gamepad2, Sun, Calendar, ScrollText, Settings, Sparkles, Shield, Zap } from 'lucide-react-native';
 import HoldToClaim from '../../components/HoldToClaim';
 import PrizeWheelModal from '../../components/PrizeWheelModal';
 import BouncingButton from '../../components/BouncingButton';
@@ -16,12 +16,9 @@ import DancingBananaModal from '../../components/DancingBananaModal';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
 import SlideToComplete from '../../components/SlideToComplete';
 import SettingsModal from '../../components/SettingsModal';
+import { getAvatarSkillConfig, getNextLockedAvatar, QuestRewardCalculation } from '../../utils/avatarSkills';
 
 const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-const DEFAULT_TASKS = [
-  { id: '1', name: 'Brush your teeth 🪥', icon: '🪥', done: false, diff: 'easy' as const, freq: 'daily' as const, mystery: false, date: new Date().toISOString() },
-];
 
 export default function TrackerScreen() {
   const { t } = useTranslation();
@@ -33,8 +30,15 @@ export default function TrackerScreen() {
   const isSick = useAppStore((state) => state.isSick);
   const setSick = useAppStore((state) => state.setSick);
   const rawTasks = useAppStore((state) => state.tasks);
-  const tasks = (rawTasks && rawTasks.length > 0) ? rawTasks : DEFAULT_TASKS;
+  const tasks = (rawTasks && rawTasks.length > 0) ? rawTasks : DEFAULT_STARTER_TASKS;
   const toggleTaskDone = useAppStore((state) => state.toggleTaskDone);
+  const claimEpicBoss = useAppStore((state) => state.claimEpicBoss);
+  const epicClaimedDate = useAppStore((state) => state.epicClaimedDate);
+  const streak = useAppStore((state) => state.streak);
+  const level = useAppStore((state) => state.level);
+  const xp = useAppStore((state) => state.xp);
+  const activeTheme = useAppStore((state) => state.activeTheme);
+  const unlockedAvatars = useAppStore((state) => state.unlockedAvatars);
   const prizes = useAppStore((state) => state.prizes);
   const addWonPrize = useAppStore((state) => state.addWonPrize);
   const coins = useAppStore((state) => state.coins);
@@ -52,12 +56,30 @@ export default function TrackerScreen() {
   const userEmail = useAppStore((state) => state.userEmail);
 
   const [showPrizeWheel, setShowPrizeWheel] = useState(false);
-  const [epicClaimed, setEpicClaimed] = useState(false);
   const [wonPrize, setWonPrize] = useState('');
   const [playConfetti, setPlayConfetti] = useState(false);
   const [showDancingBanana, setShowDancingBanana] = useState(false);
   const [pendingWheelSpin, setPendingWheelSpin] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [lastRewardToast, setLastRewardToast] = useState<(QuestRewardCalculation & { questTitle: string }) | null>(null);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const epicClaimed = epicClaimedDate === todayStr;
+  const avatarSkill = getAvatarSkillConfig(currentAvatar);
+  const nextUnlock = getNextLockedAvatar(unlockedAvatars, coins);
+  const themeColors = getThemeColors(activeTheme);
+  const worldInfo = WORLD_THEMES[activeTheme] || WORLD_THEMES.classic;
+
+  const triggerRewardToast = (reward: QuestRewardCalculation, questTitle: string) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    setLastRewardToast({ ...reward, questTitle });
+    toastTimeoutRef.current = setTimeout(() => {
+      setLastRewardToast(null);
+    }, 3800);
+  };
 
   React.useEffect(() => {
     if (!userEmail) {
@@ -81,20 +103,24 @@ export default function TrackerScreen() {
   const completedCount = tasks.filter(t => t.done).length + (epicClaimed ? 1 : 0);
   const totalCount = tasks.length + 1;
   const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-  const currentStreak = completedCount > 0 ? 1 : 0;
-  const currentLevel = progressPct === 100 ? 3 : progressPct > 50 ? 2 : 1;
+  const currentStreak = Math.max(streak || 0, completedCount > 0 ? 1 : 0);
+  const currentLevel = level || 1;
 
   const handleTaskCompletion = (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
     const isNowDone = !task.done;
-    toggleTaskDone(taskId);
+    const reward = toggleTaskDone(taskId, Boolean(task.mystery));
 
     if (isNowDone) {
       playSuccessChime();
 
-      // Check if ALL daily tasks are now completed
+      if (reward) {
+        triggerRewardToast(reward, task.name);
+      }
+
+      // Check if ALL daily tasks are now completed (Peak-End Climax)
       const remainingUndone = tasks.filter(t => t.id !== taskId && !t.done);
       const isAllDailyQuestsDone = remainingUndone.length === 0;
 
@@ -104,17 +130,20 @@ export default function TrackerScreen() {
         setWonPrize(randomPrize);
         addWonPrize(randomPrize);
         setPendingWheelSpin(true);
+        setShowDancingBanana(true);
       }
-
-      setShowDancingBanana(true);
     }
   };
 
   const handleEpicClaim = () => {
-    setEpicClaimed(true);
+    if (epicClaimed) return;
+    const reward = claimEpicBoss();
     playSuccessChime();
+    if (reward) {
+      triggerRewardToast(reward, epicBossTask || t('epic_boss_task'));
+    }
     
-    // Pick prize wheel reward for Epic Boss Quest completion
+    // Pick prize wheel reward for Epic Boss Quest completion (Peak-End Climax)
     const randomPrize = prizes[Math.floor(Math.random() * prizes.length)] || 'Extra Roblox Coins!';
     setWonPrize(randomPrize);
     addWonPrize(randomPrize);
@@ -191,19 +220,19 @@ export default function TrackerScreen() {
   ] : [];
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]} edges={['top', 'left', 'right']}>
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         
         {/* Roblox Header */}
         <View style={styles.header}>
           <View style={styles.logoRow}>
-            <View style={styles.logoBox}>
+            <View style={[styles.logoBox, { backgroundColor: themeColors.accent, shadowColor: themeColors.accent }]}>
               <View style={styles.robloxDiamond} />
             </View>
             <View>
               <Text style={styles.appTitle}>{fullName || nickname || 'Kid Hero'}</Text>
-              <Text style={styles.appSub}>@{nickname || 'hero'} · {t('app_subtitle')}</Text>
+              <Text style={styles.appSub}>@{nickname || 'hero'} · {worldInfo.icon} {worldInfo.name}</Text>
             </View>
           </View>
 
@@ -339,38 +368,91 @@ export default function TrackerScreen() {
           <Text style={styles.dateChipText}>{getFormatDate().toUpperCase()}</Text>
         </View>
 
-        {/* Level & XP Summary Card (Original Roblox Summary Row) */}
-        <View style={styles.summaryCard}>
+        {/* Level & XP Summary Card (Original Roblox Summary Row + Avatar Passive Skill Badge) */}
+        <View style={[styles.summaryCard, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
           <View style={styles.charArea}>
-            <View style={styles.avatarBorder}>
+            <View style={[styles.avatarBorder, { borderColor: themeColors.accent }]}>
               {getAvatarDisplay().image ? (
                 <Image source={getAvatarDisplay().image} style={styles.avatarImg} resizeMode="contain" />
               ) : (
                 <Text style={{ fontSize: 32 }}>{getAvatarDisplay().emoji}</Text>
               )}
             </View>
-            <Text style={styles.charPct}>{progressPct}% DONE</Text>
+            <Text style={[styles.charPct, { color: themeColors.accent }]}>{progressPct}% DONE</Text>
           </View>
 
           <View style={styles.summaryRight}>
-            <View style={styles.levelBadge}>
-              <Trophy size={12} color={Colors.red} />
-              <Text style={styles.levelBadgeText}>
-                {progressPct === 100 ? t('level_champion') : progressPct > 50 ? t('level_adventurer') : t('level_explorer')}
-              </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <View style={[styles.levelBadge, { marginBottom: 0 }]}>
+                <Trophy size={12} color={Colors.red} />
+                <Text style={styles.levelBadgeText}>
+                  LVL {currentLevel} · {progressPct === 100 ? t('level_champion') : progressPct > 50 ? t('level_adventurer') : t('level_explorer')}
+                </Text>
+              </View>
+              {avatarSkill.hasStreakShield && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: Colors.blueDim, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
+                  <Shield size={11} color={Colors.blue} />
+                  <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 9, color: Colors.blue }}>SHIELD ON</Text>
+                </View>
+              )}
             </View>
 
             <Text style={styles.bigLabel}>{t('daily_xp_progress')}</Text>
             
             <View style={styles.xpTrack}>
-              <View style={[styles.xpFill, { width: `${progressPct}%` }]} />
+              <View style={[styles.xpFill, { width: `${progressPct}%`, backgroundColor: themeColors.accent }]} />
             </View>
             
             <Text style={styles.xpLabel}>
-              {completedCount} / {totalCount} {t('quests_completed')} ({completedCount * 20} {t('earned_xp')})
+              {completedCount} / {totalCount} {t('quests_completed')} · {xp}/100 XP to Lvl {currentLevel + 1}
             </Text>
+
+            {/* Active Hero Skill Buff Pill */}
+            <View style={{ marginTop: 8, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.border2, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Zap size={13} color={Colors.amber} />
+              <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 11, color: Colors.amber, flex: 1 }} numberOfLines={1}>
+                {avatarSkill.name}: {avatarSkill.skillName} ({avatarSkill.shortBuff})
+              </Text>
+            </View>
           </View>
         </View>
+
+        {/* Goal-Gradient "Next Hero Unlock" Progress Bar (Laws of UX: Goal-Gradient Effect) */}
+        {nextUnlock && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => router.push('/(tabs)/shop')}
+            style={{
+              backgroundColor: themeColors.surface,
+              borderWidth: 1,
+              borderColor: Colors.amber,
+              borderRadius: 12,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              marginBottom: 16,
+            }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Sparkles size={14} color={Colors.amber} />
+                <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: Colors.text }}>
+                  NEXT HERO UNLOCK: {nextUnlock.name.toUpperCase()}
+                </Text>
+              </View>
+              <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 11, color: Colors.amber }}>
+                {coins} / {nextUnlock.price} 💰 ({nextUnlock.progressPct}%)
+              </Text>
+            </View>
+            <View style={{ height: 8, backgroundColor: Colors.surface2, borderRadius: 999, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border }}>
+              <View style={{ height: '100%', width: `${nextUnlock.progressPct}%`, backgroundColor: Colors.amber, borderRadius: 999 }} />
+            </View>
+            <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 10, color: Colors.textSecondary, marginTop: 4 }}>
+              {nextUnlock.canUnlockNow
+                ? `🎉 Enough coins! Tap to unlock ${nextUnlock.name} in the Avatar Shop!`
+                : `${nextUnlock.coinsNeeded} more coins to unlock ${nextUnlock.name} in the Avatar Shop!`}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Sick Mode Toggle */}
         <View style={styles.sickToggleRow}>
@@ -418,8 +500,10 @@ export default function TrackerScreen() {
             <HoldToClaim 
               isClaimed={epicClaimed} 
               onClaim={handleEpicClaim}
-              title={t('hold_to_claim_xp', { xp: epicBossXP || 35 })}
-              claimedTitle={t('claimed_banner_xp', { xp: epicBossXP || 35 })}
+              title={t('hold_to_claim_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) })}
+              claimedTitle={t('claimed_banner_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) })}
+              durationMs={avatarSkill.bossHoldDurationMs || 1500}
+              fastChargeLabel={avatarSkill.bossHoldDurationMs ? `${avatarSkill.skillName} (2x Speed!)` : undefined}
             />
           </View>
 
@@ -434,12 +518,12 @@ export default function TrackerScreen() {
                 return (
                   <SlideToComplete
                     key={task.id}
-                    title={task.name}
+                    title={task.mystery ? `${task.name} 🎁` : task.name}
                     icon={task.icon || '⭐'}
                     isDone={task.done}
-                    badgeLabel={diff.label}
-                    badgeColor={diff.color}
-                    badgeBg={diff.bg}
+                    badgeLabel={task.mystery ? `🎁 MYSTERY · ${diff.label}` : diff.label}
+                    badgeColor={task.mystery ? Colors.amber : diff.color}
+                    badgeBg={task.mystery ? Colors.amberDim : diff.bg}
                     onComplete={() => handleTaskCompletion(task.id)}
                   />
                 );
@@ -470,11 +554,16 @@ export default function TrackerScreen() {
 
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.taskName, task.done && styles.taskNameDone]}>{task.name}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
                         <Text style={styles.taskFreqLabel}>{getFreqBadge(task.freq)}</Text>
                         <View style={[styles.diffTag, { backgroundColor: diff.bg }]}>
                           <Text style={[styles.diffTagText, { color: diff.color }]}>{diff.label}</Text>
                         </View>
+                        {task.mystery && (
+                          <View style={[styles.diffTag, { backgroundColor: Colors.amberDim, borderWidth: 1, borderColor: Colors.amber }]}>
+                            <Text style={[styles.diffTagText, { color: Colors.amber }]}>🎁 MYSTERY DROP</Text>
+                          </View>
+                        )}
                       </View>
                     </View>
                   </View>
@@ -591,6 +680,63 @@ export default function TrackerScreen() {
         </View>
 
       </ScrollView>
+
+      {/* Non-Blocking Variable Reward Toast Banner (Hooked Variable Ratio + Peak-End Rule) */}
+      {lastRewardToast && (
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => setLastRewardToast(null)}
+          style={{
+            position: 'absolute',
+            bottom: 18,
+            left: 18,
+            right: 18,
+            backgroundColor: lastRewardToast.isCritical ? '#231c07' : Colors.surface,
+            borderWidth: 2,
+            borderColor: lastRewardToast.isCritical ? Colors.amber : Colors.green,
+            borderRadius: 16,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            shadowColor: lastRewardToast.isCritical ? Colors.amber : Colors.green,
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.45,
+            shadowRadius: 12,
+            elevation: 8,
+          }}
+        >
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ fontSize: 16 }}>{lastRewardToast.isCritical ? '⚡' : '✅'}</Text>
+              <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 13, color: lastRewardToast.isCritical ? Colors.amber : Colors.green }}>
+                {lastRewardToast.isCritical ? 'CRITICAL MYSTERY DROP! (1.5x LOOT)' : 'QUEST COMPLETE!'}
+              </Text>
+            </View>
+            <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 12, color: Colors.text, marginTop: 2 }} numberOfLines={1}>
+              {lastRewardToast.questTitle}
+            </Text>
+            {Boolean(lastRewardToast.skillLabel) && (
+              <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 10, color: Colors.textSecondary, marginTop: 2 }}>
+                {avatarSkill.skillName}: {lastRewardToast.skillLabel}
+              </Text>
+            )}
+          </View>
+          <View style={{ alignItems: 'flex-end', gap: 3 }}>
+            <View style={{ backgroundColor: Colors.amberDim, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, borderWidth: 1, borderColor: Colors.amber }}>
+              <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: Colors.amber }}>
+                +{lastRewardToast.xpGain} XP ⭐
+              </Text>
+            </View>
+            <View style={{ backgroundColor: Colors.greenDim, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, borderWidth: 1, borderColor: Colors.green }}>
+              <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: Colors.green }}>
+                +{lastRewardToast.coinGain} 💰
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
 
       <PrizeWheelModal 
         visible={showPrizeWheel} 

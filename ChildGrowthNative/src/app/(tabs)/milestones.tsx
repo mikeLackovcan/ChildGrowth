@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Colors, Typography, Layout } from '../../constants/theme';
+import { Colors, Typography, Layout, getThemeColors } from '../../constants/theme';
 import { useAppStore } from '../../store/useAppStore';
 import { Trophy, Star, Gift, Calendar, CheckCircle2, Circle, Settings } from 'lucide-react-native';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
@@ -14,6 +14,8 @@ export default function MilestonesScreen() {
   const level = useAppStore((state) => state.level);
   const wonPrizes = useAppStore((state) => state.wonPrizes);
   const togglePrizeRedeemed = useAppStore((state) => state.togglePrizeRedeemed);
+  const activeTheme = useAppStore((state) => state.activeTheme);
+  const themeColors = getThemeColors(activeTheme);
 
   const [settingsVisible, setSettingsVisible] = useState(false);
 
@@ -21,7 +23,7 @@ export default function MilestonesScreen() {
   const progressPercent = Math.min((xp / xpNeeded) * 100, 100);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <Text style={styles.headerTitle}>{t('winnings_prizes_title', 'Winnings & Prizes 🎁')}</Text>
@@ -39,21 +41,21 @@ export default function MilestonesScreen() {
         {/* Level Tracker */}
         <View style={styles.levelCard}>
           <View style={styles.levelHeader}>
-            <View style={styles.levelBadge}>
-              <Star size={24} color="#FFF" fill="#FFF" />
+            <View style={[styles.levelBadge, { backgroundColor: themeColors.accent }]}>
+              <Star size={42} color={Colors.amber} fill={Colors.amber} />
               <Text style={styles.levelText}>{level}</Text>
             </View>
             <View style={styles.levelInfo}>
               <Text style={styles.levelTitle}>Level {level}</Text>
-              <Text style={styles.xpText}>{xp} / {xpNeeded} XP</Text>
+              <Text style={styles.xpText}>{xp} / {xpNeeded} XP ⭐</Text>
             </View>
           </View>
           
           <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+            <View style={[styles.progressBarFill, { width: `${progressPercent}%`, backgroundColor: themeColors.accent }]} />
           </View>
           <Text style={styles.progressSubText}>
-            Earn {xpNeeded - xp} more XP to reach Level {level + 1}!
+            Earn {Math.max(0, xpNeeded - xp)} more XP to reach Level {level + 1}!
           </Text>
         </View>
 
@@ -171,14 +173,16 @@ const styles = StyleSheet.create({
   },
   levelCard: {
     backgroundColor: Colors.cardBlue,
+    borderWidth: 1.5,
+    borderColor: Colors.blue,
     padding: 24,
     borderRadius: Layout.borderRadius,
     marginBottom: 32,
-    shadowColor: '#000',
+    shadowColor: Colors.blue,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.2,
     shadowRadius: 12,
-    elevation: 3,
+    elevation: 4,
   },
   levelHeader: {
     flexDirection: 'row',
@@ -197,7 +201,7 @@ const styles = StyleSheet.create({
   },
   levelText: {
     position: 'absolute',
-    color: Colors.primary,
+    color: '#121212',
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 16,
     marginTop: 2,
@@ -208,17 +212,18 @@ const styles = StyleSheet.create({
   levelTitle: {
     ...Typography.title,
     fontSize: 24,
-    color: '#1E3A8A', // Dark blue
+    color: Colors.text,
   },
   xpText: {
     ...Typography.body,
-    color: '#1E3A8A',
-    opacity: 0.8,
-    fontWeight: '700',
+    color: Colors.amber,
+    fontFamily: 'Nunito_800ExtraBold',
   },
   progressBarBg: {
     height: 16,
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: Colors.surface2,
+    borderWidth: 1,
+    borderColor: Colors.border2,
     borderRadius: 8,
     overflow: 'hidden',
     marginBottom: 12,
@@ -230,8 +235,8 @@ const styles = StyleSheet.create({
   },
   progressSubText: {
     ...Typography.small,
-    color: '#1E3A8A',
-    fontWeight: '600',
+    color: Colors.textSecondary,
+    fontFamily: 'Nunito_700Bold',
   },
   section: {
     flex: 1,

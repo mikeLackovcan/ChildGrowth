@@ -45,6 +45,14 @@ export default function SlideToComplete({
     setTrackWidth(e.nativeEvent.layout.width);
   };
 
+  const crossedThreshold = useSharedValue(false);
+
+  const triggerThresholdHaptic = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (_) {}
+  };
+
   const triggerCompletion = () => {
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -59,8 +67,16 @@ export default function SlideToComplete({
       if (x < 0) x = 0;
       if (x > maxTranslate) x = maxTranslate;
       translateX.value = x;
+
+      if (x > maxTranslate * 0.6 && !crossedThreshold.value) {
+        crossedThreshold.value = true;
+        runOnJS(triggerThresholdHaptic)();
+      } else if (x <= maxTranslate * 0.6 && crossedThreshold.value) {
+        crossedThreshold.value = false;
+      }
     })
     .onEnd(() => {
+      crossedThreshold.value = false;
       // Threshold is 60% of the track
       if (translateX.value > maxTranslate * 0.6) {
         translateX.value = withSpring(maxTranslate, { damping: 15, stiffness: 150 });

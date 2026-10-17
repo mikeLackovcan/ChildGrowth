@@ -7,6 +7,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import i18n from '../i18n';
 import { playSound } from '../lib/sound';
 import { ThemeKey } from '../constants/theme';
+import { calculateQuestReward, getAvatarSkillConfig, QuestRewardCalculation } from '../utils/avatarSkills';
+
+export const DEFAULT_STARTER_TASKS: Task[] = [
+  { id: 'starter_1', name: 'Brush your teeth 🪥', icon: '🪥', done: false, diff: 'easy', freq: 'daily', mystery: false, date: new Date().toISOString().split('T')[0] },
+  { id: 'starter_2', name: 'Make your bed 🛏️', icon: '🛏️', done: false, diff: 'easy', freq: 'daily', mystery: true, date: new Date().toISOString().split('T')[0] },
+  { id: 'starter_3', name: '15m Reading or Homework 📚', icon: '📚', done: false, diff: 'med', freq: 'weekdays', mystery: false, date: new Date().toISOString().split('T')[0] },
+];
 
 export type UserRole = 'parent' | 'child' | null;
 
@@ -58,6 +65,8 @@ interface AppState {
   isSick: boolean;
   xp: number;
   level: number;
+  streak: number;
+  epicClaimedDate: string | null;
   tasks: Task[];
   prizes: string[];
   wonPrizes: WonPrize[];
@@ -82,11 +91,12 @@ interface AppState {
   setUser: (email: string | null, role: UserRole, fullName?: string, nickname?: string, id?: string) => void;
   continueAsGuest: () => Promise<void>;
   setSick: (sick: boolean) => void;
-  addXP: (amount: number) => void;
+  addXP: (amount: number, coinAmount?: number) => void;
   addTask: (task: Omit<Task, 'id' | 'done' | 'date'>) => void;
   removeTask: (id: string) => void;
   updateTask: (id: string, updates: Partial<Omit<Task, 'id'>>) => void;
-  toggleTaskDone: (id: string) => void;
+  toggleTaskDone: (id: string, forceCritical?: boolean) => QuestRewardCalculation | null;
+  claimEpicBoss: () => QuestRewardCalculation | null;
   resetTasksForNewDay: () => void;
   deleteAllTasks: () => void;
   setPrizes: (prizes: string[]) => void;
@@ -143,7 +153,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   lastActiveDate: new Date().toISOString().split('T')[0],
   xp: 0,
   level: 1,
-  tasks: [], // Kids start with 0 quests first time!
+  streak: 1,
+  epicClaimedDate: null,
+  tasks: [], // Kids start with 0 quests first time (auto-hydrates starter quests on interaction)
   prizes: ['Robux 💰', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
   wonPrizes: [],
   coins: 0,
@@ -239,14 +251,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isSick: sick });
     get().saveMockState();
   },
-  addXP: (amount) => {
+  addXP: (amount, coinAmount) => {
+    const coinsDelta = typeof coinAmount === 'number' ? coinAmount : amount;
     let currentXp = get().xp + amount;
     let currentLevel = get().level;
     const initialLevel = currentLevel;
-    let currentCoins = get().coins + amount; 
+    let currentCoins = get().coins + coinsDelta; 
     while (currentXp >= 100) {
       currentLevel++;
       currentXp -= 100;
+    }
+    while (currentXp < 0 && currentLevel > 1) {
+      currentLevel--;
+      currentXp += 100;
     }
     if (currentLevel > initialLevel) {
       playSound('levelup');
@@ -257,7 +274,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { selectedChildId, children } = get();
     if (selectedChildId && children.length > 0) {
       set({
-        children: children.map(c => c.id === selectedChildId ? { ...c, xp: currentXp, level: currentLevel, coins: currentCoins } : c)
+        children: children.map(c => c.id === selectedChildId ? { ...c, xp: Math.max(0, currentXp), level: currentLevel, coins: Math.max(0, currentCoins) } : c)
       });
     }
 
@@ -298,17 +315,32 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
     get().saveMockState();
   },
-  toggleTaskDone: (id) => {
-    const task = get().tasks.find((t) => t.id === id);
-    if (!task) return;
+  toggleTaskDone: (id, forceCritical) => {
+    let currentTasks = get().tasks;
+    // Auto-hydrate starter tasks if child taps a starter task while tasks is empty (fixes cold-start UX)
+    if (currentTasks.length === 0 && DEFAULT_STARTER_TASKS.some(st => st.id === id)) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      currentTasks = DEFAULT_STARTER_TASKS.map(st => ({ ...st, date: todayStr }));
+    }
+
+    const task = currentTasks.find((t) => t.id === id);
+    if (!task) return null;
     
     const isNowDone = !task.done;
     
-    let xpGain = 10;
-    if (task.diff === 'med') xpGain = 20;
-    if (task.diff === 'hard') xpGain = 35;
+    let baseXp = 10;
+    if (task.diff === 'med') baseXp = 20;
+    if (task.diff === 'hard') baseXp = 35;
+    if (task.mystery) baseXp += 10;
+
+    const reward = calculateQuestReward(
+      baseXp,
+      task.diff,
+      get().currentAvatar,
+      isNowDone ? forceCritical : false
+    );
     
-    const updatedTasks = get().tasks.map((t) => (t.id === id ? { ...t, done: isNowDone } : t));
+    const updatedTasks = currentTasks.map((t) => (t.id === id ? { ...t, done: isNowDone } : t));
     set({ tasks: updatedTasks });
     
     const { selectedChildId, children } = get();
@@ -319,20 +351,38 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     
     if (isNowDone) {
-      get().addXP(xpGain);
+      get().addXP(reward.xpGain, reward.coinGain);
+      return reward;
     } else {
-      get().addXP(-xpGain);
+      get().addXP(-reward.xpGain, -reward.coinGain);
+      return null;
     }
-    
-    get().saveMockState();
+  },
+  claimEpicBoss: () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (get().epicClaimedDate === todayStr) {
+      return null;
+    }
+    const baseBossXp = get().epicBossXP || 35;
+    const reward = calculateQuestReward(baseBossXp, 'boss', get().currentAvatar, false);
+    set({ epicClaimedDate: todayStr });
+    get().addXP(reward.xpGain, reward.coinGain);
+    return reward;
   },
   resetTasksForNewDay: () => {
     const todayStr = new Date().toISOString().split('T')[0];
-    const resetTasksList = get().tasks.map((t) => ({ ...t, done: false, date: todayStr }));
+    const prevTasks = get().tasks;
+    const hadCompletedYesterday = prevTasks.some((t) => t.done) || Boolean(get().epicClaimedDate);
+    const hasShield = Boolean(getAvatarSkillConfig(get().currentAvatar).hasStreakShield) || get().isSick;
+    const nextStreak = hadCompletedYesterday ? get().streak + 1 : (hasShield ? Math.max(1, get().streak) : 1);
+
+    const resetTasksList = prevTasks.map((t) => ({ ...t, done: false, date: todayStr }));
     
     set((state) => ({
       lastActiveDate: todayStr,
       dailyMood: null,
+      epicClaimedDate: null,
+      streak: nextStreak,
       tasks: resetTasksList,
       children: state.children.map(child => ({
         ...child,
@@ -1485,6 +1535,13 @@ export const useAppStore = create<AppState>((set, get) => ({
               } catch (e) {}
             }
 
+            const prevStreak = typeof parsed.streak === 'number' && parsed.streak > 0 ? parsed.streak : 1;
+            const hadCompletedYesterday = rawTasks.some((t: any) => t?.done) || Boolean(parsed.epicClaimedDate);
+            const hasShield = Boolean(getAvatarSkillConfig(parsed.currentAvatar).hasStreakShield) || Boolean(parsed.isSick);
+            const restoredStreak = isNewDay
+              ? (hadCompletedYesterday ? prevStreak + 1 : (hasShield ? prevStreak : 1))
+              : prevStreak;
+
             i18n.changeLanguage(lang);
             set({
               fullName: parsed.fullName || null,
@@ -1495,6 +1552,8 @@ export const useAppStore = create<AppState>((set, get) => ({
               isSick: Boolean(parsed.isSick),
               xp: typeof parsed.xp === 'number' ? parsed.xp : 0,
               level: typeof parsed.level === 'number' ? parsed.level : 1,
+              streak: restoredStreak,
+              epicClaimedDate: isNewDay ? null : (parsed.epicClaimedDate || null),
               tasks: validTasks,
               children: validChildren,
               selectedChildId: parsed.selectedChildId || (validChildren[0]?.id || null),
@@ -1612,6 +1671,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       isSick: false,
       xp: 0,
       level: 1,
+      streak: 1,
+      epicClaimedDate: null,
       tasks: [], // 0 quests for kids starting first time!
       prizes: ['Robux 💰', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
       wonPrizes: [],
@@ -1631,14 +1692,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   saveMockState: async () => {
     try {
-      const { isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, lastSpinDate, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role } = get();
+      const { isSick, xp, level, streak, epicClaimedDate, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, lastSpinDate, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role } = get();
       if (!userEmail) {
         await AsyncStorage.removeItem('active_user_tag');
         await AsyncStorage.removeItem('mockState');
         return;
       }
       const userTag = (nickname || userEmail.split('@')[0]).toLowerCase().replace(/^@/, '');
-      const stateObj = { isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, lastSpinDate, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role };
+      const stateObj = { isSick, xp, level, streak, epicClaimedDate, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, lastSpinDate, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role };
       
       await AsyncStorage.setItem('active_user_tag', userTag);
       await AsyncStorage.setItem('mockState', JSON.stringify(stateObj));
