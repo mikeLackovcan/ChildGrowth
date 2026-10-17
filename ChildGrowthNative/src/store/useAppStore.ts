@@ -342,6 +342,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!task) return null;
     
     const isNowDone = !task.done;
+
+    // After spinning the prize wheel, kids cannot undo chores themselves
+    const todayStr = new Date().toISOString().split('T')[0];
+    const hasSpunToday = get().lastSpinDate === todayStr;
+    const isParent = get().role === 'parent';
+    if (task.done && !isNowDone && hasSpunToday && !isParent) {
+      console.warn('🔒 Chores are locked after spinning: kids cannot undo chores');
+      return null;
+    }
     
     let baseXp = 10;
     if (task.diff === 'med') baseXp = 20;

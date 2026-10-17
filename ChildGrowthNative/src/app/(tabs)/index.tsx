@@ -161,6 +161,12 @@ export default function TrackerScreen() {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
+    // After spinning the prize wheel, kids cannot undo chores themselves
+    if (task.done && alreadySpunToday) {
+      alert(t('chores_locked_after_spin', '🔒 Quests are locked for today! You already spun the Prize Wheel.'));
+      return;
+    }
+
     const isNowDone = !task.done;
     const reward = toggleTaskDone(taskId, Boolean(task.mystery));
 
@@ -556,8 +562,10 @@ export default function TrackerScreen() {
                   </View>
 
                   {task.done && (
-                    <View style={styles.completedStamp}>
-                      <Text style={styles.completedStampText}>{t('completed_stamp')}</Text>
+                    <View style={[styles.completedStamp, alreadySpunToday && styles.completedStampLocked]}>
+                      <Text style={[styles.completedStampText, alreadySpunToday && styles.completedStampTextLocked]}>
+                        {alreadySpunToday ? '🔒 LOCKED' : t('completed_stamp')}
+                      </Text>
                     </View>
                   )}
                 </BouncingButton>
@@ -1232,6 +1240,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: Colors.red,
     letterSpacing: 1,
+  },
+  completedStampLocked: {
+    borderColor: '#00E676',
+    backgroundColor: 'rgba(0, 230, 118, 0.15)',
+    transform: [{ rotate: '0deg' }],
+  },
+  completedStampTextLocked: {
+    color: '#00E676',
   },
   allDoneBanner: {
     backgroundColor: '#1C291F',
