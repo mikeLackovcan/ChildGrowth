@@ -29,7 +29,7 @@ export async function configureNotifications(): Promise<void> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
       name: 'Quest reminders',
-      description: 'Reminders for unfinished QuestBlox habits and tasks.',
+      description: 'Reminders for unfinished Quest Hero habits and tasks.',
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 120, 250],
       sound: 'default',
@@ -87,7 +87,7 @@ export async function scheduleDailyQuestReminder(hour = 19, minute = 0): Promise
 
   return Notifications.scheduleNotificationAsync({
     content: {
-      title: '⚔️ QuestBlox daily quests',
+      title: '⚔️ Quest Hero daily quests',
       body: 'Your hero quests are waiting!',
       sound: 'default',
       ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),

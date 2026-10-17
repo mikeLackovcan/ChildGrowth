@@ -1212,7 +1212,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     await get().saveMockState();
-    return { success: true, message: 'Registration successful! Welcome to QuestBlox ??' };
+    return { success: true, message: 'Registration successful! Welcome to Quest Hero! 🌟' };
   },
 
   loginWithEmail: async (email, password) => {
@@ -1309,7 +1309,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       await AsyncStorage.setItem(`user_role_${fallbackNickname}`, chosenRole || 'child');
       await AsyncStorage.setItem('active_user_tag', fallbackNickname);
       await get().saveMockState();
-      return { success: true, message: 'Welcome to QuestBlox!' };
+      return { success: true, message: 'Welcome to Quest Hero!' };
     } catch (err: any) {
       console.warn('Firebase Google sign-in failed:', err?.message || err);
       return { success: false, message: err?.message || 'Google sign-in failed.' };

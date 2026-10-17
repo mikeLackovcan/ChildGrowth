@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "QuestBlox",
-    "slug": "QuestBlox",
+    "name": "Quest Hero",
+    "slug": "quest-hero",
     "description": "A playful family quest tracker that turns everyday tasks into rewards, progress, and adventures.",
     "version": "1.0.0",
     "orientation": "portrait",

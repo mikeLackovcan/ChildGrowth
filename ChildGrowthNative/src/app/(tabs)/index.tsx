@@ -67,7 +67,7 @@ export default function TrackerScreen() {
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.wordmark}>QuestBlox</Text>
+          <Text style={styles.wordmark}>Quest Hero</Text>
           <View style={styles.headerActions}>
             <View style={styles.coinPill}>
               <Coins size={17} color={Colors.amber} />
