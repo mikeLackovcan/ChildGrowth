@@ -28,6 +28,22 @@ export interface RobloxAvatar {
 
 export const AVAILABLE_AVATARS: RobloxAvatar[] = [
   { 
+    id: 'questblox_hero', 
+    name: 'QuestBlox Hero', 
+    price: 0, 
+    rarity: 'Legendary', 
+    skillName: 'Star Power ⭐', 
+    skillDesc: '+15% Coins & XP on All Quests',
+    image: require('../../assets/images/questblox_hero.png'),
+    color: '#FFB800',
+    hp: 120,
+    attack: 25,
+    speed: 25,
+    battleSkill: 'Star Blast ⭐',
+    battleSkillDesc: 'Strikes with radiant star energy for 30 damage!',
+    battleClass: 'Star Champion ⭐'
+  },
+  { 
     id: 'roblox_noob', 
     name: 'Roblox Noob', 
     price: 0, 
@@ -241,7 +257,7 @@ export default function ShopScreen() {
   const [battleLog, setBattleLog] = useState<string[]>([]);
   
   const activeAvatarObj = AVAILABLE_AVATARS.find(
-    (a) => a.id === currentAvatar || (currentAvatar === 'default' && a.id === 'roblox_noob')
+    (a) => a.id === currentAvatar || ((currentAvatar === 'default' || !currentAvatar) && a.id === 'questblox_hero')
   ) || AVAILABLE_AVATARS[0];
 
   const rivalAvatar = AVAILABLE_AVATARS.find((a) => a.id !== activeAvatarObj.id) || AVAILABLE_AVATARS[1];
@@ -284,7 +300,7 @@ export default function ShopScreen() {
     }
   };
 
-  const isUnlocked = (id: string) => id === 'roblox_noob' || id === 'default' || unlockedAvatars.includes(id);
+  const isUnlocked = (id: string) => id === 'questblox_hero' || id === 'roblox_noob' || id === 'default' || unlockedAvatars.includes(id);
 
   const handleAvatarPress = (avatar: RobloxAvatar) => {
     if (isUnlocked(avatar.id)) {
@@ -434,7 +450,7 @@ export default function ShopScreen() {
         <View style={styles.grid}>
           {AVAILABLE_AVATARS.map((avatar) => {
             const unlocked = isUnlocked(avatar.id);
-            const equipped = currentAvatar === avatar.id || (currentAvatar === 'default' && avatar.id === 'roblox_noob');
+            const equipped = currentAvatar === avatar.id || ((currentAvatar === 'default' || !currentAvatar) && avatar.id === 'questblox_hero');
             const rarityStyle = getRarityBadgeStyle(avatar.rarity);
             const weeksNeeded = Math.ceil(avatar.price / 700);
 

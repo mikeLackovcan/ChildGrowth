@@ -16,6 +16,16 @@ export interface AvatarSkillConfig {
 
 export const AVATAR_SKILL_CONFIGS: AvatarSkillConfig[] = [
   {
+    id: 'questblox_hero',
+    name: 'QuestBlox Hero',
+    price: 0,
+    skillName: 'Star Power ⭐',
+    shortBuff: '+15% Coins & XP',
+    xpMultiplier: 1.15,
+    coinMultiplier: 1.15,
+    easyCoinBonusPct: 0.15,
+  },
+  {
     id: 'roblox_noob',
     name: 'Roblox Noob',
     price: 0,
@@ -225,27 +235,25 @@ export function getHeroCompanionMessage(
     streak: number;
   }
 ): string {
-  const avatar = getAvatarSkillConfig(avatarId);
-
   if (context.hasUnclaimedChest) {
-    return `🎁 Yo! Tap your Daily Mystery Supply Crate for free coins & XP!`;
+    return `🎁 FREE GIFT!`;
   }
   if (context.progressPct === 100) {
-    return `👑 LEGENDARY SWEEP! All daily quests defeated today! You're a true champion!`;
+    return `👑 CHAMPION!`;
   }
   if (context.isBossVulnerable) {
-    return `💥 Boss shield is SHATTERED! Hold to claim your massive victory bonus!`;
+    return `💥 SMASH BOSS!`;
   }
   if (context.comboCount >= 2) {
-    return `🔥 COMBO FRENZY! ${context.comboCount} quests crushed in a row — keep the multiplier going!`;
+    return `🔥 ${context.comboCount}X COMBO!`;
   }
   if (context.progressPct >= 70) {
-    return `⚡ Almost there! Just 1 or 2 quests left to crack open today's Vault!`;
+    return `⚡ ALMOST THERE!`;
   }
   if (context.streak >= 3) {
-    return `🔥 You're on a ${context.streak}-day streak! ${avatar.name} is proud of you!`;
+    return `🔥 ${context.streak} DAYS!`;
   }
-  return `⚔️ Ready for today's quests? Tap the ⚡ Supercharge to double your loot!`;
+  return `⭐ READY!`;
 }
 
 export interface NextAvatarGoal {
@@ -262,8 +270,9 @@ export function getNextLockedAvatar(
   currentCoins: number
 ): NextAvatarGoal | null {
   const normalizedUnlocked = new Set(
-    unlockedAvatars.map((id) => (id === 'default' ? 'roblox_noob' : id))
+    unlockedAvatars.map((id) => (id === 'default' ? 'questblox_hero' : id))
   );
+  normalizedUnlocked.add('questblox_hero');
   normalizedUnlocked.add('roblox_noob');
 
   const nextLocked = AVATAR_SKILL_CONFIGS.find(

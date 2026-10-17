@@ -41,6 +41,23 @@ export interface RobloxAvatar {
 
 export const ALL_ROBLOX_FIGURES: RobloxAvatar[] = [
   { 
+    id: 'questblox_hero', 
+    name: 'QuestBlox Hero', 
+    price: 0, 
+    rarity: 'Legendary', 
+    skillName: 'Star Power ⭐', 
+    skillDesc: '+15% Coins & XP on All Quests',
+    image: require('../../assets/images/questblox_hero.png'),
+    color: '#FFB800',
+    hp: 130,
+    attack: 28,
+    speed: 26,
+    battleSkill: 'Star Blast ⭐',
+    battleSkillDesc: 'Strikes with radiant star energy for 32 damage!',
+    battleClass: 'Star Champion ⭐',
+    blastIcon: '⭐'
+  },
+  { 
     id: 'roblox_noob', 
     name: 'Roblox Noob', 
     price: 0, 
@@ -184,7 +201,7 @@ export default function BattleScreen() {
   
   // Find current active hero
   const activeHero = ALL_ROBLOX_FIGURES.find(
-    (a) => a.id === currentAvatar || (currentAvatar === 'default' && a.id === 'roblox_noob')
+    (a) => a.id === currentAvatar || ((currentAvatar === 'default' || !currentAvatar) && a.id === 'questblox_hero')
   ) || ALL_ROBLOX_FIGURES[0];
 
   const [previewFigureId, setPreviewFigureId] = useState<string>(activeHero.id);

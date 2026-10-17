@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Colors, getThemeColors, WORLD_THEMES } from '../../constants/theme';
 import { useAppStore, DEFAULT_STARTER_TASKS } from '../../store/useAppStore';
-import { LogOut, Thermometer, Moon, CheckCircle2, Star, Trophy, Gamepad2, Sun, Calendar, ScrollText, Settings, Sparkles, Shield, Zap, Gift, Flame, Crosshair, Lock } from 'lucide-react-native';
+import { LogOut, Thermometer, Moon, CheckCircle2, Star, Trophy, Gamepad2, Sun, Calendar, ScrollText, Settings, Sparkles, Shield, Zap, Gift, Flame, Crosshair, Lock, Crown } from 'lucide-react-native';
 import HoldToClaim from '../../components/HoldToClaim';
 import PrizeWheelModal from '../../components/PrizeWheelModal';
 import BouncingButton from '../../components/BouncingButton';
@@ -203,6 +203,7 @@ export default function TrackerScreen() {
 
       const getAvatarDisplay = () => {
       const map: Record<string, { image?: any; emoji?: string }> = {
+        'questblox_hero': { image: require('../../assets/images/questblox_hero.png') },
         'roblox_noob': { image: require('../../assets/images/roblox_noob.png') },
         'roblox_bacon_hair': { image: require('../../assets/images/roblox_bacon_hair.png') },
         'roblox_guest': { image: require('../../assets/images/roblox_guest.png') },
@@ -216,7 +217,7 @@ export default function TrackerScreen() {
         'roblox_dragon': { image: require('../../assets/images/roblox_dragon.png') },
         'roblox_bloxy': { image: require('../../assets/images/roblox_bloxy.png') },
       };
-      return map[currentAvatar] || { image: require('../../assets/images/roblox_noob.png') };
+      return map[currentAvatar] || { image: require('../../assets/images/questblox_hero.png') };
     };
 
   const getFreqBadge = (freq?: string) => {
@@ -406,135 +407,101 @@ export default function TrackerScreen() {
           <Text style={styles.dateChipText}>{getFormatDate().toUpperCase()}</Text>
         </View>
 
-        {/* Hero Companion Speech Bubble (Micro-Messaging & Relatedness - Susan Weinschenk & Amy Bucher) */}
-        <View style={{ backgroundColor: themeColors.surface, borderWidth: 1.5, borderColor: themeColors.accent, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Text style={{ fontSize: 20 }}>💬</Text>
-          <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: Colors.text, flex: 1, lineHeight: 18 }}>
-            {companionMessage}
-          </Text>
-        </View>
-
         {/* Daily Mystery Supply Drop Crate (Webs of Influence Reciprocity + 100 Things Dopamine Seeking) */}
         {hasUnclaimedDailyChest && (
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={handleOpenSupplyCrate}
-            style={{
-              backgroundColor: '#1e1604',
-              borderWidth: 2,
-              borderColor: Colors.amber,
-              borderRadius: 14,
-              padding: 14,
-              marginBottom: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              shadowColor: Colors.amber,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.35,
-              shadowRadius: 10,
-              elevation: 5,
-            }}
+            style={styles.crateCard}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-              <Text style={{ fontSize: 28 }}>🎁</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 }}>
+              <Text style={{ fontSize: 36 }}>🎁</Text>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.amber, fontSize: 14 }}>
-                  DAILY MYSTERY SUPPLY CRATE!
-                </Text>
-                <Text style={{ fontFamily: 'Nunito_700Bold', color: Colors.textSecondary, fontSize: 11, marginTop: 2 }}>
-                  Free coins & XP for your {currentStreak}-day streak! Tap to unbox 📦
-                </Text>
+                <Text style={styles.crateTitle}>FREE GIFT! 🎁</Text>
+                <Text style={styles.crateSub}>+{25 + currentStreak * 5} 💰 WAITING</Text>
               </View>
             </View>
-            <View style={{ backgroundColor: Colors.amber, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
-              <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: '#121212', fontSize: 12 }}>UNBOX 🎁</Text>
+            <View style={styles.crateBtn}>
+              <Text style={styles.crateBtnText}>OPEN! 🎁</Text>
             </View>
           </TouchableOpacity>
         )}
 
-        {/* Level & XP Summary Card (Original Roblox Summary Row + Avatar Passive Skill Badge) */}
-        <View style={[styles.summaryCard, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+        {/* QuestBlox Hero Showcase Stage (Visual-First, Clean Canvas, No Box Inception) */}
+        <View style={styles.summaryCard}>
           <View style={styles.charArea}>
-            <View style={[styles.avatarBorder, { borderColor: themeColors.accent }]}>
+            <View style={styles.avatarBorder}>
               {getAvatarDisplay().image ? (
                 <Image source={getAvatarDisplay().image} style={styles.avatarImg} resizeMode="contain" />
               ) : (
-                <Text style={{ fontSize: 32 }}>{getAvatarDisplay().emoji}</Text>
+                <Text style={{ fontSize: 38 }}>{getAvatarDisplay().emoji || '⭐'}</Text>
               )}
             </View>
-            <Text style={[styles.charPct, { color: themeColors.accent }]}>{progressPct}% DONE</Text>
+            <View style={styles.companionBubble}>
+              <Text style={styles.companionBubbleText}>
+                {companionMessage}
+              </Text>
+            </View>
           </View>
 
           <View style={styles.summaryRight}>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-              <View style={[styles.levelBadge, { marginBottom: 0 }]}>
-                <Trophy size={12} color={Colors.red} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <View style={styles.levelBadge}>
+                <Trophy size={14} color="#FFD700" />
                 <Text style={styles.levelBadgeText}>
-                  LVL {currentLevel} · {progressPct === 100 ? t('level_champion') : progressPct > 50 ? t('level_adventurer') : t('level_explorer')}
+                  LVL {currentLevel}
                 </Text>
               </View>
-              {avatarSkill.hasStreakShield && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: Colors.blueDim, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                  <Shield size={11} color={Colors.blue} />
-                  <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 9, color: Colors.blue }}>SHIELD ON</Text>
-                </View>
-              )}
+              <Text style={styles.charPct}>{progressPct}% DONE</Text>
             </View>
 
-            <Text style={styles.bigLabel}>{t('daily_xp_progress')}</Text>
-            
+            {/* Thick Tactile Candy XP Bar */}
             <View style={styles.xpTrack}>
               <View style={[styles.xpFill, { width: `${progressPct}%`, backgroundColor: themeColors.accent }]} />
             </View>
             
-            <Text style={styles.xpLabel}>
-              {completedCount} / {totalCount} {t('quests_completed')} · {xp}/100 XP to Lvl {currentLevel + 1}
-            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+              <Text style={styles.xpLabel}>
+                {completedCount}/{totalCount} Quests
+              </Text>
+              <Text style={styles.xpLabel}>
+                {xp}/100 XP
+              </Text>
+            </View>
 
             {/* Active Hero Skill Buff Pill */}
-            <View style={{ marginTop: 8, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.border2, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={styles.heroSkillPill}>
               <Zap size={13} color={Colors.amber} />
-              <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 11, color: Colors.amber, flex: 1 }} numberOfLines={1}>
-                {avatarSkill.name}: {avatarSkill.skillName} ({avatarSkill.shortBuff})
+              <Text style={styles.heroSkillText} numberOfLines={1}>
+                {avatarSkill.name}: {avatarSkill.shortBuff}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Goal-Gradient "Next Hero Unlock" Progress Bar (Laws of UX: Goal-Gradient Effect) */}
+        {/* Goal-Gradient "Next Hero Unlock" Progress Bar */}
         {nextUnlock && (
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={() => router.push('/(tabs)/shop')}
-            style={{
-              backgroundColor: themeColors.surface,
-              borderWidth: 1,
-              borderColor: Colors.amber,
-              borderRadius: 12,
-              paddingHorizontal: 14,
-              paddingVertical: 10,
-              marginBottom: 16,
-            }}
+            style={styles.nextHeroCard}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Sparkles size={14} color={Colors.amber} />
-                <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: Colors.text }}>
-                  NEXT HERO UNLOCK: {nextUnlock.name.toUpperCase()}
+                <Text style={styles.nextHeroTitle}>
+                  NEXT: {nextUnlock.name.toUpperCase()}
                 </Text>
               </View>
-              <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 11, color: Colors.amber }}>
-                {coins} / {nextUnlock.price} 💰 ({nextUnlock.progressPct}%)
+              <Text style={styles.nextHeroCoins}>
+                {coins} / {nextUnlock.price} 💰
               </Text>
             </View>
-            <View style={{ height: 8, backgroundColor: Colors.surface2, borderRadius: 999, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border }}>
-              <View style={{ height: '100%', width: `${nextUnlock.progressPct}%`, backgroundColor: Colors.amber, borderRadius: 999 }} />
+            <View style={styles.nextHeroTrack}>
+              <View style={[styles.nextHeroFill, { width: `${nextUnlock.progressPct}%` }]} />
             </View>
-            <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 10, color: Colors.textSecondary, marginTop: 4 }}>
-              {nextUnlock.canUnlockNow
-                ? `🎉 Enough coins! Tap to unlock ${nextUnlock.name} in the Avatar Shop!`
-                : `${nextUnlock.coinsNeeded} more coins to unlock ${nextUnlock.name} in the Avatar Shop!`}
+            <Text style={styles.nextHeroHint}>
+              {nextUnlock.canUnlockNow ? '🎉 UNLOCK IN SHOP!' : `${nextUnlock.coinsNeeded} 💰 TO UNLOCK`}
             </Text>
           </TouchableOpacity>
         )}
@@ -542,13 +509,13 @@ export default function TrackerScreen() {
         {/* Sick Mode Toggle */}
         <View style={styles.sickToggleRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Thermometer size={18} color={isSick ? Colors.blue : Colors.textSecondary} />
-            <Text style={styles.sickText}>{t('sick_mode_toggle')}</Text>
+            <Moon size={18} color={isSick ? Colors.blue : Colors.textSecondary} />
+            <Text style={styles.sickText}>REST DAY 🌙</Text>
           </View>
           <Switch 
             value={isSick} 
             onValueChange={setSick} 
-            trackColor={{ false: Colors.surface2, true: Colors.blue }}
+            trackColor={{ false: '#272B40', true: Colors.blue }}
             thumbColor={Colors.text}
           />
         </View>
@@ -560,16 +527,16 @@ export default function TrackerScreen() {
           </View>
         )}
 
-        {/* Loss-Aversion Pending Daily Vault & Zeigarnik Quest Chain Stepper (Harry Brignull + Susan Weinschenk) */}
-        <View style={{ backgroundColor: themeColors.surface, borderWidth: 1.5, borderColor: Colors.border, borderRadius: 14, padding: 14, marginBottom: 16 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        {/* Loss-Aversion Pending Daily Vault & Zeigarnik Quest Chain Stepper */}
+        <View style={styles.vaultCard}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Lock size={15} color={Colors.amber} />
-              <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 11, color: Colors.textMuted, letterSpacing: 0.5 }}>
-                TODAY'S PENDING VAULT (UNLOCKED AT 100%)
+              <Lock size={16} color={Colors.amber} />
+              <Text style={styles.vaultTitle}>
+                VAULT 🔒
               </Text>
             </View>
-            <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: Colors.amber }}>
+            <Text style={styles.vaultReward}>
               +{pendingVaultCoins} 💰 · +{pendingVaultXP} XP
             </Text>
           </View>
@@ -578,62 +545,51 @@ export default function TrackerScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             {tasks.map((t, idx) => (
               <React.Fragment key={t.id}>
-                <View style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: 13,
-                  backgroundColor: t.done ? Colors.green : Colors.surface2,
-                  borderWidth: 1.5,
-                  borderColor: t.done ? Colors.green : (superchargedTaskId === t.id ? Colors.amber : Colors.border),
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Text style={{ fontSize: 11, color: t.done ? '#121212' : Colors.textSecondary, fontFamily: 'Nunito_800ExtraBold' }}>
+                <View style={[
+                  styles.vaultStepNode,
+                  t.done && styles.vaultStepNodeDone,
+                  superchargedTaskId === t.id && !t.done && styles.vaultStepNodeSuper,
+                ]}>
+                  <Text style={[styles.vaultStepText, t.done && styles.vaultStepTextDone]}>
                     {t.done ? '✓' : idx + 1}
                   </Text>
                 </View>
-                <View style={{ flex: 1, height: 2, backgroundColor: t.done ? Colors.green : Colors.border, marginHorizontal: 2 }} />
+                <View style={[styles.vaultStepLine, t.done && styles.vaultStepLineDone]} />
               </React.Fragment>
             ))}
-            <View style={{
-              paddingHorizontal: 8,
-              height: 26,
-              borderRadius: 13,
-              backgroundColor: epicClaimed ? Colors.amber : Colors.surface2,
-              borderWidth: 1.5,
-              borderColor: Colors.amber,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <Text style={{ fontSize: 10, color: epicClaimed ? '#121212' : Colors.amber, fontFamily: 'Nunito_800ExtraBold' }}>
+            <View style={[
+              styles.vaultBossNode,
+              epicClaimed && styles.vaultBossNodeDone,
+            ]}>
+              <Text style={[styles.vaultBossText, epicClaimed && styles.vaultBossTextDone]}>
                 👑 BOSS
               </Text>
             </View>
           </View>
         </View>
 
-        {/* QUEST LOG Section (Matching User Screenshot 1) */}
+        {/* QUEST LOG Section */}
         <View style={[styles.section, isSick && styles.disabledSection]} pointerEvents={isSick ? 'none' : 'auto'}>
           <View style={styles.sectionHeader}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Gamepad2 size={18} color="#ab47bc" />
-              <Text style={styles.secTitle}>{t('quest_log')}</Text>
+              <Text style={styles.secTitle}>QUESTS ⚔️</Text>
               {comboInfo.multiplier > 1.0 && (
-                <View style={{ backgroundColor: 'rgba(255, 0, 127, 0.2)', borderWidth: 1, borderColor: comboInfo.color, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
-                  <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 10, color: comboInfo.color }}>
+                <View style={[styles.comboPill, { borderColor: comboInfo.color }]}>
+                  <Text style={[styles.comboPillText, { color: comboInfo.color }]}>
                     {comboInfo.label}
                   </Text>
                 </View>
               )}
             </View>
-            <Text style={styles.secCount}>{completedCount} / {totalCount} done</Text>
+            <Text style={styles.secCount}>{completedCount}/{totalCount} DONE</Text>
           </View>
 
-          {/* EPIC DAILY BOSS Card with Monster Shield Bar (Chris Nodder Wrath/Pride + Amy Bucher Competence) */}
-          <View style={[styles.epicBossCard, isBossVulnerable && { borderColor: Colors.green, shadowColor: Colors.green }]}>
+          {/* EPIC DAILY BOSS Card with Monster Shield Bar */}
+          <View style={[styles.epicBossCard, isBossVulnerable && styles.epicBossCardVulnerable]}>
             <View style={styles.epicHeaderRow}>
-              <Sun size={14} color={Colors.amber} />
-              <Text style={styles.epicTitleText}>{t('epic_daily_boss')}</Text>
+              <Crown size={16} color={Colors.amber} />
+              <Text style={styles.epicTitleText}>BOSS FIGHT 👑</Text>
             </View>
             
             <Text style={styles.epicQuestName}>
@@ -642,16 +598,16 @@ export default function TrackerScreen() {
 
             {/* Interactive Boss Monster Shield Bar */}
             <View style={{ marginVertical: 10 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 10, color: isBossVulnerable ? Colors.green : Colors.amber }}>
-                  {isBossVulnerable ? '⚡ SHIELD BROKEN! BOSS VULNERABLE (+25 COINS BONUS)' : `🛡️ BOSS SHIELD: ${bossShieldPct}% (Complete quests to break!)`}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 11, color: isBossVulnerable ? Colors.green : Colors.amber }}>
+                  {isBossVulnerable ? '💥 SHIELD BROKEN!' : `🛡️ SHIELD: ${bossShieldPct}%`}
                 </Text>
-                <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 10, color: Colors.textSecondary }}>
-                  {regularDoneCount}/{regularTasksCount} hits
+                <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 11, color: Colors.textSecondary }}>
+                  {regularDoneCount}/{regularTasksCount} 💥
                 </Text>
               </View>
-              <View style={{ height: 6, backgroundColor: Colors.surface2, borderRadius: 999, overflow: 'hidden' }}>
-                <View style={{ height: '100%', width: `${bossShieldPct}%`, backgroundColor: isBossVulnerable ? Colors.green : Colors.red, borderRadius: 999 }} />
+              <View style={styles.shieldTrack}>
+                <View style={[styles.shieldFill, { width: `${bossShieldPct}%`, backgroundColor: isBossVulnerable ? Colors.green : Colors.red }]} />
               </View>
             </View>
             
@@ -662,14 +618,13 @@ export default function TrackerScreen() {
               title={t('hold_to_claim_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) + (isBossVulnerable ? 25 : 0) })}
               claimedTitle={t('claimed_banner_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) + (isBossVulnerable ? 25 : 0) })}
               durationMs={avatarSkill.bossHoldDurationMs || 1500}
-              fastChargeLabel={avatarSkill.bossHoldDurationMs ? `${avatarSkill.skillName} (2x Speed!)` : undefined}
+              fastChargeLabel={avatarSkill.bossHoldDurationMs ? `⚡ 2x Speed!` : undefined}
             />
           </View>
 
           {/* Tiered Hybrid Strategy Quest List */}
           <View style={styles.verticalList}>
             {tasks.map((task) => {
-              const diff = getDiffBadge(task.freq);
               const isMediumOrHard = task.diff === 'med' || task.diff === 'hard' || task.freq === 'weekdays' || task.freq === 'weekends' || task.freq === 'saturday' || task.freq === 'sunday';
               const isSupercharged = superchargedTaskId === task.id;
               const baseRewardCoins = task.diff === 'hard' ? 35 : (task.diff === 'med' ? 20 : 10) + (task.mystery ? 10 : 0);
@@ -678,28 +633,28 @@ export default function TrackerScreen() {
               // Tier 2: Medium / Hard Quests -> Option C (Slide Left-to-Right)
               if (isMediumOrHard) {
                 return (
-                  <View key={task.id} style={isSupercharged && { borderWidth: 2, borderColor: Colors.amber, borderRadius: 14 }}>
+                  <View key={task.id} style={[styles.slideCardWrap, isSupercharged && styles.superchargedCard]}>
                     <SlideToComplete
                       title={task.mystery ? `${task.name} 🎁` : task.name}
                       icon={task.icon || '⭐'}
                       isDone={task.done}
-                      badgeLabel={task.mystery ? `🎁 MYSTERY · ${diff.label}` : (isSupercharged ? `⚡ 2X SUPERCHARGED · ${diff.label}` : diff.label)}
-                      badgeColor={isSupercharged ? Colors.amber : (task.mystery ? Colors.amber : diff.color)}
-                      badgeBg={isSupercharged ? Colors.amberDim : (task.mystery ? Colors.amberDim : diff.bg)}
+                      badgeLabel={isSupercharged ? '⚡ 2X' : (task.mystery ? '🎁 BONUS' : undefined)}
+                      badgeColor={isSupercharged ? Colors.amber : Colors.blue}
+                      badgeBg={isSupercharged ? Colors.amberDim : Colors.blueDim}
                       onComplete={() => handleTaskCompletion(task.id)}
                     />
                     {!task.done && (
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4 }}>
+                      <View style={styles.superchargeRow}>
                         <TouchableOpacity
                           onPress={() => setSuperchargedTask(isSupercharged ? null : task.id)}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                          style={[styles.superchargePill, isSupercharged && styles.superchargePillActive]}
                         >
-                          <Zap size={12} color={isSupercharged ? Colors.amber : Colors.textMuted} />
-                          <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 10, color: isSupercharged ? Colors.amber : Colors.textMuted }}>
-                            {isSupercharged ? '⚡ SUPERCHARGED (ACTIVE)' : 'Tap to 2X Supercharge'}
+                          <Zap size={13} color={isSupercharged ? '#121212' : Colors.amber} />
+                          <Text style={[styles.superchargePillText, isSupercharged && styles.superchargePillTextActive]}>
+                            {isSupercharged ? '⚡ 2X ACTIVE' : '⚡ 2X BOOST'}
                           </Text>
                         </TouchableOpacity>
-                        <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 10, color: Colors.green }}>
+                        <Text style={styles.questCoinReward}>
                           +{boostedCoins} 💰
                         </Text>
                       </View>
@@ -708,69 +663,66 @@ export default function TrackerScreen() {
                 );
               }
 
-              // Tier 1: Easy / Routine Quests -> Option A (Instant 1-Tap Checkbox)
+              // Tier 1: Easy / Routine Quests -> Big Visual Icon + 1-Tap Checkbox
               return (
                 <BouncingButton 
                   key={task.id} 
                   style={[
                     styles.taskCard, 
                     task.done && styles.taskDone,
-                    isSupercharged && { borderWidth: 2, borderColor: Colors.amber }
+                    isSupercharged && styles.superchargedCard
                   ]}
                   onPress={() => handleTaskCompletion(task.id)}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={[styles.check, task.done && styles.checkOn]}>
-                      {task.done ? (
-                        <CheckCircle2 size={20} color="#121212" />
-                      ) : (
-                        <Star size={18} color={Colors.textMuted} />
-                      )}
-                    </View>
-                    
-                    <View style={styles.habitIconBox}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                    {/* Big 52x52 Visual Chore Icon Halo */}
+                    <View style={[styles.habitIconBox, task.done && styles.habitIconBoxDone]}>
                       <Text style={styles.habitIconEmoji}>{task.icon || '⭐'}</Text>
                     </View>
 
+                    {/* Quest Title & Reward */}
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.taskName, task.done && styles.taskNameDone]}>{task.name}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-                        <Text style={styles.taskFreqLabel}>{getFreqBadge(task.freq)}</Text>
-                        <View style={[styles.diffTag, { backgroundColor: diff.bg }]}>
-                          <Text style={[styles.diffTagText, { color: diff.color }]}>{diff.label}</Text>
-                        </View>
+                      <Text style={[styles.taskName, task.done && styles.taskNameDone]}>
+                        {task.name}
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                        <Text style={styles.questCoinReward}>
+                          +{boostedCoins} 💰
+                        </Text>
                         {task.mystery && (
-                          <View style={[styles.diffTag, { backgroundColor: Colors.amberDim, borderWidth: 1, borderColor: Colors.amber }]}>
-                            <Text style={[styles.diffTagText, { color: Colors.amber }]}>🎁 MYSTERY DROP</Text>
+                          <View style={styles.mysteryPill}>
+                            <Text style={styles.mysteryPillText}>🎁 BONUS</Text>
                           </View>
                         )}
                         {isSupercharged && (
-                          <View style={[styles.diffTag, { backgroundColor: Colors.amberDim, borderWidth: 1, borderColor: Colors.amber }]}>
-                            <Text style={[styles.diffTagText, { color: Colors.amber }]}>⚡ 2X SUPERCHARGED</Text>
+                          <View style={styles.superchargedPill}>
+                            <Text style={styles.superchargedPillText}>⚡ 2X</Text>
                           </View>
                         )}
                       </View>
                     </View>
 
-                    {/* Anchored Reward Math (Eva de Lera: Seduced by Logic) */}
-                    <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                      <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: task.done ? Colors.textMuted : Colors.green }}>
-                        +{boostedCoins} 💰
-                      </Text>
+                    {/* Supercharge toggle & Big 38x38 Checkbox */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       {!task.done && (
                         <TouchableOpacity
                           onPress={(e) => {
                             e.stopPropagation?.();
                             setSuperchargedTask(isSupercharged ? null : task.id);
                           }}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
+                          style={[styles.superIconBtn, isSupercharged && styles.superIconBtnActive]}
                         >
-                          <Zap size={10} color={isSupercharged ? Colors.amber : Colors.textMuted} />
-                          <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 9, color: isSupercharged ? Colors.amber : Colors.textMuted }}>
-                            {isSupercharged ? '2X ON' : 'Boost'}
-                          </Text>
+                          <Zap size={16} color={isSupercharged ? '#121212' : Colors.amber} />
                         </TouchableOpacity>
                       )}
+                      
+                      <View style={[styles.check, task.done && styles.checkOn]}>
+                        {task.done ? (
+                          <CheckCircle2 size={24} color="#121212" />
+                        ) : (
+                          <Star size={20} color={Colors.textMuted} />
+                        )}
+                      </View>
                     </View>
                   </View>
 
@@ -785,16 +737,16 @@ export default function TrackerScreen() {
           </View>
         </View>
 
-        {/* Daily Mood Rating Card ("How did today feel?") */}
+        {/* Daily Mood Rating Card */}
         <View style={styles.section}>
-          <Text style={styles.secTitle}>{t('how_did_today_feel')}</Text>
+          <Text style={styles.secTitle}>TODAY'S MOOD 😄</Text>
           <View style={styles.moodRow}>
             <TouchableOpacity 
               style={[styles.moodCard, dailyMood === 'wiped' && styles.moodCardActive]} 
               onPress={() => setDailyMood('wiped')}
             >
               <Text style={styles.moodEmoji}>😴</Text>
-              <Text style={[styles.moodLabel, dailyMood === 'wiped' && styles.moodLabelActive]}>{t('mood_wiped')}</Text>
+              <Text style={[styles.moodLabel, dailyMood === 'wiped' && styles.moodLabelActive]}>TIRED</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -802,7 +754,7 @@ export default function TrackerScreen() {
               onPress={() => setDailyMood('thriving')}
             >
               <Text style={styles.moodEmoji}>😄</Text>
-              <Text style={[styles.moodLabel, dailyMood === 'thriving' && styles.moodLabelActive]}>{t('mood_thriving')}</Text>
+              <Text style={[styles.moodLabel, dailyMood === 'thriving' && styles.moodLabelActive]}>GREAT</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -810,10 +762,9 @@ export default function TrackerScreen() {
               onPress={() => setDailyMood('too_easy')}
             >
               <Text style={styles.moodEmoji}>😎</Text>
-              <Text style={[styles.moodLabel, dailyMood === 'too_easy' && styles.moodLabelActive]}>{t('mood_too_easy')}</Text>
+              <Text style={[styles.moodLabel, dailyMood === 'too_easy' && styles.moodLabelActive]}>EASY</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.moodSub}>{t('rate_today_sub')}</Text>
         </View>
 
         {/* 3 Stats Grid Cards (Matching User Screenshot 2) */}
@@ -1083,84 +1034,91 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   summaryCard: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
+    backgroundColor: '#1E2235',
+    borderRadius: 22,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
     marginBottom: 16,
+    borderBottomWidth: 4,
+    borderBottomColor: 'rgba(0,0,0,0.35)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 5,
   },
   charArea: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarBorder: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.surface2,
-    borderWidth: 2,
-    borderColor: Colors.red,
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: '#272B40',
+    borderWidth: 3,
+    borderColor: '#FFB800',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    shadowColor: '#FFB800',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
   avatarImg: {
-    width: 54,
-    height: 54,
+    width: 76,
+    height: 76,
+  },
+  companionBubble: {
+    backgroundColor: '#272B40',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 184, 0, 0.4)',
+  },
+  companionBubbleText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 10,
+    color: '#FFB800',
   },
   charPct: {
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 12,
-    color: Colors.red,
-    marginTop: 6,
+    color: '#FFB800',
   },
   summaryRight: {
     flex: 1,
   },
   levelBadge: {
-    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: Colors.redDim,
+    backgroundColor: 'rgba(255, 184, 0, 0.2)',
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 999,
-    marginBottom: 6,
   },
   levelBadgeText: {
     fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 10,
-    color: Colors.red,
+    fontSize: 11,
+    color: '#FFD700',
     letterSpacing: 0.5,
   },
-  bigLabel: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 16,
-    color: Colors.text,
-    marginBottom: 6,
-  },
   xpTrack: {
-    height: 10,
-    backgroundColor: Colors.surface2,
+    height: 12,
+    backgroundColor: '#272B40',
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: Colors.border,
     overflow: 'hidden',
-    marginBottom: 6,
+    marginVertical: 4,
   },
   xpFill: {
     height: '100%',
-    backgroundColor: Colors.red,
+    backgroundColor: '#FFB800',
     borderRadius: 999,
   },
   xpLabel: {
@@ -1168,20 +1126,114 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textMuted,
   },
+  heroSkillPill: {
+    marginTop: 8,
+    backgroundColor: '#272B40',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  heroSkillText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 11,
+    color: Colors.amber,
+    flex: 1,
+  },
+  crateCard: {
+    backgroundColor: '#1E1704',
+    borderBottomWidth: 4,
+    borderBottomColor: '#B45309',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: Colors.amber,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  crateTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    color: Colors.amber,
+    fontSize: 15,
+    letterSpacing: 0.5,
+  },
+  crateSub: {
+    fontFamily: 'Nunito_800ExtraBold',
+    color: '#FDE68A',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  crateBtn: {
+    backgroundColor: Colors.amber,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 12,
+    borderBottomWidth: 3,
+    borderBottomColor: '#B45309',
+  },
+  crateBtnText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    color: '#121212',
+    fontSize: 12,
+  },
+  nextHeroCard: {
+    backgroundColor: '#1A1D2E',
+    borderBottomWidth: 4,
+    borderBottomColor: 'rgba(0,0,0,0.35)',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  nextHeroTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 12,
+    color: Colors.text,
+  },
+  nextHeroCoins: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 12,
+    color: Colors.amber,
+  },
+  nextHeroTrack: {
+    height: 8,
+    backgroundColor: '#272B40',
+    borderRadius: 999,
+    overflow: 'hidden',
+    marginVertical: 5,
+  },
+  nextHeroFill: {
+    height: '100%',
+    backgroundColor: Colors.amber,
+    borderRadius: 999,
+  },
+  nextHeroHint: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 11,
+    color: Colors.amber,
+    marginTop: 2,
+  },
   sickToggleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 14,
-    backgroundColor: Colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    backgroundColor: '#1E2235',
+    borderRadius: 16,
+    borderBottomWidth: 3,
+    borderBottomColor: 'rgba(0,0,0,0.3)',
     marginBottom: 16,
   },
   sickText: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 14,
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 13,
     color: Colors.text,
   },
   sickMessage: {
@@ -1190,15 +1242,84 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: Colors.blueDim,
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(41,182,246,0.3)',
   },
   sickMessageText: {
     fontFamily: 'Nunito_700Bold',
     fontSize: 13,
     color: Colors.blue,
+  },
+  vaultCard: {
+    backgroundColor: '#1A1D2E',
+    borderBottomWidth: 4,
+    borderBottomColor: 'rgba(0,0,0,0.35)',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+  },
+  vaultTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 13,
+    color: Colors.amber,
+    letterSpacing: 0.5,
+  },
+  vaultReward: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 13,
+    color: Colors.amber,
+  },
+  vaultStepNode: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#272B40',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vaultStepNodeDone: {
+    backgroundColor: Colors.green,
+  },
+  vaultStepNodeSuper: {
+    borderWidth: 2,
+    borderColor: Colors.amber,
+  },
+  vaultStepText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontFamily: 'Nunito_800ExtraBold',
+  },
+  vaultStepTextDone: {
+    color: '#121212',
+  },
+  vaultStepLine: {
+    flex: 1,
+    height: 4,
+    backgroundColor: '#272B40',
+    marginHorizontal: 3,
+    borderRadius: 2,
+  },
+  vaultStepLineDone: {
+    backgroundColor: Colors.green,
+  },
+  vaultBossNode: {
+    paddingHorizontal: 10,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#272B40',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vaultBossNodeDone: {
+    backgroundColor: Colors.amber,
+  },
+  vaultBossText: {
+    fontSize: 11,
+    color: Colors.amber,
+    fontFamily: 'Nunito_800ExtraBold',
+  },
+  vaultBossTextDone: {
+    color: '#121212',
   },
   section: {
     marginBottom: 24,
@@ -1214,8 +1335,8 @@ const styles = StyleSheet.create({
   },
   secTitle: {
     fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 12,
-    color: Colors.textMuted,
+    fontSize: 13,
+    color: Colors.textSecondary,
     letterSpacing: 1,
   },
   secCount: {
@@ -1223,30 +1344,46 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textMuted,
   },
+  comboPill: {
+    backgroundColor: 'rgba(255, 0, 127, 0.2)',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  comboPillText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 10,
+  },
   epicBossCard: {
-    backgroundColor: '#16140b',
-    borderWidth: 2,
-    borderColor: Colors.amber,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 12,
-    shadowColor: Colors.amber,
+    backgroundColor: '#1E1414',
+    borderBottomWidth: 5,
+    borderBottomColor: '#991B1B',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+    shadowColor: Colors.red,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.35,
     shadowRadius: 16,
     elevation: 6,
+  },
+  epicBossCardVulnerable: {
+    backgroundColor: '#112215',
+    borderBottomColor: '#166534',
+    shadowColor: Colors.green,
   },
   epicHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 10,
+    gap: 8,
+    marginBottom: 6,
   },
   epicTitleText: {
     fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.amber,
-    letterSpacing: 1.5,
+    letterSpacing: 1,
   },
   epicQuestName: {
     fontFamily: 'Nunito_800ExtraBold',
@@ -1254,73 +1391,146 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 4,
   },
+  shieldTrack: {
+    height: 8,
+    backgroundColor: '#272B40',
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  shieldFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
   verticalList: {
-    gap: 10,
+    gap: 12,
+  },
+  slideCardWrap: {
+    backgroundColor: '#1E2235',
+    borderRadius: 18,
+    padding: 12,
+    borderBottomWidth: 4,
+    borderBottomColor: 'rgba(0,0,0,0.35)',
+  },
+  superchargedCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.amber,
+  },
+  superchargeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingTop: 8,
+  },
+  superchargePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#272B40',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  superchargePillActive: {
+    backgroundColor: Colors.amber,
+  },
+  superchargePillText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 11,
+    color: Colors.amber,
+  },
+  superchargePillTextActive: {
+    color: '#121212',
   },
   taskCard: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 10,
+    backgroundColor: '#1E2235',
+    borderRadius: 18,
     padding: 14,
     position: 'relative',
     overflow: 'hidden',
+    borderBottomWidth: 4,
+    borderBottomColor: 'rgba(0,0,0,0.35)',
   },
   taskDone: {
-    backgroundColor: Colors.background,
-    borderStyle: 'dashed',
-    borderColor: Colors.border2,
-    opacity: 0.8,
+    backgroundColor: '#151724',
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(0,0,0,0.2)',
+    opacity: 0.75,
   },
   check: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     borderWidth: 2,
-    borderColor: Colors.border2,
+    borderColor: '#373D54',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surface2,
+    backgroundColor: '#272B40',
   },
   checkOn: {
     backgroundColor: Colors.green,
     borderColor: Colors.green,
   },
   habitIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: Colors.surface2,
-    borderWidth: 1,
-    borderColor: Colors.border2,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#272B40',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  habitIconBoxDone: {
+    backgroundColor: '#1C1F2E',
+  },
   habitIconEmoji: {
-    fontSize: 20,
+    fontSize: 28,
   },
   taskName: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 15,
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 16,
     color: Colors.text,
   },
   taskNameDone: {
     color: Colors.textMuted,
     textDecorationLine: 'line-through',
   },
-  taskFreqLabel: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 11,
-    color: Colors.textMuted,
+  questCoinReward: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 13,
+    color: Colors.green,
   },
-  diffTag: {
+  mysteryPill: {
+    backgroundColor: Colors.amberDim,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 999,
   },
-  diffTagText: {
+  mysteryPillText: {
     fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 9,
+    fontSize: 10,
+    color: Colors.amber,
+  },
+  superchargedPill: {
+    backgroundColor: Colors.amberDim,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  superchargedPillText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 10,
+    color: Colors.amber,
+  },
+  superIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#272B40',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  superIconBtnActive: {
+    backgroundColor: Colors.amber,
   },
   stamp: {
     position: 'absolute',
@@ -1340,38 +1550,31 @@ const styles = StyleSheet.create({
     color: Colors.red,
     letterSpacing: 1,
   },
-  moodSub: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 8,
-    textAlign: 'center',
-  },
   moodRow: {
     flexDirection: 'row',
     gap: 10,
   },
   moodCard: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: '#1E2235',
     paddingVertical: 14,
-    borderRadius: 10,
+    borderRadius: 16,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderBottomWidth: 3,
+    borderBottomColor: 'rgba(0,0,0,0.3)',
   },
   moodCardActive: {
-    borderColor: Colors.red,
-    backgroundColor: Colors.surface2,
-    borderWidth: 2,
+    backgroundColor: '#272B40',
+    borderBottomColor: Colors.red,
+    borderBottomWidth: 4,
   },
   moodEmoji: {
-    fontSize: 26,
+    fontSize: 28,
     marginBottom: 4,
   },
   moodLabel: {
     fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.textMuted,
   },
   moodLabelActive: {
@@ -1384,20 +1587,20 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 16,
-    paddingVertical: 20,
+    backgroundColor: '#1E2235',
+    borderBottomWidth: 4,
+    borderBottomColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 18,
+    paddingVertical: 18,
     paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statNumber: {
     fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 32,
+    fontSize: 28,
     color: Colors.text,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   statBadgeRow: {
     flexDirection: 'row',
@@ -1418,22 +1621,22 @@ const styles = StyleSheet.create({
   weekCell: {
     flex: 1,
     aspectRatio: 0.9,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 10,
+    backgroundColor: '#1E2235',
+    borderBottomWidth: 3,
+    borderBottomColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 6,
   },
   weekCellToday: {
-    borderColor: Colors.red,
-    backgroundColor: Colors.redDim,
-    borderWidth: 2,
+    borderBottomColor: Colors.red,
+    backgroundColor: '#2A1F2D',
+    borderBottomWidth: 4,
   },
   weekCellFull: {
-    backgroundColor: Colors.greenDim,
-    borderColor: 'rgba(0,230,118,0.4)',
+    backgroundColor: '#162C22',
+    borderBottomColor: Colors.green,
   },
   weekDayLabel: {
     fontFamily: 'Nunito_700Bold',
@@ -1450,10 +1653,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   historyRow: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 10,
+    backgroundColor: '#1E2235',
+    borderBottomWidth: 3,
+    borderBottomColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     flexDirection: 'row',
