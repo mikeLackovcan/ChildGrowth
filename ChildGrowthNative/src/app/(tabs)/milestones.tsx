@@ -4,9 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Colors, Typography, Layout, getThemeColors } from '../../constants/theme';
 import { useAppStore } from '../../store/useAppStore';
-import { Trophy, Star, Gift, Calendar, CheckCircle2, Circle, Settings } from 'lucide-react-native';
+import { Trophy, Star, Gift, Calendar, CheckCircle2, Circle, Settings, Lock } from 'lucide-react-native';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
 import SettingsModal from '../../components/SettingsModal';
+import PrizeWheelModal from '../../components/PrizeWheelModal';
 
 export default function MilestonesScreen() {
   const { t } = useTranslation();
@@ -16,8 +17,29 @@ export default function MilestonesScreen() {
   const togglePrizeRedeemed = useAppStore((state) => state.togglePrizeRedeemed);
   const activeTheme = useAppStore((state) => state.activeTheme);
   const themeColors = getThemeColors(activeTheme);
+  const tasks = useAppStore((state) => state.tasks);
+  const prizes = useAppStore((state) => state.prizes);
+  const addWonPrize = useAppStore((state) => state.addWonPrize);
 
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [wheelModalVisible, setWheelModalVisible] = useState(false);
+  const [currentWonPrize, setCurrentWonPrize] = useState('');
+
+  const totalTasks = tasks.length;
+  const doneTasks = tasks.filter(t => t.done).length;
+  const allQuestsDone = totalTasks > 0 && doneTasks === totalTasks;
+
+  const handleOpenWheel = () => {
+    if (!allQuestsDone) return;
+    const randomPrize = (prizes && prizes.length > 0) ? prizes[Math.floor(Math.random() * prizes.length)] : 'Extra Roblox Coins!';
+    setCurrentWonPrize(randomPrize);
+    addWonPrize(randomPrize);
+    setWheelModalVisible(true);
+  };
+
+  const handleLockedWheelTap = () => {
+    alert(`🔒 Complete all ${totalTasks} daily quests to unlock the Prize Wheel! (${doneTasks}/${totalTasks} done)`);
+  };
 
   const xpNeeded = 100;
   const progressPercent = Math.min((xp / xpNeeded) * 100, 100);
@@ -69,6 +91,38 @@ export default function MilestonesScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Prize Wheel Daily Status (Locked until 100% of quests are done) */}
+        {allQuestsDone ? (
+          <TouchableOpacity 
+            style={styles.wheelCardUnlocked}
+            onPress={handleOpenWheel}
+            activeOpacity={0.85}
+          >
+            <Text style={{ fontSize: 32 }}>🎡</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.wheelTitleUnlocked}>ALL QUESTS COMPLETE! 🎉</Text>
+              <Text style={styles.wheelSubUnlocked}>Tap to spin the Prize Wheel!</Text>
+            </View>
+            <View style={styles.spinButtonPill}>
+              <Text style={styles.spinButtonPillText}>SPIN! 🎡</Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={styles.wheelCardLocked}
+            onPress={handleLockedWheelTap}
+            activeOpacity={0.85}
+          >
+            <Text style={{ fontSize: 26, opacity: 0.8 }}>🔒</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.wheelTitleLocked}>PRIZE WHEEL LOCKED 🎡</Text>
+              <Text style={styles.wheelSubLocked}>
+                Complete all quests today to unlock! ({doneTasks}/{totalTasks} done)
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* Trophy Cabinet & Winnings Checklist */}
         <View style={styles.section}>
@@ -149,6 +203,12 @@ export default function MilestonesScreen() {
       <SettingsModal 
         visible={settingsVisible} 
         onClose={() => setSettingsVisible(false)} 
+      />
+
+      <PrizeWheelModal 
+        visible={wheelModalVisible && allQuestsDone}
+        onClose={() => setWheelModalVisible(false)}
+        prizeName={currentWonPrize}
       />
     </SafeAreaView>
   );
@@ -379,5 +439,69 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 11,
     color: Colors.green,
+  },
+  wheelCardUnlocked: {
+    backgroundColor: '#1E2337',
+    borderWidth: 2,
+    borderColor: '#FFB800',
+    borderRadius: Layout.borderRadius,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 24,
+    shadowColor: '#FFB800',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  wheelTitleUnlocked: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 14,
+    color: '#FFB800',
+    letterSpacing: 0.5,
+  },
+  wheelSubUnlocked: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  spinButtonPill: {
+    backgroundColor: '#FFB800',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  spinButtonPillText: {
+    fontFamily: 'Nunito_900Black',
+    fontSize: 12,
+    color: '#121212',
+  },
+  wheelCardLocked: {
+    backgroundColor: '#161922',
+    borderWidth: 1.5,
+    borderColor: '#2A3045',
+    borderStyle: 'dashed',
+    borderRadius: Layout.borderRadius,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 24,
+    opacity: 0.85,
+  },
+  wheelTitleLocked: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 13,
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+  },
+  wheelSubLocked: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 2,
   },
 });

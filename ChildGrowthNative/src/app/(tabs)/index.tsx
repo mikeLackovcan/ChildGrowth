@@ -192,12 +192,15 @@ export default function TrackerScreen() {
       triggerRewardToast(reward, epicBossTask || t('epic_boss_task'));
     }
     
-    // Pick prize wheel reward for Epic Boss Quest completion (Peak-End Climax)
-    const randomPrize = prizes[Math.floor(Math.random() * prizes.length)] || 'Extra Roblox Coins!';
-    setWonPrize(randomPrize);
-    addWonPrize(randomPrize);
-    setPendingWheelSpin(true);
-    setShowDancingBanana(true);
+    // Spinning wheel is unlocked ONLY when all daily quests are completed
+    const isAllDailyQuestsDone = tasks.length > 0 && tasks.every(t => t.done);
+    if (isAllDailyQuestsDone) {
+      const randomPrize = prizes[Math.floor(Math.random() * prizes.length)] || 'Extra Roblox Coins!';
+      setWonPrize(randomPrize);
+      addWonPrize(randomPrize);
+      setPendingWheelSpin(true);
+      setShowDancingBanana(true);
+    }
   };
 
   const handleLogout = async () => {
@@ -667,8 +670,9 @@ export default function TrackerScreen() {
         </TouchableOpacity>
       )}
 
+      {/* Prize Wheel and Celebration only open when all daily quests are 100% completed */}
       <PrizeWheelModal 
-        visible={showPrizeWheel} 
+        visible={showPrizeWheel && completedCount === totalCount && totalCount > 0} 
         onClose={() => {
           setShowPrizeWheel(false);
           setPlayConfetti(true);
@@ -679,14 +683,16 @@ export default function TrackerScreen() {
       <LottieConfetti play={playConfetti} onAnimationFinish={() => setPlayConfetti(false)} />
       
       <DancingBananaModal 
-        visible={showDancingBanana} 
+        visible={showDancingBanana && completedCount === totalCount && totalCount > 0} 
         onClose={() => {
           setShowDancingBanana(false);
-          if (pendingWheelSpin) {
+          if (pendingWheelSpin && completedCount === totalCount && totalCount > 0) {
             setPendingWheelSpin(false);
             setTimeout(() => {
               setShowPrizeWheel(true);
             }, 300);
+          } else {
+            setPendingWheelSpin(false);
           }
         }} 
       />
