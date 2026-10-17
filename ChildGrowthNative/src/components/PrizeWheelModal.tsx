@@ -47,6 +47,11 @@ const DEFAULT_PRIZES = [
 export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWheelModalProps) {
   const { t } = useTranslation();
   const storePrizes = useAppStore((state) => state.prizes);
+  const lastSpinDate = useAppStore((state) => state.lastSpinDate);
+  const recordDailySpin = useAppStore((state) => state.recordDailySpin);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const alreadySpunToday = lastSpinDate === todayStr;
   
   const rotation = useSharedValue(0);
   const scale = useSharedValue(0.4);
@@ -70,9 +75,10 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
   };
 
   const handleStartSpin = () => {
-    if (isSpinning) return;
+    if (isSpinning || alreadySpunToday) return;
     setIsSpinning(true);
     setHasSpun(false);
+    recordDailySpin();
 
     // Target prize selection
     const selectedPrize = prizeName || wheelSlices[Math.floor(Math.random() * wheelSlices.length)].prize;
@@ -122,14 +128,16 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
       rotation.value = 0;
       setHasSpun(false);
       setIsSpinning(false);
-      handleStartSpin();
+      if (!alreadySpunToday) {
+        handleStartSpin();
+      }
     } else {
       scale.value = 0.4;
       rotation.value = 0;
       setIsSpinning(false);
       setHasSpun(false);
     }
-  }, [visible]);
+  }, [visible, alreadySpunToday]);
 
   const wheelAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
@@ -254,6 +262,16 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
 
               <TouchableOpacity style={styles.spinButton} onPress={onClose}>
                 <Text style={styles.spinButtonText}>{t('claim_prize', 'CLAIM REWARD!')}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : alreadySpunToday ? (
+            <View style={styles.winnerBox}>
+              <Text style={styles.congratsText}>✅ {t('already_spun_today', 'DAILY SPIN CLAIMED!')}</Text>
+              <Text style={[styles.prizeNameText, { fontSize: 13, marginVertical: 6 }]}>
+                {t('come_back_tomorrow_spin', '1 spin per day. Come back tomorrow for your next reward!')}
+              </Text>
+              <TouchableOpacity style={[styles.spinButton, { marginTop: 8 }]} onPress={onClose}>
+                <Text style={styles.spinButtonText}>{t('close', 'CLOSE')}</Text>
               </TouchableOpacity>
             </View>
           ) : (

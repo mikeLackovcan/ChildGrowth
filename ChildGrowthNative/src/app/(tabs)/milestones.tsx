@@ -20,17 +20,21 @@ export default function MilestonesScreen() {
   const tasks = useAppStore((state) => state.tasks);
   const prizes = useAppStore((state) => state.prizes);
   const addWonPrize = useAppStore((state) => state.addWonPrize);
+  const lastSpinDate = useAppStore((state) => state.lastSpinDate);
 
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [wheelModalVisible, setWheelModalVisible] = useState(false);
   const [currentWonPrize, setCurrentWonPrize] = useState('');
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const alreadySpunToday = lastSpinDate === todayStr;
 
   const totalTasks = tasks.length;
   const doneTasks = tasks.filter(t => t.done).length;
   const allQuestsDone = totalTasks > 0 && doneTasks === totalTasks;
 
   const handleOpenWheel = () => {
-    if (!allQuestsDone) return;
+    if (!allQuestsDone || alreadySpunToday) return;
     const randomPrize = (prizes && prizes.length > 0) ? prizes[Math.floor(Math.random() * prizes.length)] : 'Extra Roblox Coins!';
     setCurrentWonPrize(randomPrize);
     addWonPrize(randomPrize);
@@ -92,23 +96,8 @@ export default function MilestonesScreen() {
           </View>
         </View>
 
-        {/* Prize Wheel Daily Status (Locked until 100% of quests are done) */}
-        {allQuestsDone ? (
-          <TouchableOpacity 
-            style={styles.wheelCardUnlocked}
-            onPress={handleOpenWheel}
-            activeOpacity={0.85}
-          >
-            <Text style={{ fontSize: 32 }}>🎡</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.wheelTitleUnlocked}>ALL QUESTS COMPLETE! 🎉</Text>
-              <Text style={styles.wheelSubUnlocked}>Tap to spin the Prize Wheel!</Text>
-            </View>
-            <View style={styles.spinButtonPill}>
-              <Text style={styles.spinButtonPillText}>SPIN! 🎡</Text>
-            </View>
-          </TouchableOpacity>
-        ) : (
+        {/* Prize Wheel Daily Status (Locked until 100% of quests are done, 1 spin per day) */}
+        {!allQuestsDone ? (
           <TouchableOpacity 
             style={styles.wheelCardLocked}
             onPress={handleLockedWheelTap}
@@ -120,6 +109,32 @@ export default function MilestonesScreen() {
               <Text style={styles.wheelSubLocked}>
                 Complete all quests today to unlock! ({doneTasks}/{totalTasks} done)
               </Text>
+            </View>
+          </TouchableOpacity>
+        ) : alreadySpunToday ? (
+          <View style={styles.wheelCardSpun}>
+            <Text style={{ fontSize: 28 }}>🎡</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.wheelTitleSpun}>DAILY SPIN COMPLETED ✅</Text>
+              <Text style={styles.wheelSubSpun}>1 spin per day · Come back tomorrow for your next reward!</Text>
+            </View>
+            <View style={styles.spunBadgePill}>
+              <CheckCircle2 size={16} color="#00E676" />
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity 
+            style={styles.wheelCardUnlocked}
+            onPress={handleOpenWheel}
+            activeOpacity={0.85}
+          >
+            <Text style={{ fontSize: 32 }}>🎡</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.wheelTitleUnlocked}>ALL QUESTS COMPLETE! 🎉</Text>
+              <Text style={styles.wheelSubUnlocked}>Tap to spin the Prize Wheel! (1 spin/day)</Text>
+            </View>
+            <View style={styles.spinButtonPill}>
+              <Text style={styles.spinButtonPillText}>SPIN! 🎡</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -206,7 +221,7 @@ export default function MilestonesScreen() {
       />
 
       <PrizeWheelModal 
-        visible={wheelModalVisible && allQuestsDone}
+        visible={wheelModalVisible && allQuestsDone && !alreadySpunToday}
         onClose={() => setWheelModalVisible(false)}
         prizeName={currentWonPrize}
       />
@@ -503,5 +518,43 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textMuted,
     marginTop: 2,
+  },
+  wheelCardSpun: {
+    backgroundColor: '#16222F',
+    borderRadius: Layout.borderRadius,
+    borderWidth: 1.5,
+    borderColor: '#00E676',
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 24,
+    shadowColor: '#00E676',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  wheelTitleSpun: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 13,
+    color: '#00E676',
+    letterSpacing: 0.5,
+  },
+  wheelSubSpun: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  spunBadgePill: {
+    backgroundColor: 'rgba(0, 230, 118, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#00E676',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

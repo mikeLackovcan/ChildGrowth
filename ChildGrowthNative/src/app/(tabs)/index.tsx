@@ -58,6 +58,7 @@ export default function TrackerScreen() {
   const acceptParentInvite = useAppStore((state) => state.acceptParentInvite);
   const denyParentInvite = useAppStore((state) => state.denyParentInvite);
   const userEmail = useAppStore((state) => state.userEmail);
+  const lastSpinDate = useAppStore((state) => state.lastSpinDate);
 
   const [showPrizeWheel, setShowPrizeWheel] = useState(false);
   const [wonPrize, setWonPrize] = useState('');
@@ -69,6 +70,7 @@ export default function TrackerScreen() {
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const todayStr = new Date().toISOString().split('T')[0];
+  const alreadySpunToday = lastSpinDate === todayStr;
   const epicClaimed = epicClaimedDate === todayStr;
   const avatarSkill = getAvatarSkillConfig(currentAvatar);
   const nextUnlock = getNextLockedAvatar(unlockedAvatars, coins);
@@ -173,7 +175,8 @@ export default function TrackerScreen() {
       const remainingUndone = tasks.filter(t => t.id !== taskId && !t.done);
       const isAllDailyQuestsDone = remainingUndone.length === 0;
 
-      if (isAllDailyQuestsDone) {
+      // Only award prize wheel spin if ALL quests are done AND not already spun today (1 spin per day)
+      if (isAllDailyQuestsDone && !alreadySpunToday) {
         console.log('🎉 ALL daily quests completed! Awarding prize wheel spin.');
         const randomPrize = prizes[Math.floor(Math.random() * prizes.length)] || 'Extra Roblox Coins!';
         setWonPrize(randomPrize);
@@ -192,9 +195,9 @@ export default function TrackerScreen() {
       triggerRewardToast(reward, epicBossTask || t('epic_boss_task'));
     }
     
-    // Spinning wheel is unlocked ONLY when all daily quests are completed
+    // Spinning wheel is unlocked ONLY when all daily quests are completed AND not already spun today
     const isAllDailyQuestsDone = tasks.length > 0 && tasks.every(t => t.done);
-    if (isAllDailyQuestsDone) {
+    if (isAllDailyQuestsDone && !alreadySpunToday) {
       const randomPrize = prizes[Math.floor(Math.random() * prizes.length)] || 'Extra Roblox Coins!';
       setWonPrize(randomPrize);
       addWonPrize(randomPrize);
@@ -565,20 +568,33 @@ export default function TrackerScreen() {
 
         {/* 4. ALL QUESTS DONE CELEBRATION (Auto Spin Wheel) */}
         {completedCount === totalCount && totalCount > 0 && (
-          <TouchableOpacity 
-            style={styles.allDoneBanner}
-            onPress={() => setShowPrizeWheel(true)}
-            activeOpacity={0.85}
-          >
-            <Text style={{ fontSize: 32 }}>🏆</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.allDoneTitle}>ALL QUESTS COMPLETE! 🎉</Text>
-              <Text style={styles.allDoneSub}>TAP TO SPIN PRIZE WHEEL 🎡</Text>
+          alreadySpunToday ? (
+            <View style={styles.allDoneBannerSpun}>
+              <Text style={{ fontSize: 32 }}>🏆</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.allDoneTitle}>ALL QUESTS COMPLETE! 🎉</Text>
+                <Text style={styles.allDoneSub}>DAILY SPIN CLAIMED ✅ (1 SPIN PER DAY)</Text>
+              </View>
+              <View style={styles.spunPill}>
+                <CheckCircle2 size={18} color="#00E676" />
+              </View>
             </View>
-            <View style={styles.spinBtn}>
-              <Text style={styles.spinBtnText}>SPIN! 🎡</Text>
-            </View>
-          </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.allDoneBanner}
+              onPress={() => setShowPrizeWheel(true)}
+              activeOpacity={0.85}
+            >
+              <Text style={{ fontSize: 32 }}>🏆</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.allDoneTitle}>ALL QUESTS COMPLETE! 🎉</Text>
+                <Text style={styles.allDoneSub}>TAP TO SPIN PRIZE WHEEL 🎡</Text>
+              </View>
+              <View style={styles.spinBtn}>
+                <Text style={styles.spinBtnText}>SPIN! 🎡</Text>
+              </View>
+            </TouchableOpacity>
+          )
         )}
 
         {/* 5. QUICK 1-TAP MOOD SELECTOR */}
@@ -670,9 +686,9 @@ export default function TrackerScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Prize Wheel and Celebration only open when all daily quests are 100% completed */}
+      {/* Prize Wheel and Celebration only open when all daily quests are 100% completed AND not already spun today */}
       <PrizeWheelModal 
-        visible={showPrizeWheel && completedCount === totalCount && totalCount > 0} 
+        visible={showPrizeWheel && completedCount === totalCount && totalCount > 0 && !alreadySpunToday} 
         onClose={() => {
           setShowPrizeWheel(false);
           setPlayConfetti(true);
@@ -683,10 +699,10 @@ export default function TrackerScreen() {
       <LottieConfetti play={playConfetti} onAnimationFinish={() => setPlayConfetti(false)} />
       
       <DancingBananaModal 
-        visible={showDancingBanana && completedCount === totalCount && totalCount > 0} 
+        visible={showDancingBanana && completedCount === totalCount && totalCount > 0 && !alreadySpunToday} 
         onClose={() => {
           setShowDancingBanana(false);
-          if (pendingWheelSpin && completedCount === totalCount && totalCount > 0) {
+          if (pendingWheelSpin && completedCount === totalCount && totalCount > 0 && !alreadySpunToday) {
             setPendingWheelSpin(false);
             setTimeout(() => {
               setShowPrizeWheel(true);
@@ -1234,6 +1250,32 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 5,
+  },
+  allDoneBannerSpun: {
+    backgroundColor: '#16222F',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#00E676',
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: '#00E676',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  spunPill: {
+    backgroundColor: 'rgba(0, 230, 118, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#00E676',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   allDoneTitle: {
     fontFamily: 'Nunito_800ExtraBold',

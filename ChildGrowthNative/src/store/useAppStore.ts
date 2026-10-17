@@ -114,6 +114,7 @@ interface AppState {
   unlockTheme: (themeKey: ThemeKey, price: number) => boolean;
   setActiveTheme: (themeKey: ThemeKey) => void;
   claimDailySpin: (rewardType: 'coins' | 'xp', amount: number) => void;
+  recordDailySpin: () => void;
   submitTaskForApproval: (taskId: string, note?: string) => void;
   verifyChildTask: (childId: string, taskId: string, approved: boolean) => void;
   
@@ -453,8 +454,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       date: new Date().toISOString(),
       redeemed: false,
     };
+    const todayStr = new Date().toISOString().split('T')[0];
     const updatedWonPrizes = [newWon, ...get().wonPrizes];
-    set({ wonPrizes: updatedWonPrizes });
+    set({ wonPrizes: updatedWonPrizes, lastSpinDate: todayStr });
 
     const { selectedChildId, children } = get();
     if (selectedChildId && children.length > 0) {
@@ -549,6 +551,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ lastSpinDate: todayStr });
       playSound('levelup');
     }
+    get().saveMockState();
+  },
+  recordDailySpin: () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    set({ lastSpinDate: todayStr });
     get().saveMockState();
   },
   submitTaskForApproval: (taskId: string, note?: string) => {
