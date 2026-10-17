@@ -149,10 +149,10 @@ export default function LoginScreen() {
           </View>
 
           {/* App Logo & Branding */}
-          <View style={styles.logoBox}>
+          <View style={styles.logoFrame}>
             <Image 
-              source={require('../assets/images/questblox_logo.png')} 
-              style={{ width: 88, height: 88, borderRadius: 22 }}
+              source={require('../assets/images/questblox_hero.png')} 
+              style={styles.logoImg}
               resizeMode="contain"
             />
           </View>
@@ -399,20 +399,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.amber,
   },
-  logoBox: {
-    width: 60,
-    height: 60,
-    backgroundColor: Colors.red,
-    borderRadius: 12,
+  logoFrame: {
+    width: 96,
+    height: 96,
+    borderRadius: 28,
+    backgroundColor: '#1E2235',
+    borderWidth: 3,
+    borderColor: '#FFB800',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
-    transform: [{ rotate: '-10deg' }],
-    shadowColor: Colors.red,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#FFB800',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
     elevation: 6,
+  },
+  logoImg: {
+    width: 90,
+    height: 90,
+    borderRadius: 22,
   },
   robloxDiamond: {
     width: 24,
