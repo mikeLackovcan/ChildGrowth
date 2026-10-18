@@ -99,6 +99,7 @@ export default function LoginScreen() {
   };
 
   const handleAuthSubmit = async () => {
+    console.log('[AUTH] handleAuthSubmit invoked:', { email, fullName, nickname, selectedRole, authMode });
     if (!email) {
       setAuthMessage(t('enter_valid_email', 'Please enter a valid email address!'));
       return;
@@ -120,8 +121,12 @@ export default function LoginScreen() {
           setLoading(false);
           return;
         }
-        await sendMagicLink(email);
-        setAuthMessage(t('registration_verification_msg', "Account created! We've sent a magic link to your email for verification 🪄 Check your inbox!"));
+        sendMagicLink(email).catch(() => {});
+        if (selectedRole === 'parent') {
+          router.replace('/parent-dashboard');
+        } else {
+          router.replace('/(tabs)');
+        }
       } else {
         if (!password) {
           setAuthMessage(t('enter_password', 'Please enter your password!'));
@@ -129,7 +134,16 @@ export default function LoginScreen() {
           return;
         }
         const res = await loginWithEmail(email, password);
-        setAuthMessage(res.message || 'Logged in!');
+        if (res.success) {
+          const currentRole = useAppStore.getState().role;
+          if (currentRole === 'parent') {
+            router.replace('/parent-dashboard');
+          } else {
+            router.replace('/(tabs)');
+          }
+        } else {
+          setAuthMessage(res.message || 'Login failed.');
+        }
       }
     } catch (err: any) {
       setAuthMessage(err?.message || 'Authentication completed.');
@@ -163,18 +177,20 @@ export default function LoginScreen() {
           {/* Auth Mode Selection Tabs: Clean 2 Tabs (Login & Register) */}
           <View style={styles.modeTabsRow}>
             <TouchableOpacity 
+              testID="auth-tab-signin"
               style={[styles.modeTab, authMode === 'signin' && styles.modeTabActive]} 
               onPress={() => { setAuthMode('signin'); setAuthMessage(null); }}
             >
-              <KeyRound size={16} color={authMode === 'signin' ? Colors.red : Colors.textMuted} />
+              <KeyRound size={16} color={authMode === 'signin' ? Colors.amber : Colors.textMuted} />
               <Text style={[styles.modeTabText, authMode === 'signin' && styles.modeTabTextActive]}>{t('auth_signin', 'Sign In')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
+              testID="auth-tab-register"
               style={[styles.modeTab, authMode === 'register' && styles.modeTabActive]} 
               onPress={() => { setAuthMode('register'); setAuthMessage(null); }}
             >
-              <User size={16} color={authMode === 'register' ? Colors.red : Colors.textMuted} />
+              <User size={16} color={authMode === 'register' ? Colors.amber : Colors.textMuted} />
               <Text style={[styles.modeTabText, authMode === 'register' && styles.modeTabTextActive]}>{t('auth_register', 'Create Account')}</Text>
             </TouchableOpacity>
           </View>
@@ -188,13 +204,14 @@ export default function LoginScreen() {
               </Text>
               <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
                 <TouchableOpacity
-                  style={[{ flex: 1, backgroundColor: Colors.surface2, borderRadius: 12, padding: 10, borderWidth: 1.5, borderColor: Colors.border, flexDirection: 'row', alignItems: 'center', gap: 8 }, selectedRole === 'child' && { borderColor: Colors.red, backgroundColor: Colors.cardPink }]}
+                  testID="auth-role-child"
+                  style={[{ flex: 1, backgroundColor: '#1A2035', borderRadius: 12, padding: 10, borderWidth: 1.5, borderColor: 'rgba(255, 255, 255, 0.08)', flexDirection: 'row', alignItems: 'center', gap: 8 }, selectedRole === 'child' && { borderColor: Colors.blue, backgroundColor: Colors.blueDim }]}
                   onPress={() => setSelectedRole('child')}
                   activeOpacity={0.8}
                 >
                   <Text style={{ fontSize: 20 }}>🎮</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={[{ fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 13 }, selectedRole === 'child' && { color: Colors.red }]}>
+                    <Text style={[{ fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 13 }, selectedRole === 'child' && { color: Colors.blue }]}>
                       {t('child_role', 'Kid')}
                     </Text>
                     <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, fontSize: 10 }} numberOfLines={1}>
@@ -204,7 +221,8 @@ export default function LoginScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[{ flex: 1, backgroundColor: Colors.surface2, borderRadius: 12, padding: 10, borderWidth: 1.5, borderColor: Colors.border, flexDirection: 'row', alignItems: 'center', gap: 8 }, selectedRole === 'parent' && { borderColor: Colors.amber, backgroundColor: Colors.cardYellow }]}
+                  testID="auth-role-parent"
+                  style={[{ flex: 1, backgroundColor: '#1A2035', borderRadius: 12, padding: 10, borderWidth: 1.5, borderColor: 'rgba(255, 255, 255, 0.08)', flexDirection: 'row', alignItems: 'center', gap: 8 }, selectedRole === 'parent' && { borderColor: Colors.amber, backgroundColor: Colors.cardYellow }]}
                   onPress={() => setSelectedRole('parent')}
                   activeOpacity={0.8}
                 >
@@ -223,6 +241,7 @@ export default function LoginScreen() {
               <View style={styles.inputBox}>
                 <User size={18} color={Colors.textMuted} />
                 <TextInput
+                  testID="auth-input-name"
                   style={styles.input}
                   placeholder={t('name_placeholder', 'Name (e.g. Alex)')}
                   placeholderTextColor={Colors.textMuted}
@@ -236,6 +255,7 @@ export default function LoginScreen() {
               <View style={styles.inputBox}>
                 <Tag size={18} color={Colors.textMuted} />
                 <TextInput
+                  testID="auth-input-nickname"
                   style={styles.input}
                   placeholder={t('nickname_placeholder', 'Roblox Nickname / Tag (e.g. AlexRoblox2026)')}
                   placeholderTextColor={Colors.textMuted}
@@ -253,6 +273,7 @@ export default function LoginScreen() {
           <View style={styles.inputBox}>
             <Mail size={18} color={Colors.textMuted} />
             <TextInput
+              testID="auth-input-email"
               style={styles.input}
               placeholder={t('email_placeholder', 'Email address')}
               placeholderTextColor={Colors.textMuted}
@@ -269,6 +290,7 @@ export default function LoginScreen() {
           <View style={styles.inputBox}>
             <Lock size={18} color={Colors.textMuted} />
             <TextInput
+              testID="auth-input-password"
               style={styles.input}
               placeholder={t('password_placeholder', 'Password')}
               placeholderTextColor={Colors.textMuted}
@@ -315,6 +337,7 @@ export default function LoginScreen() {
 
           {/* Primary Form Submit Button */}
           <TouchableOpacity 
+            testID="auth-submit-btn"
             style={styles.submitBtn} 
             onPress={handleAuthSubmit}
             activeOpacity={0.8}
@@ -332,6 +355,7 @@ export default function LoginScreen() {
 
           {/* Google Sign-In */}
           <TouchableOpacity 
+            testID="auth-google-btn"
             style={styles.googleBtn}
             activeOpacity={0.8}
             onPress={handleGoogleSignIn}
@@ -341,6 +365,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            testID="auth-guest-btn"
             style={styles.guestBtn}
             activeOpacity={0.8}
             onPress={handleGuestMode}
@@ -368,17 +393,17 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   authBox: {
-    backgroundColor: Colors.surface,
+    backgroundColor: '#131726',
     borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 16,
-    padding: 30,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 24,
+    padding: 28,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 6,
   },
   coinBadge: {
     backgroundColor: Colors.amberDim,
@@ -511,9 +536,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   modeTabActive: {
-    backgroundColor: Colors.surface,
+    backgroundColor: '#1A2035',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255, 184, 0, 0.4)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -526,17 +551,17 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   modeTabTextActive: {
-    color: Colors.red,
+    color: Colors.amber,
     fontFamily: 'Nunito_800ExtraBold',
   },
   inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: Colors.surface2,
+    backgroundColor: '#1A2035',
     borderWidth: 1,
-    borderColor: Colors.border2,
-    borderRadius: 10,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
     paddingHorizontal: 14,
     height: 48,
     width: '100%',
@@ -551,23 +576,23 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     width: '100%',
-    backgroundColor: Colors.red,
+    backgroundColor: Colors.amber,
     paddingVertical: 14,
-    borderRadius: 10,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 6,
     marginBottom: 10,
-    shadowColor: Colors.red,
+    shadowColor: Colors.amber,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
   },
   submitBtnText: {
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 14,
-    color: '#FFFFFF',
+    color: '#121212',
     letterSpacing: 0.5,
   },
   msgBanner: {

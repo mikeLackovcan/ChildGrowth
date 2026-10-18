@@ -28,7 +28,7 @@ export default function LinkAccountScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.iconBox}>
-          <Link2 size={40} color={Colors.red} />
+          <Link2 size={40} color={Colors.amber} />
         </View>
 
         <Text style={styles.title}>{t('link_account_title', 'Link Parent Account')}</Text>
@@ -39,6 +39,7 @@ export default function LinkAccountScreen() {
         <View style={styles.card}>
           <Text style={styles.label}>{t('parent_nickname_label', "Parent's Nickname or Email")}</Text>
           <TextInput
+            testID="parent-nick-input"
             style={styles.input}
             placeholder={t('parent_nick_placeholder', 'Parent Nickname or Email (e.g. @tatko or parent@mail.com)')}
             placeholderTextColor={Colors.textMuted}
@@ -47,9 +48,9 @@ export default function LinkAccountScreen() {
             autoCapitalize="none"
           />
 
-          <TouchableOpacity style={styles.button} onPress={handleSendRequest} activeOpacity={0.8}>
+          <TouchableOpacity testID="send-request-btn" style={styles.button} onPress={handleSendRequest} activeOpacity={0.8}>
             <Text style={styles.buttonText}>{t('btn_send_request', 'Send Request 🚀')}</Text>
-            <ArrowRight size={20} color="#FFF" />
+            <ArrowRight size={20} color="#121212" />
           </TouchableOpacity>
         </View>
       </View>
@@ -74,13 +75,13 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: Colors.surface2,
+    backgroundColor: '#181E32',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255, 184, 0, 0.25)',
   },
   title: {
     fontFamily: 'Nunito_800ExtraBold',
@@ -98,16 +99,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   card: {
-    backgroundColor: Colors.surface,
+    backgroundColor: '#131726',
     padding: 24,
-    borderRadius: Layout.borderRadius,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 3,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   label: {
     fontFamily: 'Nunito_700Bold',
@@ -116,10 +112,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: Colors.surface2,
-    borderRadius: 12,
+    backgroundColor: '#1A2035',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 16,
     paddingVertical: 14,
     color: Colors.text,
@@ -128,7 +124,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   button: {
-    backgroundColor: Colors.red,
+    backgroundColor: Colors.amber,
     borderRadius: 14,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -138,7 +134,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontFamily: 'Nunito_800ExtraBold',
-    color: '#FFF',
+    color: '#121212',
     fontSize: 16,
   },
 });

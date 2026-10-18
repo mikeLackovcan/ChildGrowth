@@ -109,7 +109,7 @@ export default function ParentDashboardScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header with Parent Name, Nickname and Administration Badge */}
-        <View style={{ backgroundColor: Colors.amberDim, borderWidth: 1.5, borderColor: Colors.amber, borderRadius: 16, padding: 16, marginBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ backgroundColor: '#131726', borderWidth: 1, borderColor: 'rgba(255, 184, 0, 0.25)', borderRadius: 20, padding: 18, marginBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ gap: 4, flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Shield size={18} color={Colors.amber} />
@@ -123,7 +123,7 @@ export default function ParentDashboardScreen() {
           </View>
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             <LanguageSwitcher />
-            <TouchableOpacity onPress={handleLogout} style={{ backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, padding: 10, borderRadius: 12 }}>
+            <TouchableOpacity testID="parent-logout-btn" onPress={handleLogout} style={{ backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, padding: 10, borderRadius: 12 }}>
               <LogOut size={18} color={Colors.red} />
             </TouchableOpacity>
           </View>
@@ -324,6 +324,7 @@ export default function ParentDashboardScreen() {
             <View style={{ gap: 10, marginTop: 6 }}>
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <TextInput
+                  testID="add-child-name-input"
                   style={[styles.input, { flex: 1, marginBottom: 0 }]}
                   placeholder={t('name_placeholder', 'Child Name (optional)')}
                   placeholderTextColor={Colors.textMuted}
@@ -331,6 +332,7 @@ export default function ParentDashboardScreen() {
                   onChangeText={setChildNameInput}
                 />
                 <TextInput
+                  testID="add-child-nick-input"
                   style={[styles.input, { flex: 1, marginBottom: 0 }]}
                   placeholder={t('nickname_input_placeholder', "Child's Nickname / Tag (e.g. AlexRoblox)")}
                   placeholderTextColor={Colors.textMuted}
@@ -341,11 +343,12 @@ export default function ParentDashboardScreen() {
               </View>
 
               <TouchableOpacity 
-                style={{ backgroundColor: Colors.red, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}
+                testID="add-child-submit-btn"
+                style={{ backgroundColor: Colors.amber, paddingVertical: 14, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}
                 onPress={handleAddChild}
                 activeOpacity={0.8}
               >
-                <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: '#FFF', fontSize: 13 }}>{t('btn_add_child', 'ADD CHILD 🚀')}</Text>
+                <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: '#121212', fontSize: 14 }}>{t('btn_add_child', 'ADD CHILD 🚀')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -413,7 +416,7 @@ export default function ParentDashboardScreen() {
               <CheckSquare size={18} color={Colors.green} />
               <Text style={[styles.secTitle, { marginBottom: 0 }]}>{t('quest_verification_title', 'QUEST VERIFICATION (CHECK / UNCHECK)')}</Text>
             </View>
-            <TouchableOpacity onPress={() => router.push('/manage-tasks')} style={styles.viewButton}>
+            <TouchableOpacity testID="manage-quests-btn" onPress={() => router.push('/manage-tasks')} style={styles.viewButton}>
               <Text style={styles.viewButtonText}>{t('manage_quests_btn', 'Manage Quests')} &gt;</Text>
             </TouchableOpacity>
           </View>
@@ -656,15 +659,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   card: {
-    backgroundColor: Colors.surface,
+    backgroundColor: '#131726',
     borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
     padding: 18,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
     elevation: 3,
   },
   childRow: {
@@ -710,15 +713,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   viewButton: {
-    backgroundColor: Colors.redDim,
+    backgroundColor: Colors.amberDim,
     borderWidth: 1,
-    borderColor: 'rgba(232,0,27,0.4)',
+    borderColor: 'rgba(255, 184, 0, 0.3)',
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 999,
   },
   viewButtonText: {
-    color: Colors.red,
+    color: Colors.amber,
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 12,
   },
@@ -736,24 +739,24 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '48%',
-    height: 46,
-    backgroundColor: Colors.surface2,
+    height: 48,
+    backgroundColor: '#1A2035',
     borderWidth: 1,
-    borderColor: Colors.border2,
-    borderRadius: 8,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
     paddingHorizontal: 14,
     fontSize: 13,
     fontFamily: 'Nunito_700Bold',
     color: Colors.text,
   },
   saveButton: {
-    backgroundColor: Colors.red,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: Colors.amber,
+    paddingVertical: 14,
+    borderRadius: 14,
     alignItems: 'center',
   },
   saveButtonText: {
-    color: '#FFFFFF',
+    color: '#121212',
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 14,
   },
@@ -846,16 +849,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: Colors.surface,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
+    backgroundColor: '#131726',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 14,
   },
   childPillActive: {
-    borderColor: Colors.red,
-    backgroundColor: Colors.cardPink,
+    borderColor: Colors.amber,
+    backgroundColor: Colors.amberDim,
   },
   childPillName: {
     fontFamily: 'Nunito_800ExtraBold',
@@ -863,7 +866,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   childPillNameActive: {
-    color: Colors.red,
+    color: Colors.amber,
   },
   childPillTag: {
     fontFamily: 'Nunito_600SemiBold',

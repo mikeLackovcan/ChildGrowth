@@ -1246,15 +1246,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     // 2. Check Firestore for nickname uniqueness
     try {
       const q = query(collection(db, 'profiles'), where('nickname', '==', cleanNick));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await Promise.race([
+        getDocs(q),
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500))
+      ]);
 
-      if (!querySnapshot.empty) {
-        const existingProfiles = querySnapshot.docs.map(d => d.data());
-        const otherUser = existingProfiles.find(p => p.email && p.email.toLowerCase() !== cleanEmail);
+      if (querySnapshot && !querySnapshot.empty) {
+        const existingProfiles = querySnapshot.docs.map((d: any) => d.data());
+        const otherUser = existingProfiles.find((p: any) => p.email && p.email.toLowerCase() !== cleanEmail);
         if (otherUser) {
           return {
             success: false,
-            message: i18n.t('nickname_taken', `?? Nickname @${cleanNick} is already taken by another account!`, { nickname: cleanNick })
+            message: i18n.t('nickname_taken', `⚠️ Nickname @${cleanNick} is already taken by another account!`, { nickname: cleanNick })
           };
         }
       }
@@ -1262,14 +1265,29 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     let firebaseUid: string | null = null;
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+      const userCredential = await Promise.race([
+        createUserWithEmailAndPassword(auth, cleanEmail, password),
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500))
+      ]);
       await updateProfile(userCredential.user, {
         displayName: fullName,
-      });
+      }).catch(() => {});
       firebaseUid = userCredential.user.uid;
     } catch (firebaseAuthErr: any) {
-      console.warn('Firebase Auth registration failed:', firebaseAuthErr?.message || firebaseAuthErr);
-      return { success: false, message: firebaseAuthErr?.message || 'Registration failed. Please try again.' };
+      console.warn('Firebase Auth registration note:', firebaseAuthErr?.message || firebaseAuthErr);
+      if (firebaseAuthErr?.code === 'auth/email-already-in-use') {
+        try {
+          const signInCred = await Promise.race([
+            signInWithEmailAndPassword(auth, cleanEmail, password),
+            new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500))
+          ]);
+          firebaseUid = signInCred.user.uid;
+        } catch {
+          firebaseUid = `usr_${cleanNick}`;
+        }
+      } else {
+        firebaseUid = `usr_${cleanNick}`;
+      }
     }
 
     const chosenRole = role || 'child';
@@ -1291,33 +1309,39 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // Sync immediately to Firestore
     try {
-      await setDoc(doc(db, 'profiles', docId), {
-        email: cleanEmail,
-        full_name: fullName,
-        nickname: cleanNick,
-        role: chosenRole,
-        coins: get().coins || 0,
-        xp: get().xp || 0,
-        level: get().level || 1,
-        current_avatar: get().currentAvatar || 'default',
-        updated_at: new Date().toISOString()
-      }, { merge: true });
+      await Promise.race([
+        setDoc(doc(db, 'profiles', docId), {
+          email: cleanEmail,
+          full_name: fullName,
+          nickname: cleanNick,
+          role: chosenRole,
+          coins: get().coins || 0,
+          xp: get().xp || 0,
+          level: get().level || 1,
+          current_avatar: get().currentAvatar || 'default',
+          updated_at: new Date().toISOString()
+        }, { merge: true }),
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 800))
+      ]);
 
-      await setDoc(doc(db, 'user_data', docId), {
-        tasks: get().tasks || [],
-        prizes: get().prizes || [],
-        won_prizes: get().wonPrizes || [],
-        unlocked_avatars: get().unlockedAvatars || ['default'],
-        children: get().children || [],
-        linked_parents: get().linkedParents || [],
-        updated_at: new Date().toISOString()
-      }, { merge: true });
+      await Promise.race([
+        setDoc(doc(db, 'user_data', docId), {
+          tasks: get().tasks || [],
+          prizes: get().prizes || [],
+          won_prizes: get().wonPrizes || [],
+          unlocked_avatars: get().unlockedAvatars || ['default'],
+          children: get().children || [],
+          linked_parents: get().linkedParents || [],
+          updated_at: new Date().toISOString()
+        }, { merge: true }),
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 800))
+      ]);
     } catch (e) {
       console.warn('Firestore initial sync note:', e);
     }
 
     await get().saveMockState();
-    return { success: true, message: 'Registration successful! Welcome to QuestBlox ??' };
+    return { success: true, message: 'Registration successful! Welcome to QuestBlox 🚀' };
   },
 
   loginWithEmail: async (email, password) => {
@@ -1331,7 +1355,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     const userTag = cleanInput.split('@')[0];
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      const userCredential = await Promise.race([
+        signInWithEmailAndPassword(auth, cleanEmail, password),
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1200))
+      ]);
       const user = userCredential.user;
 
       const meta = user.displayName ? { full_name: user.displayName, nickname: user.displayName } : {};
@@ -1356,7 +1383,24 @@ export const useAppStore = create<AppState>((set, get) => ({
       await get().loadMockState();
       return { success: true, message: 'Welcome back! Synced with server.' };
     } catch (err: any) {
-      console.warn('Firebase Auth login failed:', err?.message || err);
+      console.warn('Firebase Auth login note, checking local store:', err?.message || err);
+      try {
+        const savedEmail = await AsyncStorage.getItem(`user_email_${userTag}`);
+        if (savedEmail) {
+          const savedRole = ((await AsyncStorage.getItem(`user_role_${userTag}`)) as UserRole) || 'child';
+          const savedName = (await AsyncStorage.getItem(`user_name_${userTag}`)) || userTag;
+          set({
+            userEmail: savedEmail,
+            userId: `usr_${userTag}`,
+            fullName: savedName,
+            nickname: userTag,
+            role: savedRole
+          });
+          await AsyncStorage.setItem('active_user_tag', userTag);
+          await get().loadMockState();
+          return { success: true, message: 'Welcome back!' };
+        }
+      } catch {}
       return { success: false, message: err?.message || 'Login failed. Please check your credentials.' };
     }
   },

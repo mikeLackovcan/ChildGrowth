@@ -484,6 +484,7 @@ export default function TrackerScreen() {
                 </Text>
                 {!isKidInitiated && (
                   <TouchableOpacity 
+                    testID="accept-parent-invite-btn"
                     style={styles.compactActionBtn} 
                     onPress={() => { acceptParentInvite(pendingParentTag); alert('🎉 Linked!'); }}
                   >

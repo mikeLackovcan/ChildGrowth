@@ -91,7 +91,7 @@ export default function ManageTasksScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity testID="manage-tasks-back-btn" onPress={() => router.back()} style={styles.backButton}>
             <ChevronLeft size={22} color={Colors.text} />
           </TouchableOpacity>
           <Text style={[styles.title, { flex: 1 }]}>
@@ -133,6 +133,7 @@ export default function ManageTasksScreen() {
 
             <Text style={styles.labelSub}>{t('quest_name_label')}</Text>
             <TextInput
+              testID="quest-name-input"
               style={styles.input}
               placeholder="E.g. Brush Teeth 🪥"
               placeholderTextColor={Colors.textMuted}
@@ -160,6 +161,7 @@ export default function ManageTasksScreen() {
 
             {/* Verification Toggle */}
             <TouchableOpacity 
+              testID="approval-toggle-btn"
               style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: requiresApproval ? Colors.purpleDim : Colors.surface2, borderWidth: 1, borderColor: requiresApproval ? Colors.purple : Colors.border2, borderRadius: 12, padding: 12, marginBottom: 12 }}
               onPress={() => setRequiresApproval(!requiresApproval)}
             >
@@ -176,8 +178,8 @@ export default function ManageTasksScreen() {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.addButton} onPress={handleAddTask}>
-              <Plus size={18} color="#FFF" />
+            <TouchableOpacity testID="add-quest-submit-btn" style={styles.addButton} onPress={handleAddTask}>
+              <Plus size={18} color="#121212" />
               <Text style={styles.addButtonText}>{t('add_quest_btn')}</Text>
             </TouchableOpacity>
           </View>
@@ -226,7 +228,7 @@ export default function ManageTasksScreen() {
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.taskName, task.done && styles.taskNameDone]}>{t(task.name, task.name)}</Text>
                         <View style={styles.badgeRow}>
-                          <Calendar size={12} color={Colors.red} />
+                          <Calendar size={12} color={Colors.amber} />
                           <Text style={styles.freqBadgeText}>{getFreqLabel(task.freq || 'daily')}</Text>
                           <Text style={[styles.statusBadgeText, { color: task.done ? Colors.green : Colors.amber }]}>
                             • {task.done ? t('done_status', 'DONE ✅') : t('pending_status', 'PENDING ⏳')}
@@ -305,23 +307,23 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   addCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: '#131726',
     borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 16,
-    borderRadius: 12,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    padding: 18,
+    borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
     elevation: 3,
   },
   input: {
-    height: 46,
-    backgroundColor: Colors.surface2,
+    height: 48,
+    backgroundColor: '#1A2035',
     borderWidth: 1,
-    borderColor: Colors.border2,
-    borderRadius: 8,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
     paddingHorizontal: 14,
     fontSize: 14,
     fontFamily: 'Nunito_700Bold',
@@ -340,15 +342,15 @@ const styles = StyleSheet.create({
   },
   freqPill: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: Colors.surface2,
+    backgroundColor: '#1A2035',
     borderWidth: 1,
-    borderColor: Colors.border2,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   freqPillActive: {
-    backgroundColor: Colors.redDim,
-    borderColor: Colors.red,
+    backgroundColor: Colors.amberDim,
+    borderColor: Colors.amber,
   },
   freqPillText: {
     fontFamily: 'Nunito_700Bold',
@@ -356,29 +358,29 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   freqPillTextActive: {
-    color: Colors.red,
+    color: Colors.amber,
     fontFamily: 'Nunito_800ExtraBold',
   },
   addButton: {
-    backgroundColor: Colors.red,
-    borderRadius: 8,
+    backgroundColor: Colors.amber,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     gap: 8,
   },
   addButtonText: {
-    color: '#FFF',
+    color: '#121212',
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 14,
   },
   emptyCard: {
-    backgroundColor: Colors.surface,
-    padding: 20,
-    borderRadius: 10,
+    backgroundColor: '#131726',
+    padding: 24,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     alignItems: 'center',
   },
   emptyText: {
@@ -387,11 +389,11 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   taskCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: '#131726',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 16,
     marginBottom: 10,
   },
   taskRow: {
@@ -412,7 +414,7 @@ const styles = StyleSheet.create({
   },
   freqBadgeText: {
     fontFamily: 'Nunito_800ExtraBold',
-    color: Colors.red,
+    color: Colors.amber,
     fontSize: 11,
   },
   actionRow: {

@@ -124,6 +124,7 @@ export default function MilestonesScreen() {
           </View>
         ) : (
           <TouchableOpacity 
+            testID="open-wheel-card-btn"
             style={styles.wheelCardUnlocked}
             onPress={handleOpenWheel}
             activeOpacity={0.85}

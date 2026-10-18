@@ -260,7 +260,7 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
                 <Text style={styles.dayBadgeText}>{t('reward_day_today', 'Today (Day 1) 📅')} · {t('reward_valid_days', 'Valid for 1 Day 🗓️')}</Text>
               </View>
 
-              <TouchableOpacity style={styles.spinButton} onPress={onClose}>
+              <TouchableOpacity testID="modal-claim-prize-btn" style={styles.spinButton} onPress={onClose}>
                 <Text style={styles.spinButtonText}>{t('claim_prize', 'CLAIM REWARD!')}</Text>
               </TouchableOpacity>
             </View>
@@ -270,12 +270,13 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
               <Text style={[styles.prizeNameText, { fontSize: 13, marginVertical: 6 }]}>
                 {t('come_back_tomorrow_spin', '1 spin per day. Come back tomorrow for your next reward!')}
               </Text>
-              <TouchableOpacity style={[styles.spinButton, { marginTop: 8 }]} onPress={onClose}>
+              <TouchableOpacity testID="modal-close-wheel-btn" style={[styles.spinButton, { marginTop: 8 }]} onPress={onClose}>
                 <Text style={styles.spinButtonText}>{t('close', 'CLOSE')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <TouchableOpacity 
+              testID="modal-spin-wheel-btn"
               style={[styles.spinButton, isSpinning && styles.spinButtonDisabled]} 
               onPress={handleStartSpin}
               disabled={isSpinning}
