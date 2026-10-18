@@ -11,8 +11,8 @@ import { calculateQuestReward, getAvatarSkillConfig, QuestRewardCalculation } fr
 
 export const DEFAULT_STARTER_TASKS: Task[] = [
   { id: 'starter_1', name: 'habit_brush_teeth', icon: '🪥', done: false, diff: 'easy', freq: 'daily', mystery: false, date: new Date().toISOString().split('T')[0] },
-  { id: 'starter_2', name: 'habit_cleaning', icon: '🧹', done: false, diff: 'easy', freq: 'daily', mystery: true, date: new Date().toISOString().split('T')[0] },
-  { id: 'starter_3', name: 'habit_reading', icon: '📚', done: false, diff: 'med', freq: 'weekdays', mystery: false, date: new Date().toISOString().split('T')[0] },
+  { id: 'starter_2', name: 'habit_cleaning', icon: '🧹', done: false, diff: 'easy', freq: 'daily', mystery: true, date: new Date().toISOString().split('T')[0], isRolling: true, canPostpone: true },
+  { id: 'starter_3', name: 'habit_reading', icon: '📚', done: false, diff: 'med', freq: 'weekdays', mystery: false, date: new Date().toISOString().split('T')[0], canPostpone: true },
 ];
 
 export type UserRole = 'parent' | 'child' | null;
@@ -29,6 +29,10 @@ export interface Task {
   requiresApproval?: boolean;
   pendingApproval?: boolean;
   verificationNote?: string;
+  isRolling?: boolean;          // Rolls over / persists across days until finished
+  canPostpone?: boolean;        // Allows kid/parent to postpone quest to next days
+  postponedUntil?: string;      // YYYY-MM-DD target date if postponed
+  originalDate?: string;        // Date when quest was originally scheduled
 }
 
 export interface WonPrize {
@@ -98,6 +102,8 @@ interface AppState {
   removeTask: (id: string) => void;
   updateTask: (id: string, updates: Partial<Omit<Task, 'id'>>) => void;
   toggleTaskDone: (id: string, forceCritical?: boolean) => QuestRewardCalculation | null;
+  postponeTask: (taskId: string, targetDateStr?: string) => void;
+  unpostponeTask: (taskId: string) => void;
   claimEpicBoss: () => QuestRewardCalculation | null;
   claimDailyLoginChest: () => { coins: number; xp: number } | null;
   setSuperchargedTask: (taskId: string | null) => void;
@@ -387,6 +393,62 @@ export const useAppStore = create<AppState>((set, get) => ({
       return null;
     }
   },
+  postponeTask: (taskId: string, targetDateStr?: string) => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const targetDate = targetDateStr || tomorrow.toISOString().split('T')[0];
+
+    const currentTasks = get().tasks;
+    const task = currentTasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const updatedTasks = currentTasks.map(t => {
+      if (t.id === taskId) {
+        return {
+          ...t,
+          postponedUntil: targetDate,
+          originalDate: t.originalDate || t.date || new Date().toISOString().split('T')[0],
+        };
+      }
+      return t;
+    });
+
+    set({ tasks: updatedTasks });
+
+    const { selectedChildId, children } = get();
+    if (selectedChildId && children.length > 0) {
+      set({
+        children: children.map(c => c.id === selectedChildId ? { ...c, tasks: updatedTasks } : c)
+      });
+    }
+
+    playSound('spin');
+    get().saveMockState();
+  },
+  unpostponeTask: (taskId: string) => {
+    const currentTasks = get().tasks;
+    const updatedTasks = currentTasks.map(t => {
+      if (t.id === taskId) {
+        return {
+          ...t,
+          postponedUntil: undefined,
+        };
+      }
+      return t;
+    });
+
+    set({ tasks: updatedTasks });
+
+    const { selectedChildId, children } = get();
+    if (selectedChildId && children.length > 0) {
+      set({
+        children: children.map(c => c.id === selectedChildId ? { ...c, tasks: updatedTasks } : c)
+      });
+    }
+
+    get().saveMockState();
+  },
   claimEpicBoss: () => {
     const todayStr = new Date().toISOString().split('T')[0];
     if (get().epicClaimedDate === todayStr) {
@@ -427,7 +489,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     const hasShield = Boolean(getAvatarSkillConfig(get().currentAvatar).hasStreakShield) || get().isSick;
     const nextStreak = hadCompletedYesterday ? get().streak + 1 : (hasShield ? Math.max(1, get().streak) : 1);
 
-    const resetTasksList = prevTasks.map((t) => ({ ...t, done: false, date: todayStr }));
+    const resetTasksList = prevTasks.map((t) => {
+      const isPostponedArrived = t.postponedUntil && t.postponedUntil <= todayStr;
+      return {
+        ...t,
+        done: false,
+        date: todayStr,
+        postponedUntil: isPostponedArrived ? undefined : t.postponedUntil,
+      };
+    });
     
     set((state) => ({
       lastActiveDate: todayStr,
@@ -437,7 +507,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       tasks: resetTasksList,
       children: state.children.map(child => ({
         ...child,
-        tasks: child.tasks.map(t => ({ ...t, done: false, date: todayStr }))
+        tasks: child.tasks.map(t => {
+          const isPostponedArrived = t.postponedUntil && t.postponedUntil <= todayStr;
+          return {
+            ...t,
+            done: false,
+            date: todayStr,
+            postponedUntil: isPostponedArrived ? undefined : t.postponedUntil,
+          };
+        })
       }))
     }));
     get().saveMockState();

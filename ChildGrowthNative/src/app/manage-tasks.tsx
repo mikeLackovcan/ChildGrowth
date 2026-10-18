@@ -55,6 +55,8 @@ export default function ManageTasksScreen() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskName, setEditingTaskName] = useState('');
   const [requiresApproval, setRequiresApproval] = useState(false);
+  const [isRolling, setIsRolling] = useState(false);
+  const [canPostpone, setCanPostpone] = useState(false);
 
   const handleAddTask = () => {
     if (newTaskName.trim().length === 0) return;
@@ -65,8 +67,12 @@ export default function ManageTasksScreen() {
       mystery: false,
       icon: selectedIcon,
       requiresApproval: requiresApproval,
+      isRolling: isRolling,
+      canPostpone: canPostpone,
     });
     setNewTaskName('');
+    setIsRolling(false);
+    setCanPostpone(false);
   };
 
   const startEditing = (id: string, currentName: string) => {
@@ -162,7 +168,7 @@ export default function ManageTasksScreen() {
             {/* Verification Toggle */}
             <TouchableOpacity 
               testID="approval-toggle-btn"
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: requiresApproval ? Colors.purpleDim : Colors.surface2, borderWidth: 1, borderColor: requiresApproval ? Colors.purple : Colors.border2, borderRadius: 12, padding: 12, marginBottom: 12 }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: requiresApproval ? Colors.purpleDim : Colors.surface2, borderWidth: 1, borderColor: requiresApproval ? Colors.purple : Colors.border2, borderRadius: 12, padding: 12, marginBottom: 10 }}
               onPress={() => setRequiresApproval(!requiresApproval)}
             >
               <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: requiresApproval ? Colors.purple : Colors.border2, backgroundColor: requiresApproval ? Colors.purple : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
@@ -174,6 +180,82 @@ export default function ManageTasksScreen() {
                 </Text>
                 <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, fontSize: 11 }}>
                   Kid must submit for parent review before receiving XP & Coins
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Rolling Quest Toggle */}
+            <TouchableOpacity 
+              testID="rolling-toggle-btn"
+              style={{ 
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                gap: 10, 
+                backgroundColor: isRolling ? 'rgba(6, 182, 212, 0.15)' : Colors.surface2, 
+                borderWidth: 1, 
+                borderColor: isRolling ? '#06B6D4' : Colors.border2, 
+                borderRadius: 12, 
+                padding: 12, 
+                marginBottom: 10 
+              }}
+              onPress={() => setIsRolling(!isRolling)}
+            >
+              <View style={{ 
+                width: 22, 
+                height: 22, 
+                borderRadius: 6, 
+                borderWidth: 2, 
+                borderColor: isRolling ? '#06B6D4' : Colors.border2, 
+                backgroundColor: isRolling ? '#06B6D4' : 'transparent', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}>
+                {isRolling && <Check size={14} color="#FFF" />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: isRolling ? '#06B6D4' : Colors.text, fontSize: 13 }}>
+                  {t('rolling_quest_title', 'Rolling Quest (Stays until done) 🔄')}
+                </Text>
+                <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, fontSize: 11 }}>
+                  {t('rolling_quest_sub', 'If unfinished today, carries over automatically into tomorrow')}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Allow Postpone Toggle */}
+            <TouchableOpacity 
+              testID="postpone-toggle-btn"
+              style={{ 
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                gap: 10, 
+                backgroundColor: canPostpone ? 'rgba(56, 189, 248, 0.15)' : Colors.surface2, 
+                borderWidth: 1, 
+                borderColor: canPostpone ? '#38BDF8' : Colors.border2, 
+                borderRadius: 12, 
+                padding: 12, 
+                marginBottom: 12 
+              }}
+              onPress={() => setCanPostpone(!canPostpone)}
+            >
+              <View style={{ 
+                width: 22, 
+                height: 22, 
+                borderRadius: 6, 
+                borderWidth: 2, 
+                borderColor: canPostpone ? '#38BDF8' : Colors.border2, 
+                backgroundColor: canPostpone ? '#38BDF8' : 'transparent', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}>
+                {canPostpone && <Check size={14} color="#FFF" />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: canPostpone ? '#38BDF8' : Colors.text, fontSize: 13 }}>
+                  {t('allow_postpone_title', 'Allow Kid to Postpone ⏩')}
+                </Text>
+                <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, fontSize: 11 }}>
+                  {t('allow_postpone_sub', 'Kid can reschedule this quest to tomorrow if out of time')}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -227,12 +309,29 @@ export default function ManageTasksScreen() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.taskName, task.done && styles.taskNameDone]}>{t(task.name, task.name)}</Text>
-                        <View style={styles.badgeRow}>
-                          <Calendar size={12} color={Colors.amber} />
-                          <Text style={styles.freqBadgeText}>{getFreqLabel(task.freq || 'daily')}</Text>
+                        <View style={[styles.badgeRow, { flexWrap: 'wrap', gap: 6 }]}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <Calendar size={12} color={Colors.amber} />
+                            <Text style={styles.freqBadgeText}>{getFreqLabel(task.freq || 'daily')}</Text>
+                          </View>
                           <Text style={[styles.statusBadgeText, { color: task.done ? Colors.green : Colors.amber }]}>
                             • {task.done ? t('done_status', 'DONE ✅') : t('pending_status', 'PENDING ⏳')}
                           </Text>
+                          {task.isRolling && (
+                            <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 10, color: '#06B6D4' }}>
+                              • {t('rolling_badge', 'ROLLING 🔄')}
+                            </Text>
+                          )}
+                          {task.canPostpone && (
+                            <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 10, color: '#38BDF8' }}>
+                              • {t('postpone_btn', 'POSTPONE ⏩')}
+                            </Text>
+                          )}
+                          {task.postponedUntil && (
+                            <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 10, color: '#F59E0B' }}>
+                              • {t('postponed_badge', 'POSTPONED ⏩')} ({task.postponedUntil})
+                            </Text>
+                          )}
                         </View>
                       </View>
                     </View>

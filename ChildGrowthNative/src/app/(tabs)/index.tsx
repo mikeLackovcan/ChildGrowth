@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Colors, getThemeColors, WORLD_THEMES } from '../../constants/theme';
 import { useAppStore, DEFAULT_STARTER_TASKS } from '../../store/useAppStore';
-import { LogOut, Thermometer, Moon, CheckCircle2, Star, Trophy, Gamepad2, Sun, Calendar, ScrollText, Settings, Sparkles, Shield, Zap, Gift, Flame, Crosshair, Lock, Crown } from 'lucide-react-native';
+import { LogOut, Thermometer, Moon, CheckCircle2, Star, Trophy, Gamepad2, Sun, Calendar, ScrollText, Settings, Sparkles, Shield, Zap, Gift, Flame, Crosshair, Lock, Crown, FastForward, RefreshCw } from 'lucide-react-native';
 import HoldToClaim from '../../components/HoldToClaim';
 import PrizeWheelModal from '../../components/PrizeWheelModal';
 import BouncingButton from '../../components/BouncingButton';
@@ -32,6 +32,8 @@ export default function TrackerScreen() {
   const rawTasks = useAppStore((state) => state.tasks);
   const tasks = (rawTasks && rawTasks.length > 0) ? rawTasks : DEFAULT_STARTER_TASKS;
   const toggleTaskDone = useAppStore((state) => state.toggleTaskDone);
+  const postponeTask = useAppStore((state) => state.postponeTask);
+  const unpostponeTask = useAppStore((state) => state.unpostponeTask);
   const claimEpicBoss = useAppStore((state) => state.claimEpicBoss);
   const epicClaimedDate = useAppStore((state) => state.epicClaimedDate);
   const dailyChestClaimedDate = useAppStore((state) => state.dailyChestClaimedDate);
@@ -118,16 +120,18 @@ export default function TrackerScreen() {
     return null;
   }
 
-  const completedCount = tasks.filter(t => t.done).length + (epicClaimed ? 1 : 0);
-  const totalCount = tasks.length + 1;
+  // Active today's quests (excluding quests postponed to tomorrow/future)
+  const activeTodayTasks = tasks.filter(t => !t.postponedUntil || t.postponedUntil <= todayStr);
+  const completedCount = activeTodayTasks.filter(t => t.done).length + (epicClaimed ? 1 : 0);
+  const totalCount = activeTodayTasks.length + 1;
   const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   const currentStreak = Math.max(streak || 0, completedCount > 0 ? 1 : 0);
   const currentLevel = level || 1;
 
-  const completedToday = tasks.filter(t => t.done).length;
+  const completedToday = activeTodayTasks.filter(t => t.done).length;
   const comboInfo = getComboMultiplier(completedToday);
-  const regularTasksCount = tasks.length;
-  const regularDoneCount = tasks.filter(t => t.done).length;
+  const regularTasksCount = activeTodayTasks.length;
+  const regularDoneCount = activeTodayTasks.filter(t => t.done).length;
   const bossShieldPct = regularTasksCount > 0 ? Math.max(0, Math.round(100 - (regularDoneCount / regularTasksCount) * 100)) : 0;
   const isBossVulnerable = bossShieldPct === 0;
 
@@ -276,46 +280,80 @@ export default function TrackerScreen() {
     return freq === dayKey.toLowerCase();
   };
 
-  // Generate 7-day week dates starting from Monday
-  const getWeekDates = () => {
+  // Generate 7-day upcoming dates starting STRICTLY from Today (no past days!)
+  const getUpcomingDates = () => {
     const now = new Date();
-    const currentDay = now.getDay(); // 0 is Sunday, 1 is Monday ... 6 is Saturday
-    const mondayOffset = (currentDay + 6) % 7;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - mondayOffset);
-
-    const week = [];
-    const dayNames = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-    const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const days = [];
+    const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
+      const d = new Date(now);
+      d.setDate(now.getDate() + i);
       const dateStr = d.toISOString().split('T')[0];
-      const isToday = dateStr === todayStr;
-      week.push({
-        dayName: dayNames[i],
-        dayKey: dayKeys[i],
+      const dayIdx = d.getDay();
+      const isToday = i === 0;
+      const isTomorrow = i === 1;
+      const isWeekend = dayIdx === 0 || dayIdx === 6;
+
+      days.push({
+        dayName: isToday ? 'TODAY' : (isTomorrow ? 'TOM' : dayNames[dayIdx]),
+        fullDayName: dayNames[dayIdx],
+        dayKey: dayKeys[dayIdx],
         dateNum: d.getDate(),
         monthName: months[d.getMonth()],
-        formattedDate: `${months[d.getMonth()]} ${d.getDate()}`,
+        formattedDate: isToday 
+          ? `Today (${months[d.getMonth()]} ${d.getDate()})` 
+          : (isTomorrow ? `Tomorrow (${months[d.getMonth()]} ${d.getDate()})` : `${dayNames[dayIdx]}, ${months[d.getMonth()]} ${d.getDate()}`),
         dateStr,
         isToday,
-        isPast: dateStr < todayStr,
-        isFuture: dateStr > todayStr,
-        isWeekend: i >= 5,
+        isTomorrow,
+        isFuture: i > 0,
+        isWeekend,
+        dayOffset: i,
       });
     }
-    return week;
+    return days;
   };
 
-  const weekDates = getWeekDates();
+  const upcomingDates = getUpcomingDates();
   const isViewingToday = selectedDate === todayStr;
-  const selectedDayInfo = weekDates.find(d => d.dateStr === selectedDate) || weekDates.find(d => d.isToday) || weekDates[0];
-  const displayedTasks = isViewingToday 
-    ? tasks 
-    : tasks.filter(t => isTaskScheduledForDay(t, selectedDayInfo.dayKey, selectedDayInfo.isWeekend));
+  const selectedDayInfo = upcomingDates.find(d => d.dateStr === selectedDate) || upcomingDates[0];
+
+  // Returns expected quests for a given day (including scheduled, rolling carryover, and postponed)
+  const getTasksForDay = (dayInfo: typeof upcomingDates[0]) => {
+    const isDayToday = dayInfo.dateStr === todayStr;
+    
+    if (isDayToday) {
+      // Active quests today (excludes quests postponed to tomorrow/future)
+      return tasks.filter(t => {
+        if (t.postponedUntil && t.postponedUntil > todayStr) {
+          return false;
+        }
+        const isScheduled = isTaskScheduledForDay(t, dayInfo.dayKey, dayInfo.isWeekend);
+        const isRollingUnfinished = Boolean(t.isRolling && !t.done);
+        const isPostponedToToday = t.postponedUntil === todayStr;
+        return isScheduled || isRollingUnfinished || isPostponedToToday;
+      });
+    } else {
+      // Future day: scheduled quests + any tasks explicitly postponed to this day + rolling carryover tasks
+      return tasks.filter(t => {
+        if (t.postponedUntil === dayInfo.dateStr) return true;
+        if (t.postponedUntil && t.postponedUntil !== dayInfo.dateStr) return false;
+        const isScheduled = isTaskScheduledForDay(t, dayInfo.dayKey, dayInfo.isWeekend);
+        const isRollingUnfinished = Boolean(t.isRolling && !t.done);
+        return isScheduled || isRollingUnfinished;
+      });
+    }
+  };
+
+  const displayedTasks = getTasksForDay(selectedDayInfo);
+
+  // Quests postponed from today to tomorrow/future
+  const postponedTasksFromToday = isViewingToday 
+    ? tasks.filter(t => t.postponedUntil && t.postponedUntil > todayStr)
+    : [];
 
   // History Log dataset (only active when user has completed quests)
   const historyLog = completedCount > 0 ? [
@@ -400,12 +438,13 @@ export default function TrackerScreen() {
           </View>
         </View>
 
-        {/* Top Weekly Interactive Calendar Strip */}
+        {/* Top Interactive Calendar Strip (Upcoming 7 Days) */}
         <View style={styles.topCalendarStrip}>
-          {weekDates.map((item) => {
+          {upcomingDates.map((item) => {
             const isSelected = selectedDate === item.dateStr;
-            const scheduledTasks = tasks.filter(t => isTaskScheduledForDay(t, item.dayKey, item.isWeekend));
-            const count = scheduledTasks.length;
+            const dayTasks = getTasksForDay(item);
+            const count = dayTasks.length;
+            const allDoneToday = item.isToday && completedCount === totalCount && totalCount > 0;
             
             return (
               <TouchableOpacity
@@ -441,7 +480,7 @@ export default function TrackerScreen() {
                 </View>
 
                 {/* Micro indicators: Checkmark if today complete, count if tasks exist, or dot */}
-                {item.isToday && completedCount === totalCount && totalCount > 0 ? (
+                {allDoneToday ? (
                   <View style={styles.calCheckDot}>
                     <CheckCircle2 size={10} color="#00E676" />
                   </View>
@@ -598,10 +637,15 @@ export default function TrackerScreen() {
                         <Text style={[styles.questTitle, isViewingToday && task.done && styles.questTitleDone]} numberOfLines={2}>
                           {taskDisplayName}
                         </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
                           <Text style={[styles.coinRewardText, isViewingToday && task.done && { color: Colors.textMuted }]}>
                             +{boostedCoins} 💰
                           </Text>
+                          {task.isRolling && (
+                            <View style={styles.rollingBadge}>
+                              <Text style={styles.rollingBadgeText}>{t('rolling_badge', 'ROLLING 🔄')}</Text>
+                            </View>
+                          )}
                           {task.mystery && (!isViewingToday || !task.done) && (
                             <View style={styles.mysteryBadge}>
                               <Text style={styles.mysteryBadgeText}>🎁 BONUS</Text>
@@ -619,10 +663,33 @@ export default function TrackerScreen() {
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         {!isViewingToday ? (
                           <View style={styles.scheduledPill}>
-                            <Text style={styles.scheduledPillText}>SCHEDULED 📅</Text>
+                            <Text style={styles.scheduledPillText}>
+                              {task.postponedUntil === selectedDayInfo.dateStr
+                                ? t('postponed_badge', 'POSTPONED ⏩')
+                                : (task.isRolling ? t('rolling_badge', 'ROLLING 🔄') : 'SCHEDULED 📅')}
+                            </Text>
                           </View>
                         ) : (
                           <>
+                            {!task.done && task.canPostpone && (
+                              <TouchableOpacity
+                                testID={`postpone-btn-${task.id}`}
+                                onPress={(e) => {
+                                  e.stopPropagation?.();
+                                  postponeTask(task.id);
+                                  alert(t('postpone_alert_msg', 'Rescheduled to tomorrow. It will be waiting for you tomorrow morning!'));
+                                }}
+                                style={styles.postponeActionBtn}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                activeOpacity={0.7}
+                              >
+                                <FastForward size={13} color="#38BDF8" />
+                                <Text style={styles.postponeActionBtnText}>
+                                  {t('postpone_btn', 'Postpone ⏩')}
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+
                             {!task.done && (
                               <TouchableOpacity
                                 onPress={(e) => {
@@ -656,6 +723,37 @@ export default function TrackerScreen() {
                   </BouncingButton>
                 );
               })
+            )}
+
+            {/* Postponed to Tomorrow Section on Today's Board */}
+            {isViewingToday && postponedTasksFromToday.length > 0 && (
+              <View style={{ marginTop: 4, gap: 6 }}>
+                {postponedTasksFromToday.map(pt => (
+                  <View key={`postponed_${pt.id}`} style={styles.postponedNoticeCard}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                      <FastForward size={16} color="#38BDF8" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.postponedNoticeTitle} numberOfLines={1}>
+                          {getDisplayTaskName(pt.name)}
+                        </Text>
+                        <Text style={styles.postponedNoticeSub}>
+                          {t('postponed_notice_today', 'Postponed to Tomorrow ⏩')}
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity 
+                      testID={`unpostpone-btn-${pt.id}`}
+                      style={styles.bringBackBtn}
+                      onPress={() => unpostponeTask(pt.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.bringBackBtnText}>
+                        {t('bring_back_btn', 'Bring back ⏪')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
             )}
 
             {/* Featured Daily Boss Climax Quest */}
@@ -1431,6 +1529,81 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 10,
     color: Colors.amber,
+  },
+  rollingBadge: {
+    backgroundColor: 'rgba(6, 182, 212, 0.15)',
+    borderWidth: 1,
+    borderColor: '#06B6D4',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  rollingBadgeText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 10,
+    color: '#06B6D4',
+  },
+  postponedBadge: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderWidth: 1,
+    borderColor: '#38BDF8',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  postponedBadgeText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 10,
+    color: '#38BDF8',
+  },
+  postponeActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+  },
+  postponeActionBtnText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 11,
+    color: '#38BDF8',
+  },
+  postponedNoticeCard: {
+    backgroundColor: '#151D2A',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 6,
+  },
+  postponedNoticeTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 13,
+    color: '#E2E8F0',
+  },
+  postponedNoticeSub: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 11,
+    color: '#38BDF8',
+  },
+  bringBackBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  bringBackBtnText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 11,
+    color: Colors.textSecondary,
   },
   zapBtn: {
     width: 32,
