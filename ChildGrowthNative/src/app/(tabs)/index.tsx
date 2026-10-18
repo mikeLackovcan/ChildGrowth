@@ -635,6 +635,12 @@ export default function TrackerScreen() {
                               </TouchableOpacity>
                             )}
                             
+                            {isViewingToday && task.done && alreadySpunToday && (
+                              <View style={styles.questLockedTag}>
+                                <Lock size={14} color="#94A3B8" />
+                              </View>
+                            )}
+
                             <View style={[styles.checkCircle, task.done && styles.checkCircleDone]}>
                               {task.done ? (
                                 <CheckCircle2 size={24} color="#121212" />
@@ -646,14 +652,6 @@ export default function TrackerScreen() {
                         )}
                       </View>
                     </View>
-
-                    {isViewingToday && task.done && (
-                      <View style={[styles.completedStamp, alreadySpunToday && styles.completedStampLocked]}>
-                        <Text style={[styles.completedStampText, alreadySpunToday && styles.completedStampTextLocked]}>
-                          {alreadySpunToday ? '🔒 LOCKED' : t('completed_stamp')}
-                        </Text>
-                      </View>
-                    )}
                   </BouncingButton>
                 );
               })
@@ -1445,9 +1443,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.amber,
   },
   checkCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 2,
     borderColor: '#373D54',
     alignItems: 'center',
@@ -1458,31 +1456,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.green,
     borderColor: Colors.green,
   },
-  completedStamp: {
-    position: 'absolute',
-    right: 10,
-    top: 12,
-    borderWidth: 2,
-    borderColor: Colors.red,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    transform: [{ rotate: '-12deg' }],
-    backgroundColor: 'rgba(18,18,18,0.85)',
-  },
-  completedStampText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 10,
-    color: Colors.red,
-    letterSpacing: 1,
-  },
-  completedStampLocked: {
-    borderColor: '#00E676',
-    backgroundColor: 'rgba(0, 230, 118, 0.15)',
-    transform: [{ rotate: '0deg' }],
-  },
-  completedStampTextLocked: {
-    color: '#00E676',
+  questLockedTag: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   allDoneBanner: {
     backgroundColor: '#1C291F',

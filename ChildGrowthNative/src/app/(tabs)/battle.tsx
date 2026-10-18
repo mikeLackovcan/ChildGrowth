@@ -214,13 +214,13 @@ export default function BattleScreen() {
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header Bar */}
         <View style={styles.headerRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
             <View style={styles.headerIconCircle}>
-              <Swords size={24} color="#FFF" />
+              <Swords size={22} color="#FFF" />
             </View>
-            <View>
-              <Text style={styles.headerTitle}>{t('battle_arena_title', 'Battle Arena ⚔️')}</Text>
-              <Text style={styles.headerSub}>{t('battle_coming_soon_sub', 'Under Construction • Coming Soon')}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.headerTitle} numberOfLines={1}>{t('tab_battle', 'Battle')} ⚔️</Text>
+              <Text style={styles.headerSub} numberOfLines={1}>{t('battle_coming_soon_sub', 'Coming Soon • V2.0')}</Text>
             </View>
           </View>
           <LanguageSwitcher />
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 20,
+    fontSize: 16,
     color: Colors.text,
   },
   headerSub: {
@@ -464,17 +464,17 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   heroCard: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1.5,
-    borderColor: Colors.amber,
+    backgroundColor: '#131726',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 184, 0, 0.25)',
     borderRadius: 20,
     padding: 18,
     marginBottom: 20,
     shadowColor: Colors.amber,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
     shadowRadius: 10,
-    elevation: 4,
+    elevation: 3,
   },
   badgeRow: {
     flexDirection: 'row',
@@ -563,9 +563,9 @@ const styles = StyleSheet.create({
     color: '#10B981',
   },
   figureCard: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
+    backgroundColor: '#131726',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 20,
     padding: 16,
     gap: 14,
@@ -731,9 +731,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: Colors.surface,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
+    backgroundColor: '#131726',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 18,
     padding: 14,
   },
@@ -757,9 +757,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   roadmapCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: '#131726',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 18,
     padding: 16,
     gap: 14,
