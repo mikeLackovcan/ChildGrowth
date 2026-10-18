@@ -19,7 +19,6 @@ import {
   Heart,
   Gauge
 } from 'lucide-react-native';
-import LanguageSwitcher from '../../components/LanguageSwitcher';
 
 export interface RobloxAvatar {
   id: string;
@@ -214,16 +213,15 @@ export default function BattleScreen() {
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header Bar */}
         <View style={styles.headerRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <View style={styles.headerIconCircle}>
-              <Swords size={22} color="#FFF" />
+              <Swords size={20} color={Colors.amber} />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.headerTitle} numberOfLines={1}>{t('tab_battle', 'Battle')} ⚔️</Text>
-              <Text style={styles.headerSub} numberOfLines={1}>{t('battle_coming_soon_sub', 'Coming Soon • V2.0')}</Text>
+            <View>
+              <Text style={styles.headerTitle}>{t('tab_battle', 'Battle Arena')}</Text>
+              <Text style={styles.headerSub}>{t('battle_coming_soon_sub', 'Arcade Combat • Update V2.0')}</Text>
             </View>
           </View>
-          <LanguageSwitcher />
         </View>
 
         {/* HERO BANNER - ARENA UNDER CONSTRUCTION */}
@@ -441,40 +439,33 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   headerIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: '#DC2626',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 184, 0, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 184, 0, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#DC2626',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
   },
   headerTitle: {
     fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 16,
-    color: Colors.text,
+    fontSize: 22,
+    color: '#F8FAFC',
+    letterSpacing: -0.3,
   },
   headerSub: {
-    fontFamily: 'Nunito_600SemiBold',
+    fontFamily: 'Nunito_700Bold',
     fontSize: 12,
-    color: Colors.textMuted,
+    color: '#94A3B8',
   },
   heroCard: {
-    backgroundColor: '#131726',
+    backgroundColor: '#151926',
     borderWidth: 1,
-    borderColor: 'rgba(255, 184, 0, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 20,
-    padding: 18,
-    marginBottom: 20,
-    shadowColor: Colors.amber,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 3,
+    padding: 16,
+    marginBottom: 18,
   },
   badgeRow: {
     flexDirection: 'row',
@@ -513,7 +504,7 @@ const styles = StyleSheet.create({
   featuresRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: Colors.surface2,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderRadius: 14,
     padding: 10,
   },
@@ -563,9 +554,9 @@ const styles = StyleSheet.create({
     color: '#10B981',
   },
   figureCard: {
-    backgroundColor: '#131726',
+    backgroundColor: '#151926',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 20,
     padding: 16,
     gap: 14,
@@ -579,7 +570,7 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 18,
-    backgroundColor: Colors.surface2,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -625,7 +616,7 @@ const styles = StyleSheet.create({
     color: Colors.amber,
   },
   statMetersContainer: {
-    backgroundColor: Colors.surface2,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderRadius: 14,
     padding: 12,
     gap: 8,
@@ -665,9 +656,9 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   specialSkillCard: {
-    backgroundColor: 'rgba(232,0,27,0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderWidth: 1,
-    borderColor: 'rgba(232,0,27,0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 14,
     padding: 12,
   },

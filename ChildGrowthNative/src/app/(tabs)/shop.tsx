@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { Colors, Typography, Layout, WORLD_THEMES, ThemeKey, getThemeColors } from '../../constants/theme';
 import { useAppStore } from '../../store/useAppStore';
 import { ShoppingBag, Coins, Check, Zap, X, Shield, Sparkles, Star, Lock } from 'lucide-react-native';
-import LanguageSwitcher from '../../components/LanguageSwitcher';
 
 export interface RobloxAvatar {
   id: string;
@@ -335,69 +334,54 @@ export default function ShopScreen() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: getThemeColors(activeTheme).background }]}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         
-        {/* Header */}
-        <View style={styles.headerRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-            <ShoppingBag size={28} color={Colors.red} />
-            <Text style={styles.headerTitle}>{t('avatar_shop_title', 'Roblox Avatar & Skill Shop')}</Text>
-          </View>
-          <LanguageSwitcher />
-        </View>
-        <Text style={styles.headerSub}>Unlock 12 legendary Roblox figures and boost your quest skills!</Text>
-
-        {/* Coin Balance Wallet Card */}
-        <View style={styles.coinBalanceCard}>
-          <Coins size={36} color={Colors.amber} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.coinBalanceTitle}>ROBLOX COIN WALLET</Text>
-            <Text style={styles.coinBalanceText}>{coins} Coins 💰</Text>
+        {/* Clean Header */}
+        <View style={styles.cleanShopHeader}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <ShoppingBag size={24} color={Colors.amber} />
+            <Text style={styles.cleanShopTitle}>{t('avatar_shop_title', 'Avatar & Skill Shop')}</Text>
           </View>
         </View>
 
-        {/* Weekly Progression Pace Banner */}
-        <View style={styles.weeklyPacingBanner}>
-          <Star size={18} color={Colors.amber} fill={Colors.amber} />
-          <Text style={styles.weeklyPacingBannerText}>
-            🏆 {t('weekly_pacing_desc', 'Gain ~1 new Roblox figure for every week (~7 days) of passing daily quests!')}
-          </Text>
-        </View>
-
-        {/* Active Skill Perk Banner */}
-        <View style={styles.activeSkillBanner}>
-          <View style={styles.activeSkillHeader}>
-            <Zap size={18} color={Colors.amber} />
-            <Text style={styles.activeSkillTitle}>{t('active_skill_perk', 'ACTIVE AVATAR SKILL PERK')}</Text>
+        {/* Calm Wallet & Active Hero Perk HUD */}
+        <View style={styles.cleanShopHud}>
+          <View style={styles.cleanWalletCol}>
+            <Text style={styles.cleanHudLabel}>COIN WALLET</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <Coins size={20} color={Colors.amber} />
+              <Text style={styles.cleanCoinsNum}>{coins} 💰</Text>
+            </View>
           </View>
-          <Text style={styles.activeAvatarName}>{activeAvatarObj.name}: {activeAvatarObj.skillName}</Text>
-          <Text style={styles.activeSkillDesc}>{activeAvatarObj.skillDesc}</Text>
+          
+          <View style={styles.cleanHudDivider} />
+
+          <View style={{ flex: 1, paddingLeft: 12 }}>
+            <Text style={styles.cleanHudLabel}>ACTIVE PERK</Text>
+            <Text style={styles.cleanPerkTitle} numberOfLines={1}>
+              {activeAvatarObj.name} · {activeAvatarObj.skillName}
+            </Text>
+            <Text style={styles.cleanPerkDesc} numberOfLines={1}>
+              {activeAvatarObj.skillDesc}
+            </Text>
+          </View>
         </View>
 
         {/* World Themes Shop Section */}
-        <View style={{ marginBottom: 24 }}>
-          <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 18, marginBottom: 4 }}>
-            🌍 WORLD THEMES SHOP
-          </Text>
-          <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, fontSize: 12, marginBottom: 12 }}>
-            Unlock & switch custom app color worlds!
+        <View style={{ marginBottom: 20 }}>
+          <Text style={styles.cleanSectionTitle}>
+            🌍 WORLD THEMES
           </Text>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 4 }}>
             {Object.values(WORLD_THEMES).map((theme) => {
               const isUnlocked = unlockedThemes.includes(theme.id);
               const isActive = activeTheme === theme.id;
               return (
                 <TouchableOpacity
                   key={theme.id}
-                  style={{
-                    width: 145,
-                    backgroundColor: theme.surface,
-                    borderColor: isActive ? theme.accent : isUnlocked ? theme.border : Colors.amber,
-                    borderWidth: isActive ? 2.5 : 1.5,
-                    borderRadius: 16,
-                    padding: 12,
-                    alignItems: 'center',
-                    gap: 6
-                  }}
+                  style={[
+                    styles.cleanThemeCard,
+                    isActive && styles.cleanThemeCardActive
+                  ]}
                   onPress={() => {
                     if (isUnlocked) {
                       setActiveTheme(theme.id);
@@ -409,24 +393,25 @@ export default function ShopScreen() {
                       }
                     }
                   }}
+                  activeOpacity={0.8}
                 >
-                  <Text style={{ fontSize: 32 }}>{theme.icon}</Text>
-                  <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: theme.text, fontSize: 14, textAlign: 'center' }}>
+                  <Text style={{ fontSize: 26, marginBottom: 2 }}>{theme.icon}</Text>
+                  <Text style={styles.cleanThemeName} numberOfLines={1}>
                     {theme.name}
                   </Text>
                   
                   {isActive ? (
-                    <View style={{ backgroundColor: theme.accent, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
-                      <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: '#FFF', fontSize: 11 }}>ACTIVE ✨</Text>
+                    <View style={styles.themeActivePill}>
+                      <Text style={styles.themeActivePillText}>ACTIVE ✨</Text>
                     </View>
                   ) : isUnlocked ? (
-                    <View style={{ backgroundColor: theme.surface2, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
-                      <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: theme.textSecondary, fontSize: 11 }}>EQUIP 🎨</Text>
+                    <View style={styles.themeEquipPill}>
+                      <Text style={styles.themeEquipPillText}>EQUIP</Text>
                     </View>
                   ) : (
-                    <View style={{ backgroundColor: Colors.amberDim, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Coins size={12} color={Colors.amber} />
-                      <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.amber, fontSize: 11 }}>{theme.price}</Text>
+                    <View style={styles.themePricePill}>
+                      <Coins size={11} color={Colors.amber} />
+                      <Text style={styles.themePricePillText}>{theme.price}</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -435,16 +420,10 @@ export default function ShopScreen() {
           </ScrollView>
         </View>
 
-        {/* Practice Battle Arena Banner */}
-        <View style={styles.battleArenaBanner}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.battleArenaBannerTitle}>⚔️ KID BATTLE ARENA (PVP PREVIEW)</Text>
-            <Text style={styles.battleArenaBannerSub}>Test {activeAvatarObj.name}'s special battle skills in 1v1 practice combat!</Text>
-          </View>
-          <TouchableOpacity style={styles.practiceBattleBtn} onPress={startPracticeBattle} activeOpacity={0.8}>
-            <Text style={styles.practiceBattleBtnText}>BATTLE ⚔️</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Section Header for Avatars */}
+        <Text style={styles.cleanSectionTitle}>
+          🦹 HERO AVATARS & ROSTER
+        </Text>
 
         {/* 12 Figures Grid */}
         <View style={styles.grid}>
@@ -705,6 +684,124 @@ const styles = StyleSheet.create({
     maxWidth: 560,
     width: '100%',
     alignSelf: 'center',
+  },
+  cleanShopHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    marginTop: 4,
+  },
+  cleanShopTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 22,
+    color: '#F8FAFC',
+    letterSpacing: -0.3,
+  },
+  cleanShopHud: {
+    backgroundColor: '#151926',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  cleanWalletCol: {
+    paddingRight: 14,
+  },
+  cleanHudDivider: {
+    width: 1,
+    height: 38,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  cleanHudLabel: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 10,
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  cleanCoinsNum: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 16,
+    color: Colors.amber,
+  },
+  cleanPerkTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 13,
+    color: '#F8FAFC',
+    marginTop: 2,
+  },
+  cleanPerkDesc: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+  cleanSectionTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 13,
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  cleanThemeCard: {
+    width: 115,
+    backgroundColor: '#151926',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 16,
+    padding: 12,
+    alignItems: 'center',
+    gap: 4,
+  },
+  cleanThemeCardActive: {
+    borderColor: Colors.amber,
+    backgroundColor: '#1B2236',
+  },
+  cleanThemeName: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 12,
+    color: '#F8FAFC',
+    textAlign: 'center',
+  },
+  themeActivePill: {
+    backgroundColor: 'rgba(255, 184, 0, 0.15)',
+    borderWidth: 1,
+    borderColor: Colors.amber,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  themeActivePillText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 9,
+    color: Colors.amber,
+  },
+  themeEquipPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  themeEquipPillText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 9,
+    color: '#94A3B8',
+  },
+  themePricePill: {
+    backgroundColor: 'rgba(255, 184, 0, 0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  themePricePillText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 10,
+    color: Colors.amber,
   },
   headerRow: {
     flexDirection: 'row',

@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { Colors, Typography, Layout, getThemeColors } from '../../constants/theme';
 import { useAppStore } from '../../store/useAppStore';
 import { Trophy, Star, Gift, Calendar, CheckCircle2, Circle, Settings, Lock } from 'lucide-react-native';
-import LanguageSwitcher from '../../components/LanguageSwitcher';
 import SettingsModal from '../../components/SettingsModal';
 import PrizeWheelModal from '../../components/PrizeWheelModal';
 
@@ -51,47 +50,43 @@ export default function MilestonesScreen() {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>{t('winnings_prizes_title', 'Winnings & Prizes 🎁')}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <LanguageSwitcher />
-            <TouchableOpacity 
-              style={{ backgroundColor: Colors.surface2, padding: 8, borderRadius: 10, borderWidth: 1, borderColor: Colors.border }}
-              onPress={() => setSettingsVisible(true)}
-            >
-              <Settings size={20} color={Colors.amber} />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity 
+            style={styles.settingBtn}
+            onPress={() => setSettingsVisible(true)}
+          >
+            <Settings size={20} color={Colors.amber} />
+          </TouchableOpacity>
         </View>
         
-        {/* Level Tracker */}
-        <View style={styles.levelCard}>
+        {/* Unified Progression Slate (Combines Level, XP, and Reward Summary) */}
+        <View style={styles.progressionSlate}>
           <View style={styles.levelHeader}>
-            <View style={[styles.levelBadge, { backgroundColor: themeColors.accent }]}>
-              <Star size={42} color={Colors.amber} fill={Colors.amber} />
+            <View style={styles.levelBadge}>
+              <Star size={32} color="#121212" fill="#121212" />
               <Text style={styles.levelText}>{level}</Text>
             </View>
             <View style={styles.levelInfo}>
-              <Text style={styles.levelTitle}>Level {level}</Text>
-              <Text style={styles.xpText}>{xp} / {xpNeeded} XP ⭐</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={styles.levelTitle}>Level {level}</Text>
+                <Text style={styles.xpText}>{xp} / {xpNeeded} XP ⭐</Text>
+              </View>
+              <View style={styles.progressBarBg}>
+                <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+              </View>
+              <Text style={styles.progressSubText}>
+                Earn {Math.max(0, xpNeeded - xp)} more XP to reach Level {level + 1}
+              </Text>
             </View>
           </View>
-          
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: `${progressPercent}%`, backgroundColor: themeColors.accent }]} />
-          </View>
-          <Text style={styles.progressSubText}>
-            Earn {Math.max(0, xpNeeded - xp)} more XP to reach Level {level + 1}!
-          </Text>
-        </View>
 
-        {/* Reward Days Summary Header */}
-        <View style={styles.rewardDaysCard}>
-          <Calendar size={20} color={Colors.amber} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rewardDaysTitle}>{t('total_reward_days', 'Reward Days Logged')}</Text>
-            <Text style={styles.rewardDaysCount}>
-              {wonPrizes.length} {t('rewards_and_prizes', 'Rewards')} · {wonPrizes.filter(p => p.redeemed).length} {t('redeemed_status', 'Redeemed ✅')}
+          {/* Calm Reward Summary Footnote */}
+          <View style={styles.slateDivider} />
+          <View style={styles.slateRewardRow}>
+            <Calendar size={16} color={Colors.amber} />
+            <Text style={styles.slateRewardText}>
+              {wonPrizes.length} {t('rewards_and_prizes', 'Rewards Won')} · {wonPrizes.filter(p => p.redeemed).length} {t('redeemed_status', 'Redeemed ✅')}
             </Text>
           </View>
         </View>
@@ -242,30 +237,47 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
   },
-  headerTitle: {
-    ...Typography.header,
-    marginBottom: 24,
-    marginTop: 10,
-  },
-  levelCard: {
-    backgroundColor: '#131726',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    padding: 20,
-    borderRadius: 20,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 16,
+    marginTop: 6,
+  },
+  headerTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 22,
+    color: '#F8FAFC',
+    letterSpacing: -0.3,
+  },
+  settingBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressionSlate: {
+    backgroundColor: '#151926',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 14,
   },
   levelHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    marginBottom: 18,
+    gap: 14,
   },
   levelBadge: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.primary,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.amber,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -274,38 +286,53 @@ const styles = StyleSheet.create({
     position: 'absolute',
     color: '#121212',
     fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 16,
-    marginTop: 2,
+    fontSize: 14,
+    marginTop: 1,
   },
   levelInfo: {
     flex: 1,
   },
   levelTitle: {
-    ...Typography.title,
-    fontSize: 22,
-    color: Colors.text,
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 16,
+    color: '#F8FAFC',
   },
   xpText: {
-    ...Typography.body,
-    color: Colors.amber,
     fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 13,
+    color: Colors.amber,
   },
   progressBarBg: {
-    height: 14,
-    backgroundColor: '#1E2337',
-    borderRadius: 7,
+    height: 8,
+    backgroundColor: '#272B40',
+    borderRadius: 999,
     overflow: 'hidden',
-    marginBottom: 10,
+    marginBottom: 6,
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: Colors.amber,
-    borderRadius: 7,
+    borderRadius: 999,
   },
   progressSubText: {
-    ...Typography.small,
-    color: Colors.textSecondary,
     fontFamily: 'Nunito_700Bold',
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+  slateDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginVertical: 12,
+  },
+  slateRewardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  slateRewardText: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 12,
+    color: '#CBD5E1',
   },
   section: {
     flex: 1,
