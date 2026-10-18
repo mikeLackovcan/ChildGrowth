@@ -365,23 +365,11 @@ export default function TrackerScreen() {
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         
-        {/* Top Micro Utility Row: Language Switcher & Settings */}
-        <View style={styles.topMicroBar}>
-          <LanguageSwitcher />
-          <TouchableOpacity 
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} 
-            style={styles.cleanSettingBtn} 
-            onPress={() => setSettingsVisible(true)}
-          >
-            <Settings size={16} color={Colors.amber} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Clean Hero Player Card */}
+        {/* Clean Hero Player Header (Distraction-Free) */}
         <View style={styles.cleanHeader}>
           <View style={styles.cleanPlayerRow}>
-            {/* Left: Avatar + Name + Level */}
-            <View style={[styles.cleanAvatarFrame, { borderColor: themeColors.accent }]}>
+            {/* Left: Avatar + Name */}
+            <View style={styles.cleanAvatarFrame}>
               {getAvatarDisplay().image ? (
                 <Image source={getAvatarDisplay().image} style={styles.cleanAvatarImg} resizeMode="contain" />
               ) : (
@@ -391,17 +379,14 @@ export default function TrackerScreen() {
             <View style={{ flex: 1, marginRight: 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={styles.cleanAppTitle} numberOfLines={1}>{fullName || nickname || 'Kid Hero'}</Text>
-                <View style={styles.cleanLvlPill}>
-                  <Trophy size={10} color="#FFD700" />
-                  <Text style={styles.cleanLvlPillText}>LVL {currentLevel}</Text>
-                </View>
+                <Text style={styles.cleanLvlText}>LVL {currentLevel}</Text>
               </View>
               <Text style={styles.cleanCompanionText} numberOfLines={1}>
-                💬 {companionMessage}
+                {companionMessage}
               </Text>
             </View>
 
-            {/* Right: Streak & Coins */}
+            {/* Right: Streak, Coins & Settings */}
             <View style={styles.cleanStatsCluster}>
               <View style={styles.streakPill}>
                 <Text style={styles.statIcon}>🔥</Text>
@@ -411,6 +396,13 @@ export default function TrackerScreen() {
                 <Text style={styles.statIcon}>💰</Text>
                 <Text style={styles.coinText}>{coins}</Text>
               </View>
+              <TouchableOpacity 
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} 
+                style={styles.cleanSettingBtn} 
+                onPress={() => setSettingsVisible(true)}
+              >
+                <Settings size={18} color="#64748B" />
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -429,16 +421,16 @@ export default function TrackerScreen() {
                   <Text style={styles.giftClaimPillText}>CLAIM +{25 + currentStreak * 5} 💰</Text>
                 </TouchableOpacity>
               ) : (
-                <Text style={styles.cleanXpText}>{xp}/100 XP · {avatarSkill.shortBuff}</Text>
+                <Text style={styles.cleanXpText}>{xp}/100 XP</Text>
               )}
             </View>
             <View style={styles.cleanXpTrack}>
-              <View style={[styles.cleanXpFill, { width: `${progressPct}%`, backgroundColor: themeColors.accent }]} />
+              <View style={[styles.cleanXpFill, { width: `${progressPct}%`, backgroundColor: Colors.amber }]} />
             </View>
           </View>
         </View>
 
-        {/* Top Interactive Calendar Strip (Upcoming 7 Days) */}
+        {/* Feather-Light Calendar Strip (Upcoming 7 Days) */}
         <View style={styles.topCalendarStrip}>
           {upcomingDates.map((item) => {
             const isSelected = selectedDate === item.dateStr;
@@ -451,7 +443,6 @@ export default function TrackerScreen() {
                 key={item.dateStr}
                 style={[
                   styles.calendarDayCell,
-                  item.isToday && styles.calendarDayToday,
                   isSelected && styles.calendarDaySelected,
                 ]}
                 onPress={() => setSelectedDate(item.dateStr)}
@@ -459,7 +450,6 @@ export default function TrackerScreen() {
               >
                 <Text style={[
                   styles.calendarDayName,
-                  item.isToday && styles.calendarDayNameToday,
                   isSelected && styles.calendarDayNameSelected,
                 ]}>
                   {item.dayName}
@@ -467,29 +457,25 @@ export default function TrackerScreen() {
                 
                 <View style={[
                   styles.calendarDateCircle,
-                  item.isToday && styles.calendarDateCircleToday,
                   isSelected && styles.calendarDateCircleSelected,
                 ]}>
                   <Text style={[
                     styles.calendarDateNum,
-                    item.isToday && styles.calendarDateNumToday,
                     isSelected && styles.calendarDateNumSelected,
                   ]}>
                     {item.dateNum}
                   </Text>
                 </View>
 
-                {/* Micro indicators: Checkmark if today complete, count if tasks exist, or dot */}
+                {/* Micro indicators: subtle count or checkmark */}
                 {allDoneToday ? (
                   <View style={styles.calCheckDot}>
-                    <CheckCircle2 size={10} color="#00E676" />
+                    <CheckCircle2 size={10} color="#10B981" />
                   </View>
                 ) : count > 0 ? (
-                  <View style={[styles.calCountDot, isSelected && { backgroundColor: Colors.amber }]}>
-                    <Text style={[styles.calCountDotText, isSelected && { color: '#121212' }]}>
-                      {count}
-                    </Text>
-                  </View>
+                  <Text style={[styles.calCountText, isSelected && { color: '#FFB800' }]}>
+                    {count}
+                  </Text>
                 ) : (
                   <View style={styles.calEmptyDot} />
                 )}
@@ -575,25 +561,15 @@ export default function TrackerScreen() {
           )}
 
           <View style={styles.sectionHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Gamepad2 size={20} color="#ab47bc" />
-              <Text style={styles.secTitle}>
-                {isViewingToday ? "TODAY'S QUESTS ⚔️" : `${selectedDayInfo.dayName}'S SCHEDULE 📅`}
-              </Text>
-              {isViewingToday && comboInfo.multiplier > 1.0 && (
-                <View style={[styles.comboPill, { borderColor: comboInfo.color }]}>
-                  <Text style={[styles.comboPillText, { color: comboInfo.color }]}>
-                    {comboInfo.label}
-                  </Text>
-                </View>
-              )}
-            </View>
+            <Text style={styles.secTitle}>
+              {isViewingToday ? "TODAY'S QUESTS" : `${selectedDayInfo.dayName}'S SCHEDULE`}
+            </Text>
             <Text style={styles.secCount}>
               {isViewingToday ? `${completedCount}/${totalCount} DONE` : `${displayedTasks.length} SCHEDULED`}
             </Text>
           </View>
 
-          {/* Unified Clean Quest Board */}
+          {/* Unified Seamless Quest Board */}
           <View style={styles.questBoard}>
             {displayedTasks.length === 0 ? (
               <View style={styles.noQuestsCard}>
@@ -603,11 +579,10 @@ export default function TrackerScreen() {
               </View>
             ) : (
               displayedTasks.map((task, idx) => {
-                const isSupercharged = isViewingToday && superchargedTaskId === task.id;
                 const baseRewardCoins = task.diff === 'hard' ? 35 : (task.diff === 'med' ? 20 : 10) + (task.mystery ? 10 : 0);
-                const boostedCoins = isSupercharged ? baseRewardCoins * 2 : baseRewardCoins;
-                const taskDisplayName = getDisplayTaskName(task.name);
-                const isLast = idx === displayedTasks.length - 1;
+                const rawDisplayName = getDisplayTaskName(task.name);
+                const taskDisplayName = task.icon ? rawDisplayName.replace(task.icon, '').trim() : rawDisplayName;
+                const isLast = idx === displayedTasks.length - 1 && (!isViewingToday || (postponedTasksFromToday.length === 0 && false));
 
                 return (
                   <BouncingButton 
@@ -616,7 +591,6 @@ export default function TrackerScreen() {
                       styles.questRow, 
                       !isLast && styles.questRowDivider,
                       isViewingToday && task.done && styles.questRowDone,
-                      isSupercharged && styles.questRowSupercharged
                     ]}
                     onPress={() => {
                       if (!isViewingToday) {
@@ -626,41 +600,30 @@ export default function TrackerScreen() {
                       handleTaskCompletion(task.id);
                     }}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                      {/* Big Visual Chore Halo */}
-                      <View style={[styles.choreHalo, isViewingToday && task.done && styles.choreHaloDone]}>
-                        <Text style={styles.choreEmoji}>{task.icon || '⭐'}</Text>
-                      </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%' }}>
+                      {/* Clean 28px Chore Emoji directly on surface */}
+                      <Text style={styles.choreEmoji}>{task.icon || '⭐'}</Text>
 
-                      {/* Quest Title & Reward */}
-                      <View style={{ flex: 1 }}>
+                      {/* Quest Title & Calm Subtitle */}
+                      <View style={{ flex: 1, paddingRight: 4 }}>
                         <Text style={[styles.questTitle, isViewingToday && task.done && styles.questTitleDone]} numberOfLines={2}>
                           {taskDisplayName}
                         </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
                           <Text style={[styles.coinRewardText, isViewingToday && task.done && { color: Colors.textMuted }]}>
-                            +{boostedCoins} 💰
+                            +{baseRewardCoins} 💰
                           </Text>
                           {task.isRolling && (
-                            <View style={styles.rollingBadge}>
-                              <Text style={styles.rollingBadgeText}>{t('rolling_badge', 'ROLLING 🔄')}</Text>
-                            </View>
+                            <Text style={styles.calmInlineMeta}>· 🔄 Rolling</Text>
                           )}
                           {task.mystery && (!isViewingToday || !task.done) && (
-                            <View style={styles.mysteryBadge}>
-                              <Text style={styles.mysteryBadgeText}>🎁 BONUS</Text>
-                            </View>
-                          )}
-                          {isSupercharged && !task.done && (
-                            <View style={styles.superchargedBadge}>
-                              <Text style={styles.superchargedBadgeText}>⚡ 2X</Text>
-                            </View>
+                            <Text style={styles.calmInlineMeta}>· 🎁 Bonus</Text>
                           )}
                         </View>
                       </View>
 
-                      {/* Supercharge icon & Chunky Checkbox / Scheduled Badge */}
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      {/* Right Action Cluster: Postpone button & Chunky Checkbox */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         {!isViewingToday ? (
                           <View style={styles.scheduledPill}>
                             <Text style={styles.scheduledPillText}>
@@ -679,33 +642,20 @@ export default function TrackerScreen() {
                                   postponeTask(task.id);
                                   alert(t('postpone_alert_msg', 'Rescheduled to tomorrow. It will be waiting for you tomorrow morning!'));
                                 }}
-                                style={styles.postponeActionBtn}
+                                style={styles.calmPostponeBtn}
                                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                 activeOpacity={0.7}
                               >
-                                <FastForward size={13} color="#38BDF8" />
-                                <Text style={styles.postponeActionBtnText}>
+                                <FastForward size={13} color="#94A3B8" />
+                                <Text style={styles.calmPostponeBtnText}>
                                   {t('postpone_btn', 'Postpone ⏩')}
                                 </Text>
                               </TouchableOpacity>
                             )}
 
-                            {!task.done && (
-                              <TouchableOpacity
-                                onPress={(e) => {
-                                  e.stopPropagation?.();
-                                  setSuperchargedTask(isSupercharged ? null : task.id);
-                                }}
-                                style={[styles.zapBtn, isSupercharged && styles.zapBtnActive]}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                              >
-                                <Zap size={16} color={isSupercharged ? '#121212' : Colors.amber} />
-                              </TouchableOpacity>
-                            )}
-                            
                             {isViewingToday && task.done && alreadySpunToday && (
                               <View style={styles.questLockedTag}>
-                                <Lock size={14} color="#94A3B8" />
+                                <Lock size={14} color="#64748B" />
                               </View>
                             )}
 
@@ -713,7 +663,7 @@ export default function TrackerScreen() {
                               {task.done ? (
                                 <CheckCircle2 size={24} color="#121212" />
                               ) : (
-                                <Star size={20} color={Colors.textMuted} />
+                                <Star size={20} color="#64748B" />
                               )}
                             </View>
                           </>
@@ -727,11 +677,11 @@ export default function TrackerScreen() {
 
             {/* Postponed to Tomorrow Section on Today's Board */}
             {isViewingToday && postponedTasksFromToday.length > 0 && (
-              <View style={{ marginTop: 4, gap: 6 }}>
+              <View style={{ marginTop: 4, gap: 6, paddingHorizontal: 14, paddingBottom: 10 }}>
                 {postponedTasksFromToday.map(pt => (
                   <View key={`postponed_${pt.id}`} style={styles.postponedNoticeCard}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                      <FastForward size={16} color="#38BDF8" />
+                      <FastForward size={16} color="#94A3B8" />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.postponedNoticeTitle} numberOfLines={1}>
                           {getDisplayTaskName(pt.name)}
@@ -760,10 +710,10 @@ export default function TrackerScreen() {
             {isViewingToday && (
               <View style={[styles.epicBossCard, isBossVulnerable && styles.epicBossCardVulnerable]}>
                 <View style={styles.epicHeaderRow}>
-                  <Crown size={17} color={Colors.amber} />
-                  <Text style={styles.epicTitleText}>BOSS FIGHT 👑</Text>
+                  <Crown size={16} color={Colors.amber} />
+                  <Text style={styles.epicTitleText}>BOSS CHALLENGE</Text>
                   <Text style={[styles.bossShieldBadge, isBossVulnerable && { color: Colors.green }]}>
-                    {isBossVulnerable ? '💥 SHIELD BROKEN!' : `🛡️ SHIELD: ${bossShieldPct}%`}
+                    {isBossVulnerable ? '💥 READY TO SMASH!' : `🛡️ ${bossShieldPct}%`}
                   </Text>
                 </View>
                 
@@ -772,7 +722,7 @@ export default function TrackerScreen() {
                 </Text>
 
                 <View style={styles.shieldTrack}>
-                  <View style={[styles.shieldFill, { width: `${bossShieldPct}%`, backgroundColor: isBossVulnerable ? Colors.green : Colors.red }]} />
+                  <View style={[styles.shieldFill, { width: `${bossShieldPct}%`, backgroundColor: isBossVulnerable ? Colors.green : Colors.amber }]} />
                 </View>
                 
                 <HoldToClaim 
@@ -992,6 +942,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
     letterSpacing: -0.2,
+  },
+  cleanLvlText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 10,
+    color: '#FFB800',
+    backgroundColor: 'rgba(255, 184, 0, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
   },
   cleanLvlPill: {
     flexDirection: 'row',
@@ -1383,13 +1342,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   epicBossCard: {
-    backgroundColor: '#1C151B',
-    borderRadius: 16,
-    padding: 14,
-    marginTop: 6,
+    backgroundColor: '#181D2D',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    padding: 16,
   },
   epicBossCardVulnerable: {
-    backgroundColor: '#112215',
+    backgroundColor: '#12231A',
   },
   epicHeaderRow: {
     flexDirection: 'row',
@@ -1459,54 +1418,73 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   questBoard: {
-    gap: 8,
-  },
-  questRow: {
-    backgroundColor: '#161A28',
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    position: 'relative',
+    backgroundColor: '#151926',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
     overflow: 'hidden',
   },
-  questRowDivider: {},
+  questRow: {
+    backgroundColor: 'transparent',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    position: 'relative',
+  },
+  questRowDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
   questRowDone: {
-    backgroundColor: 'rgba(0, 0, 0, 0.22)',
-    opacity: 0.72,
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    opacity: 0.65,
   },
   questRowSupercharged: {
     backgroundColor: 'rgba(245, 158, 11, 0.08)',
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.amber,
   },
   choreHalo: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#272B40',
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: 'none',
   },
-  choreHaloDone: {
-    backgroundColor: '#1C1F2E',
-  },
+  choreHaloDone: {},
   choreEmoji: {
     fontSize: 26,
+    width: 32,
+    textAlign: 'center',
   },
   questTitle: {
     fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 16,
-    color: Colors.text,
-    lineHeight: 22,
+    fontSize: 15,
+    color: '#F8FAFC',
+    lineHeight: 21,
   },
   questTitleDone: {
-    color: Colors.textMuted,
+    color: '#64748B',
     textDecorationLine: 'line-through',
   },
   coinRewardText: {
     fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 13,
-    color: Colors.green,
+    fontSize: 12,
+    color: Colors.amber,
+    flexShrink: 0,
+  },
+  calmInlineMeta: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 12,
+    color: '#94A3B8',
+    flexShrink: 0,
+  },
+  calmPostponeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  calmPostponeBtnText: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 11,
+    color: '#94A3B8',
   },
   mysteryBadge: {
     backgroundColor: Colors.amberDim,
@@ -1560,24 +1538,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.35)',
   },
   postponeActionBtnText: {
-    fontFamily: 'Nunito_800ExtraBold',
+    fontFamily: 'Nunito_700Bold',
     fontSize: 11,
-    color: '#38BDF8',
+    color: '#94A3B8',
   },
   postponedNoticeCard: {
-    backgroundColor: '#151D2A',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
-    padding: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 12,
+    padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1587,12 +1561,12 @@ const styles = StyleSheet.create({
   postponedNoticeTitle: {
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 13,
-    color: '#E2E8F0',
+    color: '#CBD5E1',
   },
   postponedNoticeSub: {
     fontFamily: 'Nunito_700Bold',
     fontSize: 11,
-    color: '#38BDF8',
+    color: '#94A3B8',
   },
   bringBackBtn: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -1617,14 +1591,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.amber,
   },
   checkCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     borderWidth: 2,
-    borderColor: '#373D54',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#272B40',
+    backgroundColor: 'transparent',
   },
   checkCircleDone: {
     backgroundColor: Colors.green,
@@ -1634,7 +1608,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1814,6 +1788,12 @@ const styles = StyleSheet.create({
     height: 14,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  calCountText: {
+    marginTop: 4,
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 10,
+    color: '#64748B',
   },
   calCountDot: {
     marginTop: 4,
