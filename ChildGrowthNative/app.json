@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/branding/quest-hero-icon-1024.png",
-    "scheme": "questblox",
+    "scheme": "questhero",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/branding/quest-hero-icon-1024.png"
@@ -20,13 +20,14 @@
         "monochromeImage": "./assets/branding/quest-q-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.questblox.app"
+      "package": "com.questhero.app"
     },
     "web": {
       "output": "static",
       "favicon": "./assets/branding/quest-hero-favicon.png"
     },
     "plugins": [
+      "@react-native-google-signin/google-signin",
       "expo-router",
       [
         "expo-splash-screen",
@@ -63,7 +64,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "1bdc67da-0f1e-439f-83ae-58e4183f0e55"
+        "projectId": "daed5f3a-fd4f-44a8-9b72-be86f5b6f2a2"
       }
     },
     "owner": "misko7"

@@ -4,10 +4,14 @@ import { create } from 'zustand';
 import { auth, db } from '../lib/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithCredential, GoogleAuthProvider, signOut, sendSignInLinkToEmail, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
 import { doc, setDoc, getDoc, query, collection, where, getDocs } from 'firebase/firestore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from '../lib/projectStorage';
 import i18n from '../i18n';
 import { playSound } from '../lib/sound';
 import { ThemeKey } from '../constants/theme';
+
+// Firestore remains deny-all until family membership and reward mutations are
+// server-owned and emulator-tested. Authentication and local mode still work.
+const CLOUD_SYNC_ENABLED = false;
 
 export type UserRole = 'parent' | 'child' | null;
 export type AppLanguage = 'en' | 'cs' | 'es' | 'de';
@@ -230,7 +234,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   continueAsGuest: async () => {
     set({
-      userEmail: 'guest@questblox.local',
+      userEmail: 'guest@questhero.local',
       userId: 'guest-local',
       fullName: 'Guest Hero',
       nickname: 'guest',
@@ -1123,7 +1127,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     
     // Auto-complete email format if user entered plain text like "tako"
     if (cleanEmail && !cleanEmail.includes('@')) {
-      cleanEmail = `${cleanEmail}@questblox.app`;
+      cleanEmail = `${cleanEmail}@questhero.app`;
     }
 
     if (!cleanNick || !password || !cleanEmail) {
@@ -1141,8 +1145,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     } catch (e) {}
 
-    // 2. Check Firestore for nickname uniqueness
-    try {
+    // Remote nickname checks resume with the secure server-owned profile model.
+    if (CLOUD_SYNC_ENABLED) try {
       const q = query(collection(db, 'profiles'), where('nickname', '==', cleanNick));
       const querySnapshot = await getDocs(q);
 
@@ -1187,8 +1191,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     await AsyncStorage.setItem(`user_name_${cleanNick}`, fullName);
     await AsyncStorage.setItem(`user_role_${cleanNick}`, chosenRole);
 
-    // Sync immediately to Firestore
-    try {
+    // Initial cloud profile creation resumes with the secure server model.
+    if (CLOUD_SYNC_ENABLED) try {
       await setDoc(doc(db, 'profiles', docId), {
         email: cleanEmail,
         full_name: fullName,
@@ -1225,7 +1229,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { success: false, message: i18n.t('fill_all_fields', 'Please enter Email/Nickname and Password!') };
     }
 
-    const cleanEmail = cleanInput.includes('@') ? cleanInput : `${cleanInput}@questblox.app`;
+    const cleanEmail = cleanInput.includes('@') ? cleanInput : `${cleanInput}@questhero.app`;
     const userTag = cleanInput.split('@')[0];
 
     try {
@@ -1252,7 +1256,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       await AsyncStorage.setItem('active_user_tag', userTag);
       await get().loadMockState();
-      return { success: true, message: 'Welcome back! Synced with server.' };
+      return { success: true, message: 'Signed in. Progress is stored on this device while secure cloud sync is completed.' };
     } catch (err: any) {
       console.warn('Firebase Auth login failed:', err?.message || err);
       return { success: false, message: err?.message || 'Login failed. Please check your credentials.' };
@@ -1270,18 +1274,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const user = userCredential.user;
       const email = user.email || '';
       const fallbackNickname = (email.split('@')[0] || 'hero').toLowerCase().replace(/[^a-z0-9_-]/g, '');
-      const docId = user.uid.replace(/[^a-zA-Z0-9_-]/g, '_');
-
-      let chosenRole: UserRole = role || 'child';
-      try {
-        const existingProfile = await getDoc(doc(db, 'profiles', docId));
-        const existingRole = existingProfile.data()?.role;
-        if (existingRole === 'parent' || existingRole === 'child') {
-          chosenRole = existingRole;
-        }
-      } catch (profileError) {
-        console.warn('Google profile lookup note:', profileError);
-      }
+      const chosenRole: UserRole = role || 'child';
 
       set({
         userEmail: email,
@@ -1291,28 +1284,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         role: chosenRole,
       });
 
-      await setDoc(doc(db, 'profiles', docId), {
-        email,
-        full_name: user.displayName || fallbackNickname,
-        nickname: fallbackNickname,
-        role: chosenRole,
-        updated_at: new Date().toISOString(),
-      }, { merge: true });
-
-      await setDoc(doc(db, 'user_data', docId), {
-        tasks: get().tasks || [],
-        prizes: get().prizes || [],
-        won_prizes: get().wonPrizes || [],
-        unlocked_avatars: get().unlockedAvatars || ['default'],
-        children: get().children || [],
-        linked_parents: get().linkedParents || [],
-        updated_at: new Date().toISOString(),
-      }, { merge: true });
-
       await AsyncStorage.setItem(`user_role_${fallbackNickname}`, chosenRole || 'child');
       await AsyncStorage.setItem('active_user_tag', fallbackNickname);
       await get().saveMockState();
-      return { success: true, message: 'Welcome to Quest Hero!' };
+      return { success: true, message: 'Signed in. Progress is stored on this device while secure cloud sync is completed.' };
     } catch (err: any) {
       console.warn('Firebase Google sign-in failed:', err?.message || err);
       return { success: false, message: err?.message || 'Google sign-in failed.' };
@@ -1321,7 +1296,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   sendMagicLink: async (email) => {
     try {
-      const redirectUrl = typeof window !== 'undefined' ? window.location.origin : 'https://questblox-10c14.firebaseapp.com';
+      const redirectUrl = typeof window !== 'undefined' ? window.location.origin : 'https://quest-hero-dab6b.firebaseapp.com';
       await sendSignInLinkToEmail(auth, email, {
         url: redirectUrl,
         handleCodeInApp: true
@@ -1334,10 +1309,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   sendPasswordReset: async (email) => {
     try {
-      const redirectUrl = typeof window !== 'undefined' ? window.location.origin : 'https://questblox-10c14.firebaseapp.com';
-      await sendPasswordResetEmail(auth, email, {
-        url: redirectUrl
-      });
+      await sendPasswordResetEmail(auth, email.trim());
       return { success: true, message: `Password reset instructions sent to ${email}!` };
     } catch (err: any) {
       return { success: false, message: err?.message || 'Could not send the password reset email.' };
@@ -1345,6 +1317,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   syncToServer: async () => {
+    if (!CLOUD_SYNC_ENABLED) return;
     try {
       const isOnline = typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' ? navigator.onLine : true;
       const { userEmail, fullName, nickname, role, coins, xp, level, currentAvatar, tasks, prizes, wonPrizes, unlockedAvatars, userId, children, linkedParents, epicBossTask, epicBossXP } = get();

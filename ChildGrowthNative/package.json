@@ -3,6 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@react-native-google-signin/google-signin": "16.1.5",
     "@expo-google-fonts/nunito": "^0.4.2",
     "@expo/ui": "~57.0.23",
     "@lottiefiles/dotlottie-react": "^0.13.5",
@@ -59,7 +60,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "node ./scripts/test-linking-workflow.js",
-    "test:firebase": "node ./scripts/test-full-firebase-linking.js"
+    "test:firebase": "node ./scripts/test-full-firebase-linking.js",
+    "test:project": "node ./scripts/test-project-isolation.cjs"
   },
   "private": true
 }

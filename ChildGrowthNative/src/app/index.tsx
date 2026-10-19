@@ -6,8 +6,8 @@ import { useAppStore } from '../store/useAppStore';
 import { Lock, Mail, User, Tag, KeyRound, Sparkles, Wand2, Eye, EyeOff } from 'lucide-react-native';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
-import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import { requestGoogleTokens } from '../lib/googleLogin';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -22,7 +22,6 @@ export default function LoginScreen() {
   
   const registerWithEmail = useAppStore((state) => state.registerWithEmail);
   const loginWithEmail = useAppStore((state) => state.loginWithEmail);
-  const sendMagicLink = useAppStore((state) => state.sendMagicLink);
   const sendPasswordReset = useAppStore((state) => state.sendPasswordReset);
   const signInWithGoogle = useAppStore((state) => state.signInWithGoogle);
 
@@ -35,17 +34,6 @@ export default function LoginScreen() {
   const [nickname, setNickname] = useState('');
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const googleClientIds = {
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '35992182600-oounvs8ja932t3drbsq2e3ru0lemh8c2.apps.googleusercontent.com',
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '35992182600-f4v50jk30bmcb2cs95k430cqqpctlgqd.apps.googleusercontent.com',
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '35992182600-f4v50jk30bmcb2cs95k430cqqpctlgqd.apps.googleusercontent.com',
-  };
-  const googleConfigured = Boolean(googleClientIds.androidClientId && googleClientIds.webClientId);
-
-  const [googleRequest, googleResponse, promptGoogleSignIn] = Google.useAuthRequest({
-    ...googleClientIds,
-  });
 
   useEffect(() => {
     loadMockState();
@@ -63,30 +51,20 @@ export default function LoginScreen() {
     }
   }, [userEmail, role]);
 
-  useEffect(() => {
-    if (googleResponse?.type !== 'success') return;
-
-    const finishGoogleSignIn = async () => {
-      setLoading(true);
-      setAuthMessage(null);
-      const result = await signInWithGoogle(
-        googleResponse.authentication?.idToken || '',
-        googleResponse.authentication?.accessToken,
-        selectedRole,
-      );
-      setAuthMessage(result.success ? null : (result.message || 'Google sign-in failed.'));
-      setLoading(false);
-    };
-
-    finishGoogleSignIn();
-  }, [googleResponse, selectedRole, signInWithGoogle]);
-
   const handleGoogleSignIn = async () => {
-    if (!googleConfigured || !googleRequest) {
-      setAuthMessage('Google sign-in is not configured yet. Add the Google OAuth client IDs to the Expo environment.');
-      return;
+    if (loading) return;
+    setLoading(true);
+    setAuthMessage(null);
+    try {
+      const tokens = await requestGoogleTokens();
+      if (!tokens) return;
+      const result = await signInWithGoogle(tokens.idToken, tokens.accessToken, selectedRole);
+      if (!result.success) setAuthMessage(result.message || 'Could not sign in.');
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : 'Could not sign in.');
+    } finally {
+      setLoading(false);
     }
-    await promptGoogleSignIn();
   };
 
   const handleGuestMode = async () => {
@@ -122,8 +100,7 @@ export default function LoginScreen() {
           setLoading(false);
           return;
         }
-        await sendMagicLink(email);
-        setAuthMessage(t('registration_verification_msg', "Account created! We've sent a magic link to your email for verification 🪄 Check your inbox!"));
+        setAuthMessage(regRes.message || 'Account created.');
       } else {
         if (!password) {
           setAuthMessage(t('enter_password', 'Please enter your password!'));

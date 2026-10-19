@@ -5,16 +5,18 @@ import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCffkIqBs-D67W-mL_7cTKR0W2L1tAUPhg",
-  authDomain: "questblox-10c14.firebaseapp.com",
-  projectId: "questblox-10c14",
-  storageBucket: "questblox-10c14.firebasestorage.app",
-  messagingSenderId: "35992182600",
-  appId: "1:35992182600:web:63ccce0b2653a3450d9d7d",
-  measurementId: "G-XLE1BS1JLN"
+  apiKey: "AIzaSyC5pl38R71Oyp1fzDhbYCcWbReNJzAyqHQ",
+  authDomain: "quest-hero-dab6b.firebaseapp.com",
+  projectId: "quest-hero-dab6b",
+  storageBucket: "quest-hero-dab6b.firebasestorage.app",
+  messagingSenderId: "814466475791",
+  appId: "1:814466475791:web:4ddfdaa0132bc34a9a407a"
 };
 
-const app: FirebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+// A named app prevents Fast Refresh from retaining QuestBlox's default backend.
+const app: FirebaseApp = getApps().some(existing => existing.name === firebaseConfig.projectId)
+  ? getApp(firebaseConfig.projectId)
+  : initializeApp(firebaseConfig, firebaseConfig.projectId);
 
 let auth: Auth;
 try {

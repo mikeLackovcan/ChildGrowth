@@ -76,7 +76,7 @@ export default function ManageTasksScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <TouchableOpacity style={styles.mapLink} onPress={() => router.push('/quest-map')}>
+        <TouchableOpacity style={styles.mapLink} onPress={() => router.push('/quest-map' as never)}>
           <Network size={18} color={Colors.primary} />
           <View style={{ flex: 1 }}>
             <Text style={styles.mapLinkTitle}>Build a Quest Map</Text>
