@@ -24,18 +24,18 @@ const hero = (id: string, name: string, price: number, rarity: QuestAvatar['rari
 
 export const AVAILABLE_AVATARS: QuestAvatar[] = [
   hero('quest_champ', 'Quest Champ', 0, 'Legendary', 'Champion spirit', '+10 XP on every quest', '#245FE5'),
-  hero('quest_sprout', 'Sprout Hero', 0, 'Common', 'Beginner luck', '+10% coins on easy quests', '#3270EB'),
-  hero('quest_ember', 'Ember Hero', 350, 'Common', 'Daily spark', '+15% XP from daily quests', '#FF806C'),
-  hero('quest_drift', 'Drift Hero', 700, 'Common', 'Steady steps', '+10% coins from daily quests', '#6EABDE'),
-  hero('quest_forge', 'Forge Hero', 1400, 'Rare', 'Ready to help', 'Extra coins for home chores', '#D9A34E'),
-  hero('quest_coral', 'Coral Hero', 2100, 'Rare', 'Kindness boost', 'Bonus on helping quests', '#E68DAC'),
-  hero('quest_dusk', 'Dusk Hero', 2800, 'Rare', 'Focus time', 'Faster progress on focus quests', '#9B83D5'),
-  hero('quest_jade', 'Jade Hero', 3500, 'Epic', 'Growing strong', '+25% XP across quests', '#55AD84'),
-  hero('quest_nova', 'Nova Hero', 4200, 'Epic', 'Learning light', 'Bonus coins for reading and math', '#7887DA'),
-  hero('quest_pulse', 'Pulse Hero', 4900, 'Epic', 'Momentum', '+50 XP on the final quest of a full day', '#48BFD5'),
-  hero('quest_prism', 'Prism Hero', 5600, 'Legendary', 'Bright outlook', '+20 coins on the final quest of a full day', '#B485D3'),
-  hero('quest_frost', 'Frost Hero', 6300, 'Legendary', 'Healthy cool', '+30% XP from health quests', '#8CCDD4'),
-  hero('quest_sunrise', 'Sunrise Hero', 7000, 'Legendary', 'Fresh start', '+50% coins and XP on a perfect day', '#EAC263'),
+  hero('quest_sprout', 'Dash', 0, 'Common', 'Beginner luck', '+10% coins on easy quests', '#3270EB'),
+  hero('quest_ember', 'Ember', 350, 'Common', 'Daily spark', '+15% XP from daily quests', '#FF806C'),
+  hero('quest_drift', 'Sky', 700, 'Common', 'Steady steps', '+10% coins from daily quests', '#6EABDE'),
+  hero('quest_forge', 'Bolt', 1400, 'Rare', 'Ready to help', 'Extra coins for home chores', '#D9A34E'),
+  hero('quest_coral', 'Coco', 2100, 'Rare', 'Kindness boost', 'Bonus on helping quests', '#E68DAC'),
+  hero('quest_dusk', 'Luna', 2800, 'Rare', 'Focus time', 'Faster progress on focus quests', '#9B83D5'),
+  hero('quest_jade', 'Jade', 3500, 'Epic', 'Growing strong', '+25% XP across quests', '#55AD84'),
+  hero('quest_nova', 'Nova', 4200, 'Epic', 'Learning light', 'Bonus coins for reading and math', '#7887DA'),
+  hero('quest_pulse', 'Kai', 4900, 'Epic', 'Momentum', '+50 XP on the final quest of a full day', '#48BFD5'),
+  hero('quest_prism', 'Ruby', 5600, 'Legendary', 'Bright outlook', '+20 coins on the final quest of a full day', '#B485D3'),
+  hero('quest_frost', 'Lumi', 6300, 'Legendary', 'Healthy cool', '+30% XP from health quests', '#8CCDD4'),
+  hero('quest_sunrise', 'Sunny', 7000, 'Legendary', 'Fresh start', '+50% coins and XP on a perfect day', '#EAC263'),
 ];
 
 export default function ShopScreen() {
