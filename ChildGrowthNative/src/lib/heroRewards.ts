@@ -21,10 +21,13 @@ export function calculateQuestReward(task: Task, tasks: Task[], heroId: string):
   let xp = baseXp(task);
   let coins = dailyCoinShare(tasks, task.id);
   let message: string | undefined;
-  const id = heroId === 'default' ? 'quest_sprout' : heroId;
+  const id = heroId === 'default' ? 'quest_champ' : heroId;
   const icon = task.icon || '';
 
   switch (id) {
+    case 'quest_champ':
+      xp += 10; message = 'Champion spirit added 10 XP!';
+      break;
     case 'quest_sprout':
       if (task.diff === 'easy') { coins = Math.ceil(coins * 1.1); message = 'Sprout found bonus coins!'; }
       break;

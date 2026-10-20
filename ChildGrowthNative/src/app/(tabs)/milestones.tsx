@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Settings } from 'lucide-react-native';
-import { Colors, WORLD_THEMES } from '../../constants/theme';
+import { Colors, QUEST_BACKGROUNDS, WORLD_THEMES } from '../../constants/theme';
 import { useAppStore } from '../../store/useAppStore';
 import SettingsModal from '../../components/SettingsModal';
 
@@ -11,14 +11,16 @@ export default function MilestonesScreen() {
   const level = useAppStore((state) => state.level);
   const wonPrizes = useAppStore((state) => state.wonPrizes);
   const activeTheme = useAppStore((state) => state.activeTheme);
+  const activeBackground = useAppStore((state) => state.activeBackground);
   const theme = WORLD_THEMES[activeTheme];
+  const background = QUEST_BACKGROUNDS[activeBackground];
   const togglePrizeRedeemed = useAppStore((state) => state.togglePrizeRedeemed);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const progress = Math.min(xp % 100, 100);
   const remaining = 100 - progress;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: background.background }]} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.title}>Your prizes</Text>

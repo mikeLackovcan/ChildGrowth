@@ -7,7 +7,7 @@ import { doc, setDoc, getDoc, query, collection, where, getDocs } from 'firebase
 import AsyncStorage from '../lib/projectStorage';
 import i18n from '../i18n';
 import { playSound } from '../lib/sound';
-import { ThemeKey } from '../constants/theme';
+import { BackgroundKey, ThemeKey } from '../constants/theme';
 import { calculateQuestReward } from '../lib/heroRewards';
 import {
   answerFamilyInvite,
@@ -95,6 +95,8 @@ interface AppState {
   currentAvatar: string;
   activeTheme: ThemeKey;
   unlockedThemes: ThemeKey[];
+  activeBackground: BackgroundKey;
+  unlockedBackgrounds: BackgroundKey[];
   lastSpinDate: string | null;
   parentEmail: string | null;
   linkedParents: string[];
@@ -129,6 +131,8 @@ interface AppState {
   setCurrentAvatar: (avatarId: string) => void;
   unlockTheme: (themeKey: ThemeKey, price: number) => boolean;
   setActiveTheme: (themeKey: ThemeKey) => void;
+  unlockBackground: (backgroundKey: BackgroundKey, price: number) => boolean;
+  setActiveBackground: (backgroundKey: BackgroundKey) => void;
   claimDailySpin: (rewardType: 'coins' | 'xp', amount: number) => void;
   submitTaskForApproval: (taskId: string, note?: string) => void;
   verifyChildTask: (childId: string, taskId: string, approved: boolean) => void;
@@ -181,6 +185,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentAvatar: 'default',
   activeTheme: 'classic',
   unlockedThemes: ['classic'],
+  activeBackground: 'clean',
+  unlockedBackgrounds: ['clean'],
   lastSpinDate: null,
   parentEmail: null,
   linkedParents: [],
@@ -195,8 +201,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const userTag = (get().nickname || get().userEmail?.split('@')[0] || '').toLowerCase().replace(/^@/, '');
       if (userTag) {
-        const { isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role } = get();
-        const stateObj = { isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role };
+        const { isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, activeBackground, unlockedBackgrounds, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role } = get();
+        const stateObj = { isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, activeBackground, unlockedBackgrounds, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role };
         await AsyncStorage.setItem(`mockState_${userTag}`, JSON.stringify(stateObj));
       }
     } catch (e) {}
@@ -226,6 +232,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       coins: 0,
       unlockedAvatars: ['default'],
       currentAvatar: 'default',
+      activeTheme: 'classic',
+      unlockedThemes: ['classic'],
+      activeBackground: 'clean',
+      unlockedBackgrounds: ['clean'],
       parentEmail: null,
       linkedParents: [],
       children: [],
@@ -510,6 +520,29 @@ export const useAppStore = create<AppState>((set, get) => ({
       playSound('spin');
       get().saveMockState();
     }
+  },
+  unlockBackground: (backgroundKey: BackgroundKey, price: number) => {
+    const { unlockedBackgrounds, coins } = get();
+    if (unlockedBackgrounds.includes(backgroundKey)) {
+      set({ activeBackground: backgroundKey });
+      get().saveMockState();
+      return true;
+    }
+    if (coins < price) return false;
+    set({
+      coins: coins - price,
+      unlockedBackgrounds: [...unlockedBackgrounds, backgroundKey],
+      activeBackground: backgroundKey,
+    });
+    playSound('unlock');
+    get().saveMockState();
+    return true;
+  },
+  setActiveBackground: (backgroundKey: BackgroundKey) => {
+    if (!get().unlockedBackgrounds.includes(backgroundKey)) return;
+    set({ activeBackground: backgroundKey });
+    playSound('spin');
+    get().saveMockState();
   },
   claimDailySpin: (rewardType: 'coins' | 'xp', amount: number) => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -1441,6 +1474,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           current_avatar: currentAvatar,
           active_theme: get().activeTheme,
           unlocked_themes: get().unlockedThemes,
+          active_background: get().activeBackground,
+          unlocked_backgrounds: get().unlockedBackgrounds,
           last_spin_date: get().lastSpinDate,
           approval_status: get().approvalStatus,
         });
@@ -1560,6 +1595,8 @@ export const useAppStore = create<AppState>((set, get) => ({
               currentAvatar: parsed.currentAvatar || 'default',
               activeTheme: parsed.activeTheme || 'classic',
               unlockedThemes: Array.isArray(parsed.unlockedThemes) && parsed.unlockedThemes.length > 0 ? parsed.unlockedThemes : ['classic'],
+              activeBackground: parsed.activeBackground || 'clean',
+              unlockedBackgrounds: Array.isArray(parsed.unlockedBackgrounds) && parsed.unlockedBackgrounds.length > 0 ? parsed.unlockedBackgrounds : ['clean'],
               lastSpinDate: parsed.lastSpinDate || null,
               dailyMood: isNewDay ? null : (parsed.dailyMood || null),
               language: lang,
@@ -1657,6 +1694,8 @@ export const useAppStore = create<AppState>((set, get) => ({
               if (typeof cloudData.xp === 'number') updates.xp = cloudData.xp;
               if (typeof cloudData.level === 'number') updates.level = cloudData.level;
               if (typeof cloudData.current_avatar === 'string') updates.currentAvatar = cloudData.current_avatar;
+              if (typeof cloudData.active_background === 'string') updates.activeBackground = cloudData.active_background;
+              if (Array.isArray(cloudData.unlocked_backgrounds)) updates.unlockedBackgrounds = cloudData.unlocked_backgrounds;
               if (cloudData.epicBossTask) {
                 updates.epicBossTask = cloudData.epicBossTask;
                 if (typeof cloudData.epicBossXP === 'number') {
@@ -1705,6 +1744,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       coins: 0,
       unlockedAvatars: ['default'],
       currentAvatar: 'default',
+      activeTheme: 'classic',
+      unlockedThemes: ['classic'],
+      activeBackground: 'clean',
+      unlockedBackgrounds: ['clean'],
       parentEmail: null,
       linkedParents: [],
       children: [],
@@ -1718,14 +1761,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   saveMockState: async () => {
     try {
-      const { isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, lastSpinDate, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role } = get();
+      const { isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, activeBackground, unlockedBackgrounds, lastSpinDate, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role } = get();
       if (!userEmail) {
         await AsyncStorage.removeItem('active_user_tag');
         await AsyncStorage.removeItem('mockState');
         return;
       }
       const userTag = (nickname || userEmail.split('@')[0]).toLowerCase().replace(/^@/, '');
-      const stateObj = { isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, lastSpinDate, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role };
+      const stateObj = { isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, activeBackground, unlockedBackgrounds, lastSpinDate, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role };
       
       await AsyncStorage.setItem('active_user_tag', userTag);
       await AsyncStorage.setItem('mockState', JSON.stringify(stateObj));

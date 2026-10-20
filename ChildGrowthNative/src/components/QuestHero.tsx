@@ -8,10 +8,10 @@ const skin = ['#C98759', '#E9AE80', '#935B40', '#BA794E'];
 
 /** Original scalable portraits, with soft faces and continuous clothing rather than toy joints. */
 export default function QuestHero({ id = 'default', style }: { id?: string; style?: StyleProp<ViewStyle> }) {
-  const normalizedId = id === 'default' ? 'quest_sprout' : normalizeAvatarId(id);
+  const normalizedId = id === 'default' ? 'quest_champ' : normalizeAvatarId(id);
   const index = Math.max(0, companionIds.indexOf(normalizedId));
   const tone = skin[index % skin.length];
-  if (normalizedId === 'quest_sprout') {
+  if (normalizedId === 'quest_champ') {
     return (
       <View style={[style, { overflow: 'hidden', borderRadius: 999 }]} accessible accessibilityLabel="Quest Champ blue-haired hero">
         <Image source={require('../../assets/branding/quest-hero-source.png')} resizeMode="cover" style={{ width: '100%', height: '100%' }} />

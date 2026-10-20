@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { Check, ChevronRight, Clock3, Coins, Plus, Settings } from 'lucide-react-native';
 import { useAppStore } from '../../store/useAppStore';
-import { Colors, WORLD_THEMES } from '../../constants/theme';
+import { Colors, QUEST_BACKGROUNDS, WORLD_THEMES } from '../../constants/theme';
 import SettingsModal from '../../components/SettingsModal';
 import { configureNotifications, scheduleTaskReminders } from '../../lib/notifications';
 import QuestPipMark from '../../components/QuestPipMark';
@@ -22,7 +22,9 @@ export default function TrackerScreen() {
   const coins = useAppStore((state) => state.coins);
   const currentAvatar = useAppStore((state) => state.currentAvatar);
   const activeTheme = useAppStore((state) => state.activeTheme);
+  const activeBackground = useAppStore((state) => state.activeBackground);
   const theme = WORLD_THEMES[activeTheme];
+  const background = QUEST_BACKGROUNDS[activeBackground];
   const prizes = useAppStore((state) => state.prizes);
   const linkedParents = useAppStore((state) => state.linkedParents);
   const toggleTaskDone = useAppStore((state) => state.toggleTaskDone);
@@ -77,7 +79,7 @@ export default function TrackerScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: background.background }]} edges={['top', 'left', 'right']}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>

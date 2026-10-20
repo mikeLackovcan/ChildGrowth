@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Check, Coins, Lock, X } from 'lucide-react-native';
-import { Colors, ThemeKey, WORLD_THEMES } from '../../constants/theme';
+import { BackgroundKey, Colors, QUEST_BACKGROUNDS, QuestBackground, ThemeKey, WORLD_THEMES } from '../../constants/theme';
 import { useAppStore } from '../../store/useAppStore';
 import QuestHero from '../../components/QuestHero';
 import AnimatedQuestHero from '../../components/AnimatedQuestHero';
@@ -23,6 +23,7 @@ const hero = (id: string, name: string, price: number, rarity: QuestAvatar['rari
 });
 
 export const AVAILABLE_AVATARS: QuestAvatar[] = [
+  hero('quest_champ', 'Quest Champ', 0, 'Legendary', 'Champion spirit', '+10 XP on every quest', '#245FE5'),
   hero('quest_sprout', 'Sprout Hero', 0, 'Common', 'Beginner luck', '+10% coins on easy quests', '#3270EB'),
   hero('quest_ember', 'Ember Hero', 350, 'Common', 'Daily spark', '+15% XP from daily quests', '#FF806C'),
   hero('quest_drift', 'Drift Hero', 700, 'Common', 'Steady steps', '+10% coins from daily quests', '#6EABDE'),
@@ -43,14 +44,20 @@ export default function ShopScreen() {
   const current = useAppStore((state) => state.currentAvatar);
   const activeTheme = useAppStore((state) => state.activeTheme);
   const unlockedThemes = useAppStore((state) => state.unlockedThemes);
+  const activeBackground = useAppStore((state) => state.activeBackground);
+  const unlockedBackgrounds = useAppStore((state) => state.unlockedBackgrounds);
   const spendCoins = useAppStore((state) => state.spendCoins);
   const unlockAvatar = useAppStore((state) => state.unlockAvatar);
   const setCurrentAvatar = useAppStore((state) => state.setCurrentAvatar);
   const unlockTheme = useAppStore((state) => state.unlockTheme);
   const setActiveTheme = useAppStore((state) => state.setActiveTheme);
+  const unlockBackground = useAppStore((state) => state.unlockBackground);
+  const setActiveBackground = useAppStore((state) => state.setActiveBackground);
   const [selected, setSelected] = useState<QuestAvatar | null>(null);
+  const [selectedBackground, setSelectedBackground] = useState<QuestBackground | null>(null);
+  const background = QUEST_BACKGROUNDS[activeBackground];
 
-  const isUnlocked = (id: string) => id === 'quest_sprout' || id === 'default' || unlocked.includes(id);
+  const isUnlocked = (id: string) => id === 'quest_champ' || id === 'quest_sprout' || id === 'default' || unlocked.includes(id);
   const chooseHero = () => {
     if (!selected) return;
     if (isUnlocked(selected.id)) {
@@ -69,9 +76,18 @@ export default function ShopScreen() {
     if (unlockedThemes.includes(key) || theme.price === 0) setActiveTheme(key);
     else if (unlockTheme(key, theme.price)) setActiveTheme(key);
   };
+  const chooseBackground = () => {
+    if (!selectedBackground) return;
+    if (unlockedBackgrounds.includes(selectedBackground.id)) {
+      setActiveBackground(selectedBackground.id);
+      setSelectedBackground(null);
+      return;
+    }
+    if (unlockBackground(selectedBackground.id, selectedBackground.price)) setSelectedBackground(null);
+  };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: background.background }]} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View>
@@ -85,7 +101,7 @@ export default function ShopScreen() {
           <AnimatedQuestHero id={current} style={styles.activeHero} />
           <View style={{ flex: 1 }}>
             <Text style={styles.eyebrow}>YOUR QUEST CHAMP HERO</Text>
-            <Text style={styles.activeName}>{AVAILABLE_AVATARS.find((item) => item.id === current)?.name || 'Sprout Hero'}</Text>
+            <Text style={styles.activeName}>{AVAILABLE_AVATARS.find((item) => item.id === current)?.name || 'Quest Champ'}</Text>
             <Text style={styles.activeText}>A friendly companion for every small win.</Text>
           </View>
         </View>
@@ -94,7 +110,7 @@ export default function ShopScreen() {
         <View style={styles.grid}>
           {AVAILABLE_AVATARS.map((avatar) => {
             const owned = isUnlocked(avatar.id);
-            const equipped = current === avatar.id || (current === 'default' && avatar.id === 'quest_sprout');
+            const equipped = current === avatar.id || (current === 'default' && avatar.id === 'quest_champ');
             return (
               <TouchableOpacity key={avatar.id} style={[styles.heroCard, equipped && styles.heroCardEquipped]} onPress={() => setSelected(avatar)}>
                 <QuestHero id={avatar.id} style={styles.heroPortrait} />
@@ -112,7 +128,24 @@ export default function ShopScreen() {
           })}
         </View>
 
-        <Text style={styles.sectionTitle}>Hero auras</Text>
+        <Text style={styles.sectionTitle}>Background worlds</Text>
+        <Text style={styles.sectionSub}>Choose a calm world behind your quests. Each new world costs 50 coins.</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.themeRow}>
+          {(Object.keys(QUEST_BACKGROUNDS) as BackgroundKey[]).map((key) => {
+            const item = QUEST_BACKGROUNDS[key];
+            const active = activeBackground === key;
+            const owned = unlockedBackgrounds.includes(key);
+            return (
+              <TouchableOpacity key={key} onPress={() => setSelectedBackground(item)} style={[styles.backgroundCard, { backgroundColor: item.background, borderColor: active ? item.accent : Colors.border }]}>
+                <Text style={styles.themeIcon}>{item.icon}</Text>
+                <Text style={styles.backgroundName}>{item.name}</Text>
+                <Text style={[styles.themePrice, { color: item.accent }]}>{active ? 'Active' : owned ? 'Owned' : `${item.price} coins`}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        <Text style={[styles.sectionTitle, { marginTop: 22 }]}>Hero auras</Text>
         <Text style={styles.sectionSub}>Choose the color your hero brings to progress and navigation.</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.themeRow}>
           {(Object.keys(WORLD_THEMES) as ThemeKey[]).map((key) => {
@@ -141,6 +174,28 @@ export default function ShopScreen() {
               <Text style={styles.modalDescription}>{selected.skillDesc}</Text>
               <TouchableOpacity disabled={!isUnlocked(selected.id) && coins < selected.price} style={[styles.primaryButton, !isUnlocked(selected.id) && coins < selected.price && { opacity: 0.45 }]} onPress={chooseHero}>
                 <Text style={styles.primaryButtonText}>{isUnlocked(selected.id) ? 'Use this hero' : `Unlock for ${selected.price} coins`}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      <Modal visible={Boolean(selectedBackground)} transparent animationType="fade" onRequestClose={() => setSelectedBackground(null)}>
+        <View style={styles.overlay}>
+          {selectedBackground && (
+            <View style={styles.modalCard}>
+              <TouchableOpacity style={styles.close} onPress={() => setSelectedBackground(null)}><X size={20} color={Colors.textSecondary} /></TouchableOpacity>
+              <View style={[styles.backgroundPreview, { backgroundColor: selectedBackground.background, borderColor: selectedBackground.accent }]}>
+                <Text style={styles.backgroundPreviewIcon}>{selectedBackground.icon}</Text>
+              </View>
+              <Text style={styles.modalName}>{selectedBackground.name}</Text>
+              <Text style={styles.modalDescription}>A bright, readable background for every quest screen.</Text>
+              <TouchableOpacity
+                disabled={!unlockedBackgrounds.includes(selectedBackground.id) && coins < selectedBackground.price}
+                style={[styles.primaryButton, !unlockedBackgrounds.includes(selectedBackground.id) && coins < selectedBackground.price && { opacity: 0.45 }]}
+                onPress={chooseBackground}
+              >
+                <Text style={styles.primaryButtonText}>{unlockedBackgrounds.includes(selectedBackground.id) ? 'Use this background' : `Unlock for ${selectedBackground.price} coins`}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -179,6 +234,10 @@ const styles = StyleSheet.create({
   themeRow: { gap: 10, paddingBottom: 6 },
   themeCard: { width: 138, minHeight: 110, padding: 14, borderRadius: 20, borderWidth: 2, borderColor: 'transparent' },
   themeCardActive: { borderColor: '#CBF250' },
+  backgroundCard: { width: 132, minHeight: 108, padding: 14, borderRadius: 20, borderWidth: 2 },
+  backgroundName: { fontFamily: 'Nunito_800ExtraBold', fontSize: 13, color: Colors.text, marginTop: 7 },
+  backgroundPreview: { width: 150, height: 112, borderRadius: 26, borderWidth: 3, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  backgroundPreviewIcon: { fontSize: 52 },
   themeIcon: { fontSize: 25 },
   themeName: { fontFamily: 'Nunito_800ExtraBold', fontSize: 14, marginTop: 8 },
   themePrice: { fontFamily: 'Nunito_700Bold', fontSize: 10, marginTop: 3 },

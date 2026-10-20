@@ -1,4 +1,29 @@
 export type ThemeKey = 'classic' | 'space' | 'fantasy' | 'cyberpunk';
+export type BackgroundKey = 'clean' | 'ocean' | 'sunset' | 'candy' | 'meadow' | 'cloud' | 'lavender' | 'peach' | 'mint' | 'lemon' | 'arctic';
+
+export type QuestBackground = {
+  id: BackgroundKey;
+  name: string;
+  icon: string;
+  price: number;
+  background: string;
+  surface: string;
+  accent: string;
+};
+
+export const QUEST_BACKGROUNDS: Record<BackgroundKey, QuestBackground> = {
+  clean: { id: 'clean', name: 'Clean White', icon: '✨', price: 0, background: '#FFFFFF', surface: '#FFFFFF', accent: '#3270EB' },
+  ocean: { id: 'ocean', name: 'Ocean Blue', icon: '🌊', price: 50, background: '#EAF8FF', surface: '#FFFFFF', accent: '#1D8FD1' },
+  sunset: { id: 'sunset', name: 'Sunset Glow', icon: '🌅', price: 50, background: '#FFF1E8', surface: '#FFFFFF', accent: '#F07855' },
+  candy: { id: 'candy', name: 'Candy Pop', icon: '🍬', price: 50, background: '#FFF0FA', surface: '#FFFFFF', accent: '#D95CAA' },
+  meadow: { id: 'meadow', name: 'Green Meadow', icon: '🌿', price: 50, background: '#F0F9E8', surface: '#FFFFFF', accent: '#65A83B' },
+  cloud: { id: 'cloud', name: 'Cloud Day', icon: '☁️', price: 50, background: '#F1F6FC', surface: '#FFFFFF', accent: '#6789B0' },
+  lavender: { id: 'lavender', name: 'Lavender Dream', icon: '💜', price: 50, background: '#F5F0FF', surface: '#FFFFFF', accent: '#8665CC' },
+  peach: { id: 'peach', name: 'Peach Smile', icon: '🍑', price: 50, background: '#FFF3ED', surface: '#FFFFFF', accent: '#E98563' },
+  mint: { id: 'mint', name: 'Fresh Mint', icon: '🍃', price: 50, background: '#EAFBF5', surface: '#FFFFFF', accent: '#35A77A' },
+  lemon: { id: 'lemon', name: 'Sunny Lemon', icon: '☀️', price: 50, background: '#FFFBE3', surface: '#FFFFFF', accent: '#DBA817' },
+  arctic: { id: 'arctic', name: 'Arctic Spark', icon: '❄️', price: 50, background: '#ECFAFC', surface: '#FFFFFF', accent: '#3AA4B6' },
+};
 
 export interface WorldTheme {
   id: ThemeKey;
