@@ -224,119 +224,51 @@ export default function BattleScreen() {
           </View>
         </View>
 
-        {/* HERO BANNER - ARENA UNDER CONSTRUCTION */}
-        <View style={styles.heroCard}>
-          <View style={styles.badgeRow}>
+        {/* ARENA HERO SHOWCASE */}
+        <View style={styles.arenaStageCard}>
+          <View style={styles.arenaHeaderRow}>
             <View style={styles.comingSoonBadge}>
-              <Clock size={14} color={Colors.amber} />
-              <Text style={styles.comingSoonBadgeText}>COMING SOON • UPDATE V2.0</Text>
+              <Clock size={12} color={Colors.amber} />
+              <Text style={styles.comingSoonBadgeText}>V2.0 ARENA PREVIEW</Text>
             </View>
-          </View>
-
-          <Text style={styles.heroTitle}>THE ARENA IS BEING FORGED! ⚔️🛡️</Text>
-          <Text style={styles.heroDescription}>
-            Get ready for real-time arcade combat with your unlocked Roblox avatars! 
-            Complete daily quests to level up your hero and stockpile coins for legendary fighters.
-          </Text>
-
-          <View style={styles.featuresRow}>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureEmoji}>🥊</Text>
-              <Text style={styles.featureText}>Real-Time Combat</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureEmoji}>💥</Text>
-              <Text style={styles.featureText}>Super Blasts</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureEmoji}>🏆</Text>
-              <Text style={styles.featureText}>Ranked Leagues</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* ACTIVE / SELECTED FIGHTER SHOWCASE */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.secTitle}>FIGHTER INSPECTOR & STATS</Text>
             {selectedFigure.id === activeHero.id && (
               <View style={styles.activeTag}>
-                <Sparkles size={12} color="#10B981" />
-                <Text style={styles.activeTagText}>EQUIPPED HERO</Text>
+                <Sparkles size={11} color="#10B981" />
+                <Text style={styles.activeTagText}>EQUIPPED</Text>
               </View>
             )}
           </View>
 
-          <View style={styles.figureCard}>
-            <View style={styles.figureTopRow}>
-              <View style={[styles.avatarBox, { borderColor: selectedFigure.color }]}>
-                <Image source={selectedFigure.image} style={styles.avatarImg} resizeMode="contain" />
-              </View>
+          {/* Large Hero Figure in Arena Spotlight */}
+          <View style={styles.pedestalStage}>
+            <Image source={selectedFigure.image} style={styles.arenaHeroImg} resizeMode="contain" />
+            <View style={[styles.pedestalBase, { borderColor: selectedFigure.color }]} />
+          </View>
 
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={styles.figureName}>{selectedFigure.name}</Text>
-                  <View style={[styles.rarityBadge, { backgroundColor: `${selectedFigure.color}25` }]}>
-                    <Text style={[styles.rarityText, { color: selectedFigure.color }]}>{selectedFigure.rarity}</Text>
-                  </View>
-                </View>
+          {/* Hero Name, Class & Rarity */}
+          <Text style={styles.arenaHeroName}>{selectedFigure.name}</Text>
+          <Text style={styles.arenaHeroClass}>{selectedFigure.battleClass} · {selectedFigure.rarity}</Text>
 
-                <Text style={styles.figureClass}>{selectedFigure.battleClass}</Text>
-
-                <View style={styles.powerPill}>
-                  <Zap size={14} color={Colors.amber} />
-                  <Text style={styles.powerPillText}>POWER LEVEL: {powerLevel}</Text>
-                </View>
-              </View>
+          {/* 3 Compact Stat Chips */}
+          <View style={styles.statChipsRow}>
+            <View style={styles.statChip}>
+              <Heart size={13} color="#EF4444" />
+              <Text style={styles.statChipText}>{selectedFigure.hp} HP</Text>
             </View>
-
-            {/* STAT METERS */}
-            <View style={styles.statMetersContainer}>
-              {/* HP Meter */}
-              <View style={styles.meterRow}>
-                <View style={styles.meterLabelBox}>
-                  <Heart size={14} color="#EF4444" />
-                  <Text style={styles.meterLabel}>HP</Text>
-                </View>
-                <View style={styles.meterTrack}>
-                  <View style={[styles.meterFill, { width: `${Math.min(100, (selectedFigure.hp / 300) * 100)}%`, backgroundColor: '#EF4444' }]} />
-                </View>
-                <Text style={styles.meterValue}>{selectedFigure.hp}</Text>
-              </View>
-
-              {/* ATK Meter */}
-              <View style={styles.meterRow}>
-                <View style={styles.meterLabelBox}>
-                  <Flame size={14} color="#F59E0B" />
-                  <Text style={styles.meterLabel}>ATK</Text>
-                </View>
-                <View style={styles.meterTrack}>
-                  <View style={[styles.meterFill, { width: `${Math.min(100, (selectedFigure.attack / 100) * 100)}%`, backgroundColor: '#F59E0B' }]} />
-                </View>
-                <Text style={styles.meterValue}>{selectedFigure.attack}</Text>
-              </View>
-
-              {/* SPD Meter */}
-              <View style={styles.meterRow}>
-                <View style={styles.meterLabelBox}>
-                  <Gauge size={14} color="#3B82F6" />
-                  <Text style={styles.meterLabel}>SPD</Text>
-                </View>
-                <View style={styles.meterTrack}>
-                  <View style={[styles.meterFill, { width: `${Math.min(100, (selectedFigure.speed / 80) * 100)}%`, backgroundColor: '#3B82F6' }]} />
-                </View>
-                <Text style={styles.meterValue}>{selectedFigure.speed}</Text>
-              </View>
+            <View style={styles.statChip}>
+              <Flame size={13} color="#F59E0B" />
+              <Text style={styles.statChipText}>{selectedFigure.attack} ATK</Text>
             </View>
-
-            {/* SPECIAL BATTLE MOVE */}
-            <View style={styles.specialSkillCard}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <Text style={styles.specialSkillEmoji}>{selectedFigure.blastIcon}</Text>
-                <Text style={styles.specialSkillTitle}>{selectedFigure.battleSkill}</Text>
-              </View>
-              <Text style={styles.specialSkillDesc}>{selectedFigure.battleSkillDesc}</Text>
+            <View style={styles.statChip}>
+              <Gauge size={13} color="#3B82F6" />
+              <Text style={styles.statChipText}>{selectedFigure.speed} SPD</Text>
             </View>
+          </View>
+
+          {/* Special Battle Move */}
+          <View style={styles.specialMovePill}>
+            <Text style={{ fontSize: 13 }}>{selectedFigure.blastIcon}</Text>
+            <Text style={styles.specialMoveTitle}>{selectedFigure.battleSkill}</Text>
           </View>
         </View>
 
@@ -379,44 +311,14 @@ export default function BattleScreen() {
             activeOpacity={0.85}
           >
             <View style={styles.shopCtaIconCircle}>
-              <ShoppingBag size={24} color="#FFF" />
+              <ShoppingBag size={22} color="#FFF" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.shopCtaTitle}>PREPARE YOUR ROSTER IN THE SHOP 🛒</Text>
               <Text style={styles.shopCtaSub}>Unlock legendary avatars using your quest coins!</Text>
             </View>
-            <ChevronRight size={22} color={Colors.amber} />
+            <ChevronRight size={20} color={Colors.amber} />
           </TouchableOpacity>
-        </View>
-
-        {/* WHAT'S COMING CARD */}
-        <View style={styles.section}>
-          <Text style={styles.secTitle}>ROADMAP SNEAK PEEK 🗺️</Text>
-          <View style={styles.roadmapCard}>
-            <View style={styles.roadmapItem}>
-              <View style={styles.roadmapDot} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.roadmapItemTitle}>Real-time PvP & Bot Battles</Text>
-                <Text style={styles.roadmapItemSub}>Dodge, block, jump and chain combo strikes against friends or AI bots.</Text>
-              </View>
-            </View>
-
-            <View style={styles.roadmapItem}>
-              <View style={styles.roadmapDot} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.roadmapItemTitle}>Elemental Super Finishers</Text>
-                <Text style={styles.roadmapItemSub}>Charge your energy meter to fire Hadokens, freeze beams and holy smites.</Text>
-              </View>
-            </View>
-
-            <View style={styles.roadmapItem}>
-              <View style={styles.roadmapDot} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.roadmapItemTitle}>Weekly Battle Trophy League</Text>
-                <Text style={styles.roadmapItemSub}>Climb divisions, earn trophy cups, and win rare avatar skins.</Text>
-              </View>
-            </View>
-          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -459,17 +361,95 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94A3B8',
   },
-  heroCard: {
+  arenaStageCard: {
     backgroundColor: '#151926',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 18,
+    borderRadius: 24,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  badgeRow: {
+  arenaHeaderRow: {
     flexDirection: 'row',
-    marginBottom: 10,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 16,
+  },
+  pedestalStage: {
+    width: 140,
+    height: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    position: 'relative',
+  },
+  arenaHeroImg: {
+    width: 110,
+    height: 110,
+    zIndex: 2,
+  },
+  pedestalBase: {
+    position: 'absolute',
+    bottom: 0,
+    width: 120,
+    height: 30,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 2,
+    transform: [{ scaleY: 0.4 }],
+  },
+  arenaHeroName: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 20,
+    color: '#F8FAFC',
+    letterSpacing: -0.3,
+  },
+  arenaHeroClass: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 13,
+    color: Colors.amber,
+    marginTop: 2,
+    marginBottom: 14,
+  },
+  statChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  statChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  statChipText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 11,
+    color: '#E2E8F0',
+  },
+  specialMovePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 184, 0, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 184, 0, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  specialMoveTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 11,
+    color: Colors.amber,
   },
   comingSoonBadge: {
     flexDirection: 'row',

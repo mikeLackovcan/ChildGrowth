@@ -250,6 +250,7 @@ export default function ShopScreen() {
   const setActiveTheme = useAppStore((state) => state.setActiveTheme);
 
   const [selectedAvatar, setSelectedAvatar] = useState<RobloxAvatar | null>(null);
+  const [shopTab, setShopTab] = useState<'avatars' | 'themes'>('avatars');
   
   // Battle Arena Practice Preview State
   const [battleModalOpen, setBattleModalOpen] = useState(false);
@@ -365,13 +366,92 @@ export default function ShopScreen() {
           </View>
         </View>
 
-        {/* World Themes Shop Section */}
-        <View style={{ marginBottom: 20 }}>
-          <Text style={styles.cleanSectionTitle}>
-            🌍 WORLD THEMES
-          </Text>
+        {/* Clean Segmented Switcher */}
+        <View style={styles.shopTabSwitcher}>
+          <TouchableOpacity 
+            style={[styles.shopTabBtn, shopTab === 'avatars' && styles.shopTabBtnActive]} 
+            onPress={() => setShopTab('avatars')}
+          >
+            <Text style={[styles.shopTabBtnText, shopTab === 'avatars' && styles.shopTabBtnTextActive]}>
+              🦸 HEROES ({AVAILABLE_AVATARS.length})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.shopTabBtn, shopTab === 'themes' && styles.shopTabBtnActive]} 
+            onPress={() => setShopTab('themes')}
+          >
+            <Text style={[styles.shopTabBtnText, shopTab === 'themes' && styles.shopTabBtnTextActive]}>
+              🌍 THEMES ({Object.keys(WORLD_THEMES).length})
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 4 }}>
+        {shopTab === 'avatars' ? (
+          /* 12 Figures Grid */
+          <View style={styles.grid}>
+            {AVAILABLE_AVATARS.map((avatar) => {
+              const unlocked = isUnlocked(avatar.id);
+              const equipped = currentAvatar === avatar.id || ((currentAvatar === 'default' || !currentAvatar) && avatar.id === 'questblox_hero');
+              const rarityStyle = getRarityBadgeStyle(avatar.rarity);
+
+              return (
+                <TouchableOpacity 
+                  key={avatar.id} 
+                  style={[
+                    styles.avatarCard, 
+                    equipped && styles.avatarCardEquipped,
+                    !unlocked && styles.avatarCardLocked
+                  ]}
+                  onPress={() => handleAvatarPress(avatar)}
+                  activeOpacity={0.85}
+                >
+                  {/* Clean Top Row: Rarity Dot + Lock/Equipped */}
+                  <View style={styles.cardHeaderRow}>
+                    <View style={[styles.rarityDot, { backgroundColor: rarityStyle.border }]} />
+                    <Text style={[styles.rarityText, { color: rarityStyle.color }]}>{avatar.rarity}</Text>
+                    {equipped ? (
+                      <View style={styles.equippedDotBadge}>
+                        <Check size={10} color="#10B981" />
+                      </View>
+                    ) : !unlocked ? (
+                      <View style={styles.lockedDotBadge}>
+                        <Lock size={10} color="#64748B" />
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {/* Avatar Figure Artwork */}
+                  <View style={[styles.avatarCircle, { borderColor: equipped ? Colors.amber : 'rgba(255, 255, 255, 0.08)' }]}>
+                    {avatar.image ? (
+                      <Image source={avatar.image} style={styles.avatarImg} resizeMode="contain" />
+                    ) : (
+                      <Text style={styles.avatarEmoji}>{avatar.emoji || '🎮'}</Text>
+                    )}
+                  </View>
+                  
+                  <Text style={styles.avatarName} numberOfLines={1}>{avatar.name}</Text>
+                  
+                  <Text style={styles.skillNameText} numberOfLines={1}>{avatar.skillName}</Text>
+                  
+                  {unlocked ? (
+                    <View style={[styles.statusBadge, equipped && styles.statusBadgeEquipped]}>
+                      <Text style={[styles.statusText, equipped && styles.statusTextEquipped]}>
+                        {equipped ? 'EQUIPPED ✨' : 'EQUIP'}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.priceContainer}>
+                      <Coins size={13} color={Colors.amber} />
+                      <Text style={styles.priceText}>{avatar.price}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : (
+          /* World Themes Section */
+          <View style={styles.themesGrid}>
             {Object.values(WORLD_THEMES).map((theme) => {
               const isUnlocked = unlockedThemes.includes(theme.id);
               const isActive = activeTheme === theme.id;
@@ -379,7 +459,7 @@ export default function ShopScreen() {
                 <TouchableOpacity
                   key={theme.id}
                   style={[
-                    styles.cleanThemeCard,
+                    styles.cleanThemeCardLarge,
                     isActive && styles.cleanThemeCardActive
                   ]}
                   onPress={() => {
@@ -395,7 +475,7 @@ export default function ShopScreen() {
                   }}
                   activeOpacity={0.8}
                 >
-                  <Text style={{ fontSize: 26, marginBottom: 2 }}>{theme.icon}</Text>
+                  <Text style={{ fontSize: 32, marginBottom: 4 }}>{theme.icon}</Text>
                   <Text style={styles.cleanThemeName} numberOfLines={1}>
                     {theme.name}
                   </Text>
@@ -411,97 +491,14 @@ export default function ShopScreen() {
                   ) : (
                     <View style={styles.themePricePill}>
                       <Coins size={11} color={Colors.amber} />
-                      <Text style={styles.themePricePillText}>{theme.price}</Text>
+                      <Text style={styles.themePricePillText}>{theme.price} Coins</Text>
                     </View>
                   )}
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
-        </View>
-
-        {/* Section Header for Avatars */}
-        <Text style={styles.cleanSectionTitle}>
-          🦹 HERO AVATARS & ROSTER
-        </Text>
-
-        {/* 12 Figures Grid */}
-        <View style={styles.grid}>
-          {AVAILABLE_AVATARS.map((avatar) => {
-            const unlocked = isUnlocked(avatar.id);
-            const equipped = currentAvatar === avatar.id || ((currentAvatar === 'default' || !currentAvatar) && avatar.id === 'questblox_hero');
-            const rarityStyle = getRarityBadgeStyle(avatar.rarity);
-            const weeksNeeded = Math.ceil(avatar.price / 700);
-
-            return (
-              <TouchableOpacity 
-                key={avatar.id} 
-                style={[
-                  styles.avatarCard, 
-                  equipped && styles.avatarCardEquipped,
-                  !unlocked && styles.avatarCardLocked
-                ]}
-                onPress={() => handleAvatarPress(avatar)}
-                activeOpacity={0.85}
-              >
-                {/* Rarity Pill */}
-                <View style={[styles.rarityPill, { backgroundColor: rarityStyle.bg, borderColor: rarityStyle.border }]}>
-                  <Text style={[styles.rarityText, { color: rarityStyle.color }]}>{avatar.rarity.toUpperCase()}</Text>
-                </View>
-
-                {/* Avatar Circle Frame */}
-                <View style={[styles.avatarCircle, { borderColor: equipped ? Colors.red : avatar.color }]}>
-                  {avatar.image ? (
-                    <Image source={avatar.image} style={styles.avatarImg} resizeMode="contain" />
-                  ) : (
-                    <Text style={styles.avatarEmoji}>{avatar.emoji || '🎮'}</Text>
-                  )}
-
-                  {equipped && (
-                    <View style={styles.equippedBadge}>
-                      <Check size={12} color="#FFF" />
-                    </View>
-                  )}
-
-                  {!unlocked && (
-                    <View style={styles.lockOverlay}>
-                      <Lock size={16} color="#FFF" />
-                    </View>
-                  )}
-                </View>
-                
-                <Text style={styles.avatarName} numberOfLines={1}>{avatar.name}</Text>
-                
-                {/* Skill Perk Badge */}
-                <View style={styles.skillBox}>
-                  <Text style={styles.skillNameText} numberOfLines={1}>{avatar.skillName}</Text>
-                  <Text style={styles.skillDescText} numberOfLines={2}>{avatar.skillDesc}</Text>
-                </View>
-                
-                {/* Unlock Status / Price Action & Weekly Pacing */}
-                {unlocked ? (
-                  <View style={[styles.statusBadge, equipped && styles.statusBadgeEquipped]}>
-                    <Text style={[styles.statusText, equipped && styles.statusTextEquipped]}>
-                      {equipped ? t('equipped', 'EQUIPPED') : t('equip', 'EQUIP')}
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={styles.priceContainer}>
-                    <View style={styles.priceRow}>
-                      <Coins size={14} color={Colors.amber} />
-                      <Text style={styles.priceText}>{avatar.price} Coins</Text>
-                    </View>
-                    <View style={styles.pacePill}>
-                      <Text style={styles.pacePillText}>
-                        📅 {weeksNeeded <= 1 ? t('pace_half_week', '~1 Week Quests') : t('pace_weeks', { count: weeksNeeded, weeks: weeksNeeded, defaultValue: `~${weeksNeeded} Weeks Quests` })}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+          </View>
+        )}
 
       </ScrollView>
 
@@ -803,6 +800,71 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: Colors.amber,
   },
+  shopTabSwitcher: {
+    flexDirection: 'row',
+    backgroundColor: '#161928',
+    borderRadius: 14,
+    padding: 3,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  shopTabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 11,
+  },
+  shopTabBtnActive: {
+    backgroundColor: '#272B40',
+  },
+  shopTabBtnText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 12,
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+  },
+  shopTabBtnTextActive: {
+    color: '#FFB800',
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+    width: '100%',
+  },
+  rarityDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  equippedDotBadge: {
+    marginLeft: 'auto',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  lockedDotBadge: {
+    marginLeft: 'auto',
+  },
+  themesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  cleanThemeCardLarge: {
+    width: '48%',
+    backgroundColor: '#151926',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -887,23 +949,23 @@ const styles = StyleSheet.create({
   },
   avatarCard: {
     width: '48%',
-    backgroundColor: Colors.surface,
+    backgroundColor: '#151926',
     borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 14,
-    borderRadius: 14,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    padding: 12,
+    borderRadius: 16,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 2,
     position: 'relative',
   },
   avatarCardEquipped: {
-    borderColor: Colors.red,
-    borderWidth: 2,
-    backgroundColor: Colors.surface2,
+    borderColor: Colors.amber,
+    borderWidth: 1.5,
+    backgroundColor: 'rgba(255, 184, 0, 0.04)',
   },
   avatarCardLocked: {
     opacity: 0.9,
@@ -1152,7 +1214,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   priceContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 184, 0, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 184, 0, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
     width: '100%',
   },
   pacePill: {
