@@ -122,7 +122,6 @@ export default function ParentDashboardScreen() {
             </Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <LanguageSwitcher />
             <TouchableOpacity testID="parent-logout-btn" onPress={handleLogout} style={{ backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, padding: 10, borderRadius: 12 }}>
               <LogOut size={18} color={Colors.red} />
             </TouchableOpacity>
@@ -610,6 +609,16 @@ export default function ParentDashboardScreen() {
             <TouchableOpacity style={styles.saveButton} onPress={handleSavePrizes}>
               <Text style={styles.saveButtonText}>{t('save_prizes')}</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Dedicated Language Preference Section */}
+        <View style={styles.section}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: Colors.border }}>
+            <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.textSecondary, fontSize: 13 }}>
+              🌐 {t('language_preference', 'LANGUAGE PREFERENCE')}
+            </Text>
+            <LanguageSwitcher />
           </View>
         </View>
       </ScrollView>

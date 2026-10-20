@@ -386,8 +386,18 @@ export default function TrackerScreen() {
               </Text>
             </View>
 
-            {/* Right: Streak, Coins & Settings */}
+            {/* Right: Gift, Streak, Coins & Settings in 1 quiet status cluster */}
             <View style={styles.cleanStatsCluster}>
+              {hasUnclaimedDailyChest && (
+                <TouchableOpacity 
+                  style={styles.giftClaimPill}
+                  onPress={handleOpenSupplyCrate}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ fontSize: 11 }}>🎁</Text>
+                  <Text style={styles.giftClaimPillText}>+{25 + currentStreak * 5} 💰</Text>
+                </TouchableOpacity>
+              )}
               <View style={styles.streakPill}>
                 <Text style={styles.statIcon}>🔥</Text>
                 <Text style={styles.streakText}>{currentStreak}</Text>
@@ -408,21 +418,9 @@ export default function TrackerScreen() {
 
           {/* Clean Progress & Candy XP Track */}
           <View style={styles.cleanProgressLine}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <Text style={styles.cleanProgressText}>⭐ {completedCount} of {totalCount} Done</Text>
-              
-              {hasUnclaimedDailyChest ? (
-                <TouchableOpacity 
-                  style={styles.giftClaimPill}
-                  onPress={handleOpenSupplyCrate}
-                  activeOpacity={0.8}
-                >
-                  <Text style={{ fontSize: 13 }}>🎁</Text>
-                  <Text style={styles.giftClaimPillText}>CLAIM +{25 + currentStreak * 5} 💰</Text>
-                </TouchableOpacity>
-              ) : (
-                <Text style={styles.cleanXpText}>{xp}/100 XP</Text>
-              )}
+              <Text style={styles.cleanXpText}>{xp}/100 XP</Text>
             </View>
             <View style={styles.cleanXpTrack}>
               <View style={[styles.cleanXpFill, { width: `${progressPct}%`, backgroundColor: Colors.amber }]} />
@@ -706,34 +704,53 @@ export default function TrackerScreen() {
               </View>
             )}
 
-            {/* Featured Daily Boss Climax Quest */}
+            {/* Featured Daily Boss Climax Quest - Progressive Disclosure */}
             {isViewingToday && (
-              <View style={[styles.epicBossCard, isBossVulnerable && styles.epicBossCardVulnerable]}>
-                <View style={styles.epicHeaderRow}>
-                  <Crown size={16} color={Colors.amber} />
-                  <Text style={styles.epicTitleText}>BOSS CHALLENGE</Text>
-                  <Text style={[styles.bossShieldBadge, isBossVulnerable && { color: Colors.green }]}>
-                    {isBossVulnerable ? '💥 READY TO SMASH!' : `🛡️ ${bossShieldPct}%`}
+              !isBossVulnerable ? (
+                <View style={styles.bossShieldTeaserRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                    <Shield size={18} color="#64748B" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.bossShieldTeaserTitle} numberOfLines={1}>
+                        🛡️ BOSS SHIELD ACTIVE
+                      </Text>
+                      <Text style={styles.bossShieldTeaserSub} numberOfLines={1}>
+                        Complete {Math.max(1, regularTasksCount - regularDoneCount)} more quest{regularTasksCount - regularDoneCount !== 1 ? 's' : ''} to unlock boss fight
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.bossShieldMiniBadge}>
+                    <Text style={styles.bossShieldMiniBadgeText}>🛡️ {bossShieldPct}%</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={[styles.epicBossCard, styles.epicBossCardVulnerable]}>
+                  <View style={styles.epicHeaderRow}>
+                    <Crown size={16} color={Colors.amber} />
+                    <Text style={styles.epicTitleText}>BOSS CHALLENGE</Text>
+                    <Text style={[styles.bossShieldBadge, { color: Colors.green }]}>
+                      💥 READY TO SMASH!
+                    </Text>
+                  </View>
+                  
+                  <Text style={styles.epicQuestName}>
+                    {epicBossTask || t('epic_boss_task')}
                   </Text>
-                </View>
-                
-                <Text style={styles.epicQuestName}>
-                  {epicBossTask || t('epic_boss_task')}
-                </Text>
 
-                <View style={styles.shieldTrack}>
-                  <View style={[styles.shieldFill, { width: `${bossShieldPct}%`, backgroundColor: isBossVulnerable ? Colors.green : Colors.amber }]} />
+                  <View style={styles.shieldTrack}>
+                    <View style={[styles.shieldFill, { width: '100%', backgroundColor: Colors.green }]} />
+                  </View>
+                  
+                  <HoldToClaim 
+                    isClaimed={epicClaimed} 
+                    onClaim={handleEpicClaim}
+                    title={t('hold_to_claim_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) + 25 })}
+                    claimedTitle={t('claimed_banner_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) + 25 })}
+                    durationMs={avatarSkill.bossHoldDurationMs || 1500}
+                    fastChargeLabel={avatarSkill.bossHoldDurationMs ? `⚡ 2x Speed!` : undefined}
+                  />
                 </View>
-                
-                <HoldToClaim 
-                  isClaimed={epicClaimed} 
-                  onClaim={handleEpicClaim}
-                  title={t('hold_to_claim_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) + (isBossVulnerable ? 25 : 0) })}
-                  claimedTitle={t('claimed_banner_xp', { xp: (epicBossXP || 35) + (avatarSkill.bossBonusXP || 0) + (isBossVulnerable ? 25 : 0) })}
-                  durationMs={avatarSkill.bossHoldDurationMs || 1500}
-                  fastChargeLabel={avatarSkill.bossHoldDurationMs ? `⚡ 2x Speed!` : undefined}
-                />
-              </View>
+              )
             )}
           </View>
         </View>
@@ -769,35 +786,35 @@ export default function TrackerScreen() {
           )
         )}
 
-        {/* 5. QUICK 1-TAP MOOD SELECTOR */}
-        <View style={styles.moodSection}>
-          <Text style={styles.moodSectionTitle}>HOW ARE YOU TODAY? 😄</Text>
-          <View style={styles.moodButtonsRow}>
-            <TouchableOpacity 
-              style={[styles.moodPill, dailyMood === 'wiped' && styles.moodPillActive]} 
-              onPress={() => setDailyMood('wiped')}
-            >
-              <Text style={styles.moodPillEmoji}>😴</Text>
-              <Text style={[styles.moodPillText, dailyMood === 'wiped' && styles.moodPillTextActive]}>TIRED</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.moodPill, dailyMood === 'thriving' && styles.moodPillActive]} 
-              onPress={() => setDailyMood('thriving')}
-            >
-              <Text style={styles.moodPillEmoji}>😄</Text>
-              <Text style={[styles.moodPillText, dailyMood === 'thriving' && styles.moodPillTextActive]}>GREAT</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.moodPill, dailyMood === 'too_easy' && styles.moodPillActive]} 
-              onPress={() => setDailyMood('too_easy')}
-            >
-              <Text style={styles.moodPillEmoji}>😎</Text>
-              <Text style={[styles.moodPillText, dailyMood === 'too_easy' && styles.moodPillTextActive]}>EASY</Text>
+        {/* 5. GENTLE MORNING MOOD CHECK-IN (Dismisses into quiet status once logged) */}
+        {!dailyMood ? (
+          <View style={styles.calmMoodRow}>
+            <Text style={styles.calmMoodPrompt}>How are you feeling today?</Text>
+            <View style={styles.calmMoodButtons}>
+              <TouchableOpacity style={styles.calmMoodBtn} onPress={() => setDailyMood('wiped')}>
+                <Text style={styles.calmMoodBtnEmoji}>😴</Text>
+                <Text style={styles.calmMoodBtnLabel}>TIRED</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.calmMoodBtn} onPress={() => setDailyMood('thriving')}>
+                <Text style={styles.calmMoodBtnEmoji}>😄</Text>
+                <Text style={styles.calmMoodBtnLabel}>GREAT</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.calmMoodBtn} onPress={() => setDailyMood('too_easy')}>
+                <Text style={styles.calmMoodBtnEmoji}>😎</Text>
+                <Text style={styles.calmMoodBtnLabel}>EASY</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.calmMoodStatusRow}>
+            <Text style={styles.calmMoodStatusText}>
+              Mood today: {dailyMood === 'wiped' ? '😴 Tired & taking it easy' : dailyMood === 'thriving' ? '😄 Feeling great & energized!' : '😎 Quests are too easy!'}
+            </Text>
+            <TouchableOpacity onPress={() => setDailyMood(null as any)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.calmMoodChangeText}>Change</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        )}
 
       </ScrollView>
 
@@ -1341,6 +1358,41 @@ const styles = StyleSheet.create({
     color: '#121212',
     fontSize: 11,
   },
+  bossShieldTeaserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#161B29',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  bossShieldTeaserTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 12,
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+  },
+  bossShieldTeaserSub: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  bossShieldMiniBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  bossShieldMiniBadgeText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 11,
+    color: '#94A3B8',
+  },
   epicBossCard: {
     backgroundColor: '#181D2D',
     borderTopWidth: 1,
@@ -1681,45 +1733,62 @@ const styles = StyleSheet.create({
     color: '#121212',
     fontSize: 12,
   },
-  moodSection: {
-    marginVertical: 14,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  moodSectionTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 12,
-    color: Colors.textMuted,
-    letterSpacing: 0.5,
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  moodButtonsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    width: '100%',
-  },
-  moodPill: {
-    flex: 1,
+  calmMoodRow: {
+    marginVertical: 12,
+    marginBottom: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     backgroundColor: '#161A28',
-    paddingVertical: 10,
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  calmMoodPrompt: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  calmMoodButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  calmMoodBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  calmMoodBtnEmoji: {
+    fontSize: 14,
+  },
+  calmMoodBtnLabel: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 10,
+    color: Colors.textSecondary,
+  },
+  calmMoodStatusRow: {
+    marginVertical: 8,
+    marginBottom: 14,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 8,
   },
-  moodPillActive: {
-    backgroundColor: '#272B40',
-  },
-  moodPillEmoji: {
-    fontSize: 22,
-  },
-  moodPillText: {
-    fontFamily: 'Nunito_800ExtraBold',
+  calmMoodStatusText: {
+    fontFamily: 'Nunito_700Bold',
     fontSize: 11,
     color: Colors.textMuted,
   },
-  moodPillTextActive: {
+  calmMoodChangeText: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 11,
     color: Colors.amber,
   },
   topCalendarStrip: {

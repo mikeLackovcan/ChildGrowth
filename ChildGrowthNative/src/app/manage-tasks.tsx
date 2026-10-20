@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { Colors } from '../constants/theme';
 import { useAppStore, Task } from '../store/useAppStore';
 import { ChevronLeft, Plus, Trash2, Edit2, Check, Calendar, CheckCircle2, Circle } from 'lucide-react-native';
-import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const FREQUENCY_OPTIONS: { id: Task['freq']; key: string; label: string }[] = [
   { id: 'daily', key: 'freq_daily', label: 'Everyday 🔄' },
@@ -105,7 +104,6 @@ export default function ManageTasksScreen() {
               ? t('manage_quests_for', `Manage Quests for ${childDisplayName}`, { name: childDisplayName })
               : t('manage_quests_title', 'Manage Quests 📋')}
           </Text>
-          <LanguageSwitcher />
         </View>
 
         {/* Add Quest Section */}
