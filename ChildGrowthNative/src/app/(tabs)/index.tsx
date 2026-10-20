@@ -482,6 +482,34 @@ export default function TrackerScreen() {
           })}
         </View>
 
+        {/* Interactive Hero Mascot Companion Speech Bar */}
+        <View style={styles.mascotBar}>
+          <View style={styles.mascotAvatarBubble}>
+            {getAvatarDisplay().image ? (
+              <Image source={getAvatarDisplay().image} style={styles.mascotAvatarImg} resizeMode="contain" />
+            ) : (
+              <Text style={{ fontSize: 24 }}>⭐</Text>
+            )}
+            <View style={styles.mascotCheerBadge}>
+              <Sparkles size={10} color="#FFB800" />
+            </View>
+          </View>
+          <View style={styles.mascotSpeechBubble}>
+            <Text style={styles.mascotSpeechName}>{fullName || nickname || 'Hero'}'s Companion</Text>
+            <Text style={styles.mascotSpeechText}>
+              {completedCount === totalCount && totalCount > 0
+                ? "🎉 WOO-HOO! All daily quests complete! Spin the prize wheel! 🎡"
+                : isBossVulnerable
+                ? "🔥 THE DRAGON SHIELD IS DOWN! Hold to claim and defeat the Shadow Dragon! 💥"
+                : completedToday >= 2
+                ? `🔥 ${completedToday}x Combo Streak! You are unstoppable, Champion!`
+                : hasUnclaimedDailyChest
+                ? "🎁 Mystery crate waiting! Claim your streak bonus coins above! 💰"
+                : "Ready for today's adventures? Complete your quests to unlock the Dragon Boss! ⚔️"}
+            </Text>
+          </View>
+        </View>
+
         {/* Compact 1-Line Parent Approval Pending Action Banner (If applicable) */}
         {(() => {
           const currentKidNick = (nickname || '').toLowerCase();
@@ -571,8 +599,12 @@ export default function TrackerScreen() {
           <View style={styles.questBoard}>
             {displayedTasks.length === 0 ? (
               <View style={styles.noQuestsCard}>
-                <Text style={{ fontSize: 28, marginBottom: 4 }}>🏖️</Text>
-                <Text style={styles.noQuestsTitle}>No Quests for {selectedDayInfo.dayName}!</Text>
+                <Image 
+                  source={require('../../assets/images/dancing_banana_3d.png')} 
+                  style={styles.noQuestsMascotImg} 
+                  resizeMode="contain" 
+                />
+                <Text style={styles.noQuestsTitle}>No Quests for {selectedDayInfo.dayName}! 🏖️</Text>
                 <Text style={styles.noQuestsSub}>Enjoy your free time champion!</Text>
               </View>
             ) : (
@@ -704,18 +736,27 @@ export default function TrackerScreen() {
               </View>
             )}
 
-            {/* Featured Daily Boss Climax Quest - Progressive Disclosure */}
+            {/* Featured Daily Boss Climax Quest - Progressive Disclosure with Shadow Dragon Mascot */}
             {isViewingToday && (
               !isBossVulnerable ? (
                 <View style={styles.bossShieldTeaserRow}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                    <Shield size={18} color="#64748B" />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                    <View style={styles.bossDragonMiniFrame}>
+                      <Image 
+                        source={require('../../assets/images/roblox_dragon.png')} 
+                        style={styles.bossDragonMiniImg} 
+                        resizeMode="contain" 
+                      />
+                      <View style={styles.bossShieldLockOverlay}>
+                        <Shield size={10} color="#CBD5E1" />
+                      </View>
+                    </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.bossShieldTeaserTitle} numberOfLines={1}>
-                        🛡️ BOSS SHIELD ACTIVE
+                        🐲 SHADOW DRAGON BOSS · SHIELD ACTIVE
                       </Text>
                       <Text style={styles.bossShieldTeaserSub} numberOfLines={1}>
-                        Complete {Math.max(1, regularTasksCount - regularDoneCount)} more quest{regularTasksCount - regularDoneCount !== 1 ? 's' : ''} to unlock boss fight
+                        Complete {Math.max(1, regularTasksCount - regularDoneCount)} more quest{regularTasksCount - regularDoneCount !== 1 ? 's' : ''} to break shield & attack!
                       </Text>
                     </View>
                   </View>
@@ -733,9 +774,23 @@ export default function TrackerScreen() {
                     </Text>
                   </View>
                   
-                  <Text style={styles.epicQuestName}>
-                    {epicBossTask || t('epic_boss_task')}
-                  </Text>
+                  <View style={styles.bossDragonStageRow}>
+                    <View style={styles.bossDragonArtworkFrame}>
+                      <Image 
+                        source={require('../../assets/images/roblox_dragon.png')} 
+                        style={styles.bossDragonArtworkImg} 
+                        resizeMode="contain" 
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.epicQuestName}>
+                        {epicBossTask || t('epic_boss_task')}
+                      </Text>
+                      <Text style={styles.bossDragonStatusSub}>
+                        {epicClaimed ? "🏆 Shadow Dragon Defeated!" : "🐲 Shield broken! Hold the button below to unleash your hero attack!"}
+                      </Text>
+                    </View>
+                  </View>
 
                   <View style={styles.shieldTrack}>
                     <View style={[styles.shieldFill, { width: '100%', backgroundColor: Colors.green }]} />
@@ -755,11 +810,15 @@ export default function TrackerScreen() {
           </View>
         </View>
 
-        {/* 4. ALL QUESTS DONE CELEBRATION (Auto Spin Wheel) */}
+        {/* 4. ALL QUESTS DONE CELEBRATION (Dancing Banana Mascot + Auto Spin Wheel) */}
         {completedCount === totalCount && totalCount > 0 && (
           alreadySpunToday ? (
             <View style={styles.allDoneBannerSpun}>
-              <Text style={{ fontSize: 32 }}>🏆</Text>
+              <Image 
+                source={require('../../assets/images/dancing_banana_3d.png')} 
+                style={styles.allDoneBananaImg} 
+                resizeMode="contain" 
+              />
               <View style={{ flex: 1 }}>
                 <Text style={styles.allDoneTitle}>ALL QUESTS COMPLETE! 🎉</Text>
                 <Text style={styles.allDoneSub}>DAILY SPIN CLAIMED ✅ (1 SPIN PER DAY)</Text>
@@ -774,7 +833,11 @@ export default function TrackerScreen() {
               onPress={() => setShowPrizeWheel(true)}
               activeOpacity={0.85}
             >
-              <Text style={{ fontSize: 32 }}>🏆</Text>
+              <Image 
+                source={require('../../assets/images/dancing_banana_3d.png')} 
+                style={styles.allDoneBananaImg} 
+                resizeMode="contain" 
+              />
               <View style={{ flex: 1 }}>
                 <Text style={styles.allDoneTitle}>ALL QUESTS COMPLETE! 🎉</Text>
                 <Text style={styles.allDoneSub}>TAP TO SPIN PRIZE WHEEL 🎡</Text>
@@ -1956,5 +2019,119 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito_700Bold',
     fontSize: 12,
     color: Colors.textMuted,
+  },
+  noQuestsMascotImg: {
+    width: 64,
+    height: 64,
+    marginBottom: 8,
+  },
+  mascotBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+    paddingHorizontal: 2,
+  },
+  mascotAvatarBubble: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 184, 0, 0.12)',
+    borderWidth: 2,
+    borderColor: Colors.amber,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  mascotAvatarImg: {
+    width: 38,
+    height: 38,
+  },
+  mascotCheerBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#1E293B',
+    borderRadius: 8,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: Colors.amber,
+  },
+  mascotSpeechBubble: {
+    flex: 1,
+    backgroundColor: '#181D2D',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 16,
+    borderTopLeftRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  mascotSpeechName: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 10,
+    color: Colors.amber,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  mascotSpeechText: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 12,
+    color: '#E2E8F0',
+    lineHeight: 16,
+  },
+  bossDragonMiniFrame: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  bossDragonMiniImg: {
+    width: 28,
+    height: 28,
+  },
+  bossShieldLockOverlay: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#0F172A',
+    borderRadius: 6,
+    padding: 2,
+  },
+  bossDragonStageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 10,
+  },
+  bossDragonArtworkFrame: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderWidth: 2,
+    borderColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bossDragonArtworkImg: {
+    width: 50,
+    height: 50,
+  },
+  bossDragonStatusSub: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  allDoneBananaImg: {
+    width: 48,
+    height: 48,
   },
 });
