@@ -143,7 +143,7 @@ export default function QuestMapScreen() {
             );
           })}
         </View>
-        <Text style={styles.note}>Times are optional. If you add one, Quest Habi will ask permission and schedule a notification with sound.</Text>
+        <Text style={styles.note}>Times are optional. If you add one, Quest Champ will ask permission and schedule a notification with sound.</Text>
       </ScrollView>
 
       <View style={styles.footer}>

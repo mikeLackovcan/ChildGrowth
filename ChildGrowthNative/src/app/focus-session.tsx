@@ -94,14 +94,14 @@ export default function FocusSessionScreen() {
           <X size={22} color={Colors.textSecondary} />
         </TouchableOpacity>
 
-        <Text style={styles.eyebrow}>{finished ? 'FOCUS COMPLETE' : 'FOCUS WITH HABI'}</Text>
+        <Text style={styles.eyebrow}>{finished ? 'FOCUS COMPLETE' : 'FOCUS WITH YOUR CHAMP'}</Text>
         <Text style={styles.title}>{task.name}</Text>
         <AnimatedQuestHero id={currentAvatar} style={styles.hero} motion={finished ? 'celebrate' : 'focus'} />
 
         <View style={[styles.timerRing, finished && styles.timerRingFinished]}>
           <Text style={styles.timer}>{timeText}</Text>
         </View>
-        <Text style={styles.message}>{finished ? 'You stayed with it. Great work!' : 'One thing at a time. Habi is staying with you.'}</Text>
+        <Text style={styles.message}>{finished ? 'You stayed with it. Great work!' : 'One thing at a time. Your hero is staying with you.'}</Text>
 
         {finished ? (
           <TouchableOpacity style={styles.finishButton} onPress={finishQuest}>

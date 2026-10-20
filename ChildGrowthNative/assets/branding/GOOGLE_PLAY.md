@@ -1,8 +1,8 @@
-# Quest Habi Google Play release pack
+# Quest Champ Google Play release pack
 
 ## Product identity
 
-- App name: `Quest Habi`
+- App name: `Quest Champ`
 - Package name: `com.questhero.app`
 - Category: Parenting / Productivity
 - Primary audience: Families with children
@@ -10,14 +10,14 @@
 
 ## Store assets
 
-- App icon: `questpip-play-512.png` (512 × 512)
-- Launcher source: `questpip-icon-1024.png` (1024 × 1024)
-- Editable mark: `questpip-mark.svg`
-- Adaptive foreground: `questpip-adaptive.png`
-- Themed icon: `questpip-monochrome.png`
+- App icon: `quest-hero-play-512.png` (512 × 512)
+- Launcher source: `quest-hero-icon-1024.png` (1024 × 1024)
+- Original hero artwork: `quest-hero-source.png`
+- Adaptive foreground: `quest-hero-adaptive.png`
+- Themed icon: `quest-q-monochrome.png`
 - Feature graphic: `google-play-feature-graphic.png` (1024 × 500)
 
-Google Play still needs final screenshots captured from the signed Android build. Use the clean white Quest Habi interface and show: today's quests, a focus session, Habi celebrating, rewards/shop, progress, and parent controls. Do not submit web-renderer previews as final Android screenshots.
+Google Play still needs final screenshots captured from the signed Android build. Use the clean white Quest Champ interface and show: today's quests, a focus session, an animated hero celebration, rewards/shop, progress, and parent controls. Do not submit web-renderer previews as final Android screenshots.
 
 ## Listing copy
 
@@ -27,7 +27,7 @@ Short description:
 
 Full description:
 
-> Quest Habi turns everyday routines into clear, playful quests children can understand at a glance. Kids can complete chores, homework, focus sessions, and healthy habits while Habi celebrates each small win.
+> Quest Champ turns everyday routines into clear, playful quests children can understand at a glance. Kids can complete chores, homework, focus sessions, and healthy habits while their chosen hero celebrates each small win.
 >
 > Visual task presets reduce reading. Optional reminders, alarms, and focus timers help children start and finish at the right time. Coins, XP, character items, and family rewards make progress visible without punishing missed days.
 >

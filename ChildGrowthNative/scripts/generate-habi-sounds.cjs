@@ -43,4 +43,4 @@ wav('habi-complete.wav', [
   { frequency: 783.99, duration: .12 },
   { frequency: 1046.50, duration: .26 },
 ]);
-console.log('Generated original Quest Habi sounds.');
+console.log('Generated original Quest Champ sounds.');

@@ -1,30 +1,30 @@
 {
   "expo": {
-    "name": "Quest Habi",
+    "name": "Quest Champ",
     "slug": "quest-hero",
     "description": "A playful kids habit and chore companion with quests, focus timers, reminders, rewards, and parent controls.",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/branding/questpip-icon-1024.png",
+    "icon": "./assets/branding/quest-hero-icon-1024.png",
     "scheme": "questhero",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/branding/questpip-icon-1024.png"
+      "icon": "./assets/branding/quest-hero-icon-1024.png"
     },
     "android": {
       "versionCode": 1,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#081A4B",
-        "foregroundImage": "./assets/branding/questpip-adaptive.png",
-        "monochromeImage": "./assets/branding/questpip-monochrome.png"
+        "foregroundImage": "./assets/branding/quest-hero-adaptive.png",
+        "monochromeImage": "./assets/branding/quest-q-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.questhero.app"
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/branding/questpip-favicon.png"
+      "favicon": "./assets/branding/quest-hero-favicon.png"
     },
     "plugins": [
       "@react-native-google-signin/google-signin",
@@ -33,14 +33,14 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#081A4B",
-          "image": "./assets/branding/questpip-icon-1024.png",
+          "image": "./assets/branding/quest-hero-icon-1024.png",
           "imageWidth": 160
         }
       ],
       [
         "expo-notifications",
         {
-          "icon": "./assets/branding/questpip-monochrome.png",
+          "icon": "./assets/branding/quest-q-monochrome.png",
           "color": "#3270EB",
           "sounds": [
             "./assets/audio/habi-reminder.wav",

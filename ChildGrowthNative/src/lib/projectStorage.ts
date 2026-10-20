@@ -1,6 +1,6 @@
 import storage from '@react-native-async-storage/async-storage';
 
-// Keep the internal Quest Hero prefix so existing Quest Habi installations migrate safely.
+// Keep the internal Quest Hero prefix so existing Quest Champ installations migrate safely.
 // Prefix every local key so accounts and child progress never cross projects.
 const prefix = 'quest-hero-dab6b:';
 

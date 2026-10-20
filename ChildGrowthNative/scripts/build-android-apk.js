@@ -30,8 +30,8 @@ proc.on('close', (code) => {
   if (code === 0) {
     console.log('\n🎉 BUILD SUCCESSFUL! Packaging APK...');
     const src = path.join(__dirname, '..', 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
-    const destDist = path.join(__dirname, '..', 'dist', 'QuestHabi.apk');
-    const destArtifact = 'C:\\Users\\mikef\\.gemini\\antigravity-ide\\brain\\de1629bb-8064-4edd-8e35-d8b6da8963d9\\QuestHabi.apk';
+    const destDist = path.join(__dirname, '..', 'dist', 'QuestChamp.apk');
+    const destArtifact = 'C:\\Users\\mikef\\.gemini\\antigravity-ide\\brain\\de1629bb-8064-4edd-8e35-d8b6da8963d9\\QuestChamp.apk';
 
     if (fs.existsSync(src)) {
       fs.copyFileSync(src, destDist);
@@ -43,7 +43,7 @@ proc.on('close', (code) => {
         console.warn('Could not copy to artifact path:', e.message);
       }
       const stat = fs.statSync(destDist);
-      console.log(`📦 Final Quest Habi APK size: ${(stat.size / (1024 * 1024)).toFixed(2)} MB`);
+      console.log(`📦 Final Quest Champ APK size: ${(stat.size / (1024 * 1024)).toFixed(2)} MB`);
     } else {
       console.error('❌ Generated APK not found at expected path:', src);
     }

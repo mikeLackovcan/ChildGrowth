@@ -64,7 +64,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
               <Text style={styles.userName}>{fullName || nickname || 'Kid Hero'}</Text>
               <Text style={styles.userEmail}>{userEmail || `@${nickname || 'hero'}`}</Text>
               {nickname && (
-                <Text style={styles.userTag}>Quest Habi tag: @{nickname}</Text>
+                <Text style={styles.userTag}>Quest Champ tag: @{nickname}</Text>
               )}
             </View>
           </View>
@@ -73,7 +73,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
           <View style={styles.infoRow}>
             <View style={styles.infoPill}>
               <Text style={styles.infoPillLabel}>Role:</Text>
-              <Text style={styles.infoPillVal}>{role === 'parent' ? '👨‍👩‍👧 Parent' : '✨ Quest Habi Kid'}</Text>
+              <Text style={styles.infoPillVal}>{role === 'parent' ? '👨‍👩‍👧 Parent' : '✨ Quest Champ Kid'}</Text>
             </View>
 
             <View style={styles.infoPill}>
@@ -145,7 +145,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
             onPress={handleLogout}
           >
             <LogOut size={18} color="#FFF" />
-            <Text style={styles.logoutBtnText}>{t('logout_btn', 'LOG OUT OF QUEST HABI')}</Text>
+            <Text style={styles.logoutBtnText}>{t('logout_btn', 'LOG OUT OF QUEST CHAMP')}</Text>
           </TouchableOpacity>
         </View>
       </View>

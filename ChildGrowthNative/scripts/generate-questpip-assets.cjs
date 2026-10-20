@@ -51,4 +51,4 @@ render('questpip-play-512.png',512);
 render('questpip-favicon.png',64);
 render('questpip-adaptive.png',1024,{transparent:true,adaptive:true});
 render('questpip-monochrome.png',432,{transparent:true,monochrome:true,adaptive:true});
-console.log('Generated Quest Habi icon assets.');
+console.log('Generated archived experimental icon assets.');

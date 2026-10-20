@@ -1,6 +1,6 @@
-# Quest Habi — React Native app
+# Quest Champ — React Native app
 
-Quest Habi is the React Native/Expo children’s habit and chore app on this branch. It uses Firebase Authentication and Firestore for secure optional account sync, while guest mode works locally without registration.
+Quest Champ is the React Native/Expo children’s habit and chore app on this branch. It uses Firebase Authentication and Firestore for secure optional account sync, while guest mode works locally without registration.
 
 ## Get started
 

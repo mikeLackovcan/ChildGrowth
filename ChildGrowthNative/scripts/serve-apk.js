@@ -3,13 +3,13 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 8082;
-const apkPath = path.join(__dirname, '..', 'dist', 'QuestHabi.apk');
+const apkPath = path.join(__dirname, '..', 'dist', 'QuestChamp.apk');
 const localIP = '192.168.1.215';
 
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0];
 
-  if (url === '/QuestHabi.apk' || url === '/download') {
+  if (url === '/QuestChamp.apk' || url === '/download') {
     if (!fs.existsSync(apkPath)) {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end('APK is still building or not found. Please check back in a moment.');
@@ -20,7 +20,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, {
       'Content-Type': 'application/vnd.android.package-archive',
       'Content-Length': stat.size,
-      'Content-Disposition': 'attachment; filename="QuestHabi.apk"'
+      'Content-Disposition': 'attachment; filename="QuestChamp.apk"'
     });
 
     const readStream = fs.createReadStream(apkPath);
@@ -35,7 +35,7 @@ const server = http.createServer((req, res) => {
       sizeMb = (fs.statSync(apkPath).size / (1024 * 1024)).toFixed(1) + ' MB';
     }
 
-    const downloadUrl = `http://${localIP}:${PORT}/QuestHabi.apk`;
+    const downloadUrl = `http://${localIP}:${PORT}/QuestChamp.apk`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(downloadUrl)}`;
 
     const html = `<!DOCTYPE html>
@@ -43,7 +43,7 @@ const server = http.createServer((req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quest Habi - Android APK Download</title>
+  <title>Quest Champ - Android APK Download</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -155,13 +155,13 @@ const server = http.createServer((req, res) => {
 <body>
   <div class="card">
     <div class="logo">🚀</div>
-    <h1>Quest Habi Mobile</h1>
+    <h1>Quest Champ Mobile</h1>
     <p class="subtitle">ChildGrowth Gamified Chore & Habit App</p>
 
     <div class="badge">${exists ? 'Ready for Download (' + sizeMb + ')' : 'Building in progress...'}</div>
 
     <div>
-      <a href="/QuestHabi.apk" class="btn">⬇️ Download APK</a>
+      <a href="/QuestChamp.apk" class="btn">⬇️ Download APK</a>
     </div>
     <div class="meta">Version: Release APK &bull; Size: ${sizeMb}</div>
 
@@ -173,10 +173,10 @@ const server = http.createServer((req, res) => {
     <div class="instructions">
       <strong>📱 Installation on Android:</strong>
       <ol>
-        <li>Download <strong>QuestHabi.apk</strong>.</li>
+        <li>Download <strong>QuestChamp.apk</strong>.</li>
         <li>Open the downloaded file from notifications or Files app.</li>
         <li>If prompted with <em>"Install unknown apps"</em>, tap <strong>Settings</strong> and enable <strong>Allow from this source</strong>.</li>
-        <li>Tap <strong>Install</strong>, then launch Quest Habi!</li>
+        <li>Tap <strong>Install</strong>, then launch Quest Champ!</li>
       </ol>
     </div>
   </div>
@@ -194,6 +194,6 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 APK Download Server active at:`);
-  console.log(`   Local PC:      http://localhost:${PORT}/QuestHabi.apk`);
+  console.log(`   Local PC:      http://localhost:${PORT}/QuestChamp.apk`);
   console.log(`   Phone (Wi-Fi): http://${localIP}:${PORT}`);
 });

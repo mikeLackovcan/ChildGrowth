@@ -36,7 +36,7 @@ export default function HeroCelebrationModal({
             <Coins size={20} color={Colors.amber} />
             <Text style={styles.rewardText}>+{coins}</Text>
           </View>
-          <Text style={styles.message}>Habi is proud of your small win.</Text>
+          <Text style={styles.message}>Your Quest Champ is proud of your win.</Text>
         </View>
       </TouchableOpacity>
     </Modal>

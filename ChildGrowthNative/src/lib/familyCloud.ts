@@ -87,7 +87,7 @@ export async function loadOwnCloudData(): Promise<Record<string, any> | null> {
 export async function createFamilyInvite(targetNickname: string, ownRole: CloudRole): Promise<FamilyInvite> {
   const uid = currentUid();
   const target = await findProfileByNickname(targetNickname);
-  if (!target) throw new Error(`No Quest Habi account found for @${cleanNickname(targetNickname)}.`);
+  if (!target) throw new Error(`No Quest Champ account found for @${cleanNickname(targetNickname)}.`);
   if (target.uid === uid) throw new Error('Choose a different family account.');
   if (target.role === ownRole) throw new Error(`@${target.nickname} must use a ${ownRole === 'child' ? 'parent' : 'child'} profile.`);
 

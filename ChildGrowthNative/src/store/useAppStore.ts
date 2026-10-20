@@ -1307,7 +1307,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     await get().saveMockState();
-    return { success: true, message: 'Registration successful! Welcome to Quest Habi!' };
+    return { success: true, message: 'Registration successful! Welcome to Quest Champ!' };
   },
 
   loginWithEmail: async (email, password) => {

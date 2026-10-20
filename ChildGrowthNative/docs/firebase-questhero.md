@@ -1,6 +1,6 @@
-# Quest Habi backend status
+# Quest Champ backend status
 
-Updated 2026-10-20 on the Quest Habi branch. The registered Firebase/EAS project and Android package retain their internal Quest Hero identifiers so existing credentials remain valid.
+Updated 2026-10-20 on the Quest Champ branch. The registered Firebase/EAS project and Android package retain their internal Quest Hero identifiers so existing credentials remain valid.
 
 ## Configured
 
@@ -21,6 +21,6 @@ Cloud sync uses Firebase Auth UIDs as canonical document IDs. Profiles contain o
 The repository rules must be deployed before account sync is tested. Before a public children’s launch, also add expiring one-time pairing, App Check, abuse limits, emulator tests for cross-account denial, and transactional/idempotent reward operations. No billing upgrade was made.
 
 Google sign-in cannot run in Expo Go because it uses native code. Test it in a
-new Quest Habi development or preview build. After Google Play App Signing is
+new Quest Champ development or preview build. After Google Play App Signing is
 enabled, also register Play's app-signing SHA fingerprints in Firebase and
 download google-services.json again.

@@ -32,7 +32,7 @@ export async function configureNotifications(): Promise<void> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNEL_ID, {
       name: 'Quest notifications',
-      description: 'Reminders for unfinished Quest Habi habits and tasks.',
+      description: 'Reminders for unfinished Quest Champ habits and tasks.',
       importance: Notifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 180],
       sound: 'habi-reminder.wav',
@@ -205,7 +205,7 @@ export async function scheduleDailyQuestReminder(hour = 19, minute = 0): Promise
 
   return Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Quest Habi daily quests',
+      title: 'Quest Champ daily quests',
       body: 'Your hero quests are waiting!',
       sound: 'habi-reminder.wav',
       ...(Platform.OS === 'android' ? { channelId: NOTIFICATION_CHANNEL_ID } : {}),

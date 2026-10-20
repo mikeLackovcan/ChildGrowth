@@ -84,7 +84,7 @@ export default function ShopScreen() {
         <View style={[styles.activeCard, { backgroundColor: WORLD_THEMES[activeTheme].accent }]}>
           <AnimatedQuestHero id={current} style={styles.activeHero} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.eyebrow}>YOUR HABI HERO</Text>
+            <Text style={styles.eyebrow}>YOUR QUEST CHAMP HERO</Text>
             <Text style={styles.activeName}>{AVAILABLE_AVATARS.find((item) => item.id === current)?.name || 'Sprout Hero'}</Text>
             <Text style={styles.activeText}>A friendly companion for every small win.</Text>
           </View>

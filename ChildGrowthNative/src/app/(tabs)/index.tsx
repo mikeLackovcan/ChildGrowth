@@ -83,7 +83,7 @@ export default function TrackerScreen() {
         <View style={styles.header}>
           <View style={styles.brandLockup}>
             <QuestPipMark size={36} />
-            <Text style={styles.wordmark}>Quest <Text style={[styles.wordmarkPip, { color: theme.accent }]}>Habi</Text></Text>
+            <Text style={styles.wordmark}>Quest <Text style={[styles.wordmarkPip, { color: theme.accent }]}>Champ</Text></Text>
           </View>
           <View style={styles.headerActions}>
             <View style={styles.coinPill}>
@@ -101,12 +101,12 @@ export default function TrackerScreen() {
         <View style={[styles.heroCard, { backgroundColor: theme.accent }]}>
           <View style={styles.heroCopy}>
             <Text style={styles.heroTitle}>Small steps.{"\n"}Big adventures.</Text>
-            <Text style={styles.heroSubtitle}>Habi is ready. Pick a quest!</Text>
+            <Text style={styles.heroSubtitle}>Your champ is ready. Pick a quest!</Text>
           </View>
           <TouchableOpacity
             style={styles.heroTouch}
             activeOpacity={0.9}
-            accessibilityLabel="Make Habi dance"
+            accessibilityLabel="Make your Quest Champ hero dance"
             onPress={() => {
               setHeroDancing(false);
               requestAnimationFrame(() => setHeroDancing(true));
@@ -162,7 +162,7 @@ export default function TrackerScreen() {
           <Plus size={20} color="#FFFFFF" />
           <Text style={styles.addButtonText}>{tasks.length ? 'Add a quest' : 'Create my first quest'}</Text>
         </TouchableOpacity>
-        <Text style={styles.encouragement}>Habi celebrates every small win.</Text>
+        <Text style={styles.encouragement}>Your hero celebrates every small win.</Text>
 
         {role !== 'parent' && linkedParents.length === 0 && (
           <TouchableOpacity style={styles.familyCard} onPress={() => router.push('/link-account')}>
