@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Settings } from 'lucide-react-native';
-import { Colors } from '../../constants/theme';
+import { Colors, WORLD_THEMES } from '../../constants/theme';
 import { useAppStore } from '../../store/useAppStore';
 import SettingsModal from '../../components/SettingsModal';
 
@@ -10,6 +10,8 @@ export default function MilestonesScreen() {
   const xp = useAppStore((state) => state.xp);
   const level = useAppStore((state) => state.level);
   const wonPrizes = useAppStore((state) => state.wonPrizes);
+  const activeTheme = useAppStore((state) => state.activeTheme);
+  const theme = WORLD_THEMES[activeTheme];
   const togglePrizeRedeemed = useAppStore((state) => state.togglePrizeRedeemed);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const progress = Math.min(xp % 100, 100);
@@ -25,7 +27,7 @@ export default function MilestonesScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.levelCard}>
+        <View style={[styles.levelCard, { backgroundColor: theme.accent }]}>
           <View style={{ flex: 1, zIndex: 2 }}>
             <Text style={styles.levelTitle}>Level {level}</Text>
             <Text style={styles.xpText}>{progress} / 100 XP</Text>

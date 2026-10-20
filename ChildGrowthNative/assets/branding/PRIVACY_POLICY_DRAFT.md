@@ -1,8 +1,8 @@
-# QuestBlox privacy policy draft
+# Quest Habi privacy policy draft
 
-QuestBlox uses Firebase Authentication and Cloud Firestore to provide account login, parent/child linking, quests, progress, rewards, and avatar data synchronization. The app may cache account state locally on the device for offline continuity.
+Quest Habi uses Firebase Authentication and Cloud Firestore to provide account login, parent/child linking, quests, progress, rewards, and avatar data synchronization. The app may cache account state locally on the device for offline continuity. Guest-mode data remains on the device unless the user later signs in and sync is intentionally enabled.
 
-QuestBlox should not collect or store unnecessary sensitive information. Before publishing, replace this draft with a reviewed policy that identifies the publisher, support contact, retention period, deletion process, Firebase subprocessors, children’s privacy treatment, and applicable legal basis.
+Quest Habi should not collect or store unnecessary sensitive information. Before publishing, replace this draft with a reviewed policy that identifies the publisher, support contact, retention period, deletion process, Firebase subprocessors, children’s privacy treatment, parental-consent flow, and applicable legal basis.
 
 ## Required product decisions before launch
 

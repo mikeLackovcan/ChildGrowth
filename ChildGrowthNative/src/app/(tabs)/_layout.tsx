@@ -1,6 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Colors } from '../../constants/theme';
+import { Colors, WORLD_THEMES } from '../../constants/theme';
+import { useAppStore } from '../../store/useAppStore';
 import { ListChecks, Gift, ShoppingBag } from 'lucide-react-native';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,17 +10,19 @@ import { useTranslation } from 'react-i18next';
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const activeTheme = useAppStore((state) => state.activeTheme);
+  const theme = WORLD_THEMES[activeTheme];
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarActiveTintColor: theme.accent,
+        tabBarInactiveTintColor: theme.textMuted,
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
-          borderTopColor: Colors.border,
+          borderTopColor: theme.border,
           elevation: 8,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -4 },

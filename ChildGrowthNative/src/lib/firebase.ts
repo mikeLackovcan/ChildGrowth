@@ -13,7 +13,7 @@ const firebaseConfig = {
   appId: "1:814466475791:web:4ddfdaa0132bc34a9a407a"
 };
 
-// A named app prevents Fast Refresh from retaining QuestBlox's default backend.
+// A named app prevents Fast Refresh from retaining another branch's default backend.
 const app: FirebaseApp = getApps().some(existing => existing.name === firebaseConfig.projectId)
   ? getApp(firebaseConfig.projectId)
   : initializeApp(firebaseConfig, firebaseConfig.projectId);

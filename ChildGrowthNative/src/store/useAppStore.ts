@@ -8,10 +8,24 @@ import AsyncStorage from '../lib/projectStorage';
 import i18n from '../i18n';
 import { playSound } from '../lib/sound';
 import { ThemeKey } from '../constants/theme';
+import { calculateQuestReward } from '../lib/heroRewards';
+import {
+  answerFamilyInvite,
+  createFamilyInvite,
+  findProfileByNickname,
+  listFamilyInvites,
+  loadLinkedChildren,
+  loadOwnCloudData,
+  saveCloudProfile,
+  saveLinkedChildData,
+  saveOwnCloudData,
+  unlinkFamily,
+} from '../lib/familyCloud';
 
-// Firestore remains deny-all until family membership and reward mutations are
-// server-owned and emulator-tested. Authentication and local mode still work.
-const CLOUD_SYNC_ENABLED = false;
+// Production sync uses Firebase Auth UIDs and approved family invitations.
+// The legacy nickname-keyed path stays disabled for migration safety.
+const CLOUD_SYNC_ENABLED = true;
+const LEGACY_NICKNAME_CLOUD_SYNC = false;
 
 export type UserRole = 'parent' | 'child' | null;
 export type AppLanguage = 'en' | 'cs' | 'es' | 'de';
@@ -27,10 +41,16 @@ export interface Task {
   icon?: string;
   reminderEnabled?: boolean;
   reminderTime?: string;
+  reminderMode?: 'notification' | 'alarm';
+  focusDurationMinutes?: number;
+  activeFocusStartedAt?: string;
+  focusNotificationId?: string;
   questMapGoal?: string;
   requiresApproval?: boolean;
   pendingApproval?: boolean;
   verificationNote?: string;
+  rewardedXP?: number;
+  rewardedCoins?: number;
 }
 
 export interface WonPrize {
@@ -96,6 +116,7 @@ interface AppState {
   removeTask: (id: string) => void;
   updateTask: (id: string, updates: Partial<Omit<Task, 'id'>>) => void;
   toggleTaskDone: (id: string) => void;
+  completeTask: (id: string) => { completed: boolean; pendingApproval: boolean; reward?: { xp: number; coins: number; message?: string } };
   resetTasksForNewDay: () => void;
   deleteAllTasks: () => void;
   setPrizes: (prizes: string[]) => void;
@@ -249,24 +270,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveMockState();
   },
   addXP: (amount) => {
-    let currentXp = get().xp + amount;
-    let currentLevel = get().level;
-    const initialLevel = currentLevel;
-    let currentCoins = get().coins + amount; 
-    while (currentXp >= 100) {
-      currentLevel++;
-      currentXp -= 100;
-    }
+    const initialLevel = get().level;
+    const totalXp = Math.max(0, ((get().level - 1) * 100) + get().xp + amount);
+    const currentLevel = Math.floor(totalXp / 100) + 1;
+    const currentXp = totalXp % 100;
     if (currentLevel > initialLevel) {
       playSound('levelup');
     }
-    set({ xp: Math.max(0, currentXp), level: currentLevel, coins: Math.max(0, currentCoins) });
+    set({ xp: currentXp, level: currentLevel });
     
     // Also sync updates to active selected child profile if parent
     const { selectedChildId, children } = get();
     if (selectedChildId && children.length > 0) {
       set({
-        children: children.map(c => c.id === selectedChildId ? { ...c, xp: currentXp, level: currentLevel, coins: currentCoins } : c)
+        children: children.map(c => c.id === selectedChildId ? { ...c, xp: currentXp, level: currentLevel } : c)
       });
     }
 
@@ -302,22 +319,28 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveMockState();
   },
   updateTask: (id, updates) => {
-    set((state) => ({
-      tasks: state.tasks.map(t => t.id === id ? { ...t, ...updates } : t)
-    }));
+    const updatedTasks = get().tasks.map(t => t.id === id ? { ...t, ...updates } : t);
+    const { selectedChildId, children } = get();
+    set({
+      tasks: updatedTasks,
+      children: selectedChildId
+        ? children.map((child) => child.id === selectedChildId ? { ...child, tasks: updatedTasks } : child)
+        : children,
+    });
     get().saveMockState();
   },
   toggleTaskDone: (id) => {
     const task = get().tasks.find((t) => t.id === id);
     if (!task) return;
-    
-    const isNowDone = !task.done;
-    
-    let xpGain = 10;
-    if (task.diff === 'med') xpGain = 20;
-    if (task.diff === 'hard') xpGain = 35;
-    
-    const updatedTasks = get().tasks.map((t) => (t.id === id ? { ...t, done: isNowDone } : t));
+
+    if (!task.done) {
+      get().completeTask(id);
+      return;
+    }
+
+    const xpToRemove = task.rewardedXP || (task.diff === 'hard' ? 35 : task.diff === 'med' ? 20 : 10);
+    const coinsToRemove = task.rewardedCoins || 0;
+    const updatedTasks = get().tasks.map((t) => (t.id === id ? { ...t, done: false, rewardedXP: 0, rewardedCoins: 0 } : t));
     set({ tasks: updatedTasks });
     
     const { selectedChildId, children } = get();
@@ -327,13 +350,44 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
     }
     
-    if (isNowDone) {
-      get().addXP(xpGain);
-    } else {
-      get().addXP(-xpGain);
-    }
-    
+    get().addXP(-xpToRemove);
+    set({ coins: Math.max(0, get().coins - coinsToRemove) });
     get().saveMockState();
+  },
+  completeTask: (id) => {
+    const task = get().tasks.find((item) => item.id === id);
+    if (!task || task.done) return { completed: false, pendingApproval: Boolean(task?.pendingApproval) };
+    if (task.requiresApproval) {
+      get().submitTaskForApproval(id);
+      return { completed: false, pendingApproval: true };
+    }
+
+    const reward = calculateQuestReward(task, get().tasks, get().currentAvatar);
+    const updatedTasks = get().tasks.map((item) => item.id === id ? {
+      ...item,
+      done: true,
+      pendingApproval: false,
+      activeFocusStartedAt: undefined,
+      focusNotificationId: undefined,
+      rewardedXP: reward.xp,
+      rewardedCoins: reward.coins,
+    } : item);
+    set({ tasks: updatedTasks, coins: get().coins + reward.coins });
+    get().addXP(reward.xp);
+    const { selectedChildId, children } = get();
+    if (selectedChildId) {
+      set({
+        children: children.map((child) => child.id === selectedChildId ? {
+          ...child,
+          tasks: updatedTasks,
+          coins: get().coins,
+          xp: get().xp,
+          level: get().level,
+        } : child),
+      });
+    }
+    get().saveMockState();
+    return { completed: true, pendingApproval: false, reward };
   },
   resetTasksForNewDay: () => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -470,7 +524,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveMockState();
   },
   submitTaskForApproval: (taskId: string, note?: string) => {
-    const updatedTasks = get().tasks.map(t => t.id === taskId ? { ...t, pendingApproval: true, verificationNote: note || 'Completed! Waiting for parent review 📸' } : t);
+    const updatedTasks = get().tasks.map(t => t.id === taskId ? { ...t, pendingApproval: true, activeFocusStartedAt: undefined, focusNotificationId: undefined, verificationNote: note || 'Completed! Waiting for parent review 📸' } : t);
     set({ tasks: updatedTasks });
     playSound('spin');
     
@@ -498,37 +552,44 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { children } = get();
     const updatedChildren = children.map(c => {
       if (c.id === childId) {
+        const targetTask = c.tasks.find(t => t.id === taskId);
+        const reward = targetTask ? calculateQuestReward(targetTask, c.tasks, c.currentAvatar) : { xp: 0, coins: 0 };
         const updatedTasks = c.tasks.map(t => {
           if (t.id === taskId) {
             if (approved) {
-              return { ...t, done: true, pendingApproval: false };
+              return { ...t, done: true, pendingApproval: false, rewardedXP: reward.xp, rewardedCoins: reward.coins };
             } else {
-              return { ...t, done: false, pendingApproval: false };
+              return { ...t, done: false, pendingApproval: false, rewardedXP: 0, rewardedCoins: 0 };
             }
           }
           return t;
         });
         
-        let bonusXP = 0;
-        let bonusCoins = 0;
-        if (approved) {
-          const targetTask = c.tasks.find(t => t.id === taskId);
-          bonusXP = targetTask?.diff === 'hard' ? 35 : (targetTask?.diff === 'med' ? 20 : 10);
-          bonusCoins = bonusXP;
-        }
+        const bonusXP = approved && !targetTask?.done ? reward.xp : 0;
+        const bonusCoins = approved && !targetTask?.done ? reward.coins : 0;
 
+        const totalChildXp = Math.max(0, ((c.level - 1) * 100) + c.xp + bonusXP);
         return {
           ...c,
           tasks: updatedTasks,
-          xp: Math.max(0, c.xp + bonusXP),
+          xp: totalChildXp % 100,
           coins: Math.max(0, c.coins + bonusCoins),
-          level: Math.floor((c.xp + bonusXP) / 100) + 1
+          level: Math.floor(totalChildXp / 100) + 1,
         };
       }
       return c;
     });
 
-    set({ children: updatedChildren });
+    const selected = updatedChildren.find((child) => child.id === get().selectedChildId);
+    set({
+      children: updatedChildren,
+      ...(selected ? {
+        tasks: selected.tasks,
+        coins: selected.coins,
+        xp: selected.xp,
+        level: selected.level,
+      } : {}),
+    });
     if (approved) {
       playSound('levelup');
     }
@@ -581,6 +642,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       children: updatedChildren
     });
     get().saveMockState();
+    if (CLOUD_SYNC_ENABLED && auth.currentUser) {
+      createFamilyInvite(cleanParentTag, 'child').catch((error) => console.warn('Could not send family invite:', error));
+    }
     
     // Cross-user local mock sync (Kid -> Parent)
     AsyncStorage.getItem(`mockState_${cleanParentTag}`).then(async str => {
@@ -626,8 +690,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       await AsyncStorage.setItem(`mockState_${cleanParentTag}`, JSON.stringify(parentData));
     });
 
-    // Cross-Device FIRESTORE Cloud Sync (Kid -> Parent)
-    try {
+    // Retained only for migration from pre-UID development builds.
+    if (LEGACY_NICKNAME_CLOUD_SYNC) try {
       const kidDocId = `usr_${currentKidTag}`;
       const parentDocId = `usr_${cleanParentTag}`;
 
@@ -713,6 +777,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (approvedChild) {
       const kidTag = (approvedChild.nickname || '').toLowerCase().replace(/^@/, '');
       const kidDocId = `usr_${kidTag}`;
+      if (CLOUD_SYNC_ENABLED && auth.currentUser) {
+        listFamilyInvites()
+          .then((invites) => invites.find((invite) => invite.child_uid === approvedChild.id || invite.child_nickname === kidTag))
+          .then((invite) => invite ? answerFamilyInvite(invite.id, true) : Promise.reject(new Error('Invite not found.')))
+          .catch((error) => console.warn('Could not approve family invite:', error));
+      }
 
       // Cross-user local mock sync (Parent approves -> Kid)
       AsyncStorage.getItem(`mockState_${kidTag}`).then(str => {
@@ -730,8 +800,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       });
 
-      // Cross-Device FIRESTORE Cloud Sync (Parent approves -> Kid)
-      try {
+      // Retained only for migration from pre-UID development builds.
+      if (LEGACY_NICKNAME_CLOUD_SYNC) try {
         // 1. Update Parent's own Firestore user_data document
         setDoc(doc(db, 'user_data', parentDocId), {
           children: updatedChildren,
@@ -800,6 +870,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       children: updatedChildren
     });
     get().saveMockState();
+    if (CLOUD_SYNC_ENABLED && auth.currentUser) {
+      listFamilyInvites()
+        .then((invites) => invites.find((invite) => invite.parent_nickname === currentParentTag && invite.status === 'pending'))
+        .then((invite) => invite ? answerFamilyInvite(invite.id, true) : Promise.reject(new Error('Invite not found.')))
+        .catch((error) => console.warn('Could not accept family invite:', error));
+    }
     
     // Cross-user local mock sync (Kid accepts -> Parent)
     AsyncStorage.getItem(`mockState_${currentParentTag}`).then(str => {
@@ -814,8 +890,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     });
 
-    // Cross-Device FIRESTORE Cloud Sync
-    try {
+    // Retained only for migration from pre-UID development builds.
+    if (LEGACY_NICKNAME_CLOUD_SYNC) try {
       setDoc(doc(db, 'user_data', kidDocId), {
         approval_status: 'approved',
         parent_email: currentParentTag,
@@ -851,6 +927,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     set({ parentEmail: null, approvalStatus: null, children: updatedChildren });
     get().saveMockState();
+    if (CLOUD_SYNC_ENABLED && auth.currentUser) {
+      listFamilyInvites()
+        .then((invites) => invites.find((invite) => invite.parent_nickname === pTag && invite.status === 'pending'))
+        .then((invite) => invite ? answerFamilyInvite(invite.id, false) : undefined)
+        .catch((error) => console.warn('Could not decline family invite:', error));
+    }
     
     // Cross-user local mock sync (Kid denies -> Parent)
     AsyncStorage.getItem(`mockState_${pTag}`).then(str => {
@@ -865,8 +947,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     });
 
-    // Cross-Device FIRESTORE Cloud Sync
-    try {
+    // Retained only for migration from pre-UID development builds.
+    if (LEGACY_NICKNAME_CLOUD_SYNC) try {
       setDoc(doc(db, 'user_data', kidDocId), {
         approval_status: null,
         parent_email: null,
@@ -920,6 +1002,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ children: updatedChildren });
     }
     get().saveMockState();
+    if (CLOUD_SYNC_ENABLED && auth.currentUser) {
+      createFamilyInvite(cleanTag, 'parent')
+        .then((invite) => set((state) => ({
+          children: state.children.map((child) => child.nickname === cleanTag ? { ...child, id: invite.child_uid } : child),
+        })))
+        .catch((error) => console.warn('Could not add child account:', error));
+    }
     
     // Cross-user local mock sync (Parent -> Kid)
     AsyncStorage.getItem(`mockState_${cleanTag}`).then(async str => {
@@ -958,8 +1047,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       await AsyncStorage.setItem(`mockState_${cleanTag}`, JSON.stringify(kidData));
     });
 
-    // Cross-Device FIRESTORE Cloud Sync (Parent adds Kid)
-    try {
+    // Retained only for migration from pre-UID development builds.
+    if (LEGACY_NICKNAME_CLOUD_SYNC) try {
       // 1. Save updated children in Parent's Firestore user_data
       setDoc(doc(db, 'user_data', parentDocId), {
         children: updatedChildren,
@@ -1013,6 +1102,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (childToRemove) {
       const kidTag = childToRemove.nickname.toLowerCase().replace(/^@/, '');
       const kidDocId = `usr_${kidTag}`;
+      if (CLOUD_SYNC_ENABLED && auth.currentUser) {
+        findProfileByNickname(kidTag)
+          .then((profile) => profile ? unlinkFamily(profile.uid, auth.currentUser!.uid, parentTag) : undefined)
+          .catch((error) => console.warn('Could not unlink child:', error));
+      }
 
       AsyncStorage.getItem(`mockState_${kidTag}`).then(str => {
         if (str) {
@@ -1026,8 +1120,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       });
 
-      // Firestore Cloud Sync
-      try {
+      // Retained only for migration from pre-UID development builds.
+      if (LEGACY_NICKNAME_CLOUD_SYNC) try {
         setDoc(doc(db, 'user_data', parentDocId), {
           children: filtered,
           updated_at: new Date().toISOString()
@@ -1058,6 +1152,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     const kidTag = (get().nickname || get().userEmail?.split('@')[0] || '').toLowerCase().replace(/^@/, '');
     const kidDocId = `usr_${kidTag}`;
     const parentDocId = `usr_${cleanPTag}`;
+    if (CLOUD_SYNC_ENABLED && auth.currentUser) {
+      findProfileByNickname(cleanPTag)
+        .then((profile) => profile ? unlinkFamily(auth.currentUser!.uid, profile.uid, cleanPTag) : undefined)
+        .catch((error) => console.warn('Could not unlink parent:', error));
+    }
 
     // Local AsyncStorage
     AsyncStorage.getItem(`mockState_${cleanPTag}`).then(str => {
@@ -1072,8 +1171,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     });
 
-    // Firestore Cloud Sync
-    try {
+    // Retained only for migration from pre-UID development builds.
+    if (LEGACY_NICKNAME_CLOUD_SYNC) try {
       setDoc(doc(db, 'user_data', kidDocId), {
         linked_parents: filtered,
         parent_email: filtered[0] || null,
@@ -1176,8 +1275,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const chosenRole = role || 'child';
     const finalUserId = firebaseUid as string;
-    const docId = finalUserId.replace(/[^a-zA-Z0-9_-]/g, '_');
-
     set({
       userEmail: cleanEmail,
       fullName,
@@ -1193,33 +1290,24 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // Initial cloud profile creation resumes with the secure server model.
     if (CLOUD_SYNC_ENABLED) try {
-      await setDoc(doc(db, 'profiles', docId), {
-        email: cleanEmail,
-        full_name: fullName,
-        nickname: cleanNick,
-        role: chosenRole,
-        coins: get().coins || 0,
-        xp: get().xp || 0,
-        level: get().level || 1,
-        current_avatar: get().currentAvatar || 'default',
-        updated_at: new Date().toISOString()
-      }, { merge: true });
-
-      await setDoc(doc(db, 'user_data', docId), {
+      await saveCloudProfile({ full_name: fullName, nickname: cleanNick, role: chosenRole });
+      await saveOwnCloudData({
         tasks: get().tasks || [],
         prizes: get().prizes || [],
         won_prizes: get().wonPrizes || [],
         unlocked_avatars: get().unlockedAvatars || ['default'],
-        children: get().children || [],
-        linked_parents: get().linkedParents || [],
-        updated_at: new Date().toISOString()
-      }, { merge: true });
+        linked_parent_nicknames: get().linkedParents || [],
+        coins: get().coins || 0,
+        xp: get().xp || 0,
+        level: get().level || 1,
+        current_avatar: get().currentAvatar || 'default',
+      });
     } catch (e) {
       console.warn('Firestore initial sync note:', e);
     }
 
     await get().saveMockState();
-    return { success: true, message: 'Registration successful! Welcome to QuestPip!' };
+    return { success: true, message: 'Registration successful! Welcome to Quest Habi!' };
   },
 
   loginWithEmail: async (email, password) => {
@@ -1256,7 +1344,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       await AsyncStorage.setItem('active_user_tag', userTag);
       await get().loadMockState();
-      return { success: true, message: 'Signed in. Progress is stored on this device while secure cloud sync is completed.' };
+      return { success: true, message: 'Signed in. Your progress can now sync securely across devices.' };
     } catch (err: any) {
       console.warn('Firebase Auth login failed:', err?.message || err);
       return { success: false, message: err?.message || 'Login failed. Please check your credentials.' };
@@ -1286,8 +1374,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       await AsyncStorage.setItem(`user_role_${fallbackNickname}`, chosenRole || 'child');
       await AsyncStorage.setItem('active_user_tag', fallbackNickname);
+      if (CLOUD_SYNC_ENABLED) {
+        await saveCloudProfile({
+          full_name: user.displayName || fallbackNickname,
+          nickname: fallbackNickname,
+          role: chosenRole || 'child',
+        });
+        await saveOwnCloudData({});
+      }
       await get().saveMockState();
-      return { success: true, message: 'Signed in. Progress is stored on this device while secure cloud sync is completed.' };
+      return { success: true, message: 'Signed in. Your progress can now sync securely across devices.' };
     } catch (err: any) {
       console.warn('Firebase Google sign-in failed:', err?.message || err);
       return { success: false, message: err?.message || 'Google sign-in failed.' };
@@ -1328,73 +1424,39 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       if (isOnline) {
         const userTag = (nickname || userEmail.split('@')[0] || '').toLowerCase().replace(/^@/, '');
-        const docId = (userId || `usr_${userTag}`).replace(/[^a-zA-Z0-9_-]/g, '_');
-
-        await setDoc(doc(db, 'profiles', docId), {
-          email: userEmail,
-          full_name: fullName,
-          nickname: nickname,
-          role: role,
-          coins: coins,
-          xp: xp,
-          level: level,
-          current_avatar: currentAvatar,
-          updated_at: new Date().toISOString()
-        }, { merge: true });
-
-        await setDoc(doc(db, 'user_data', docId), {
+        if (role === 'parent' || role === 'child') {
+          await saveCloudProfile({ full_name: fullName || userTag, nickname: userTag, role });
+        }
+        await saveOwnCloudData({
           tasks: tasks,
           prizes: prizes,
           won_prizes: wonPrizes,
           unlocked_avatars: unlockedAvatars,
-          children: children,
-          linked_parents: linkedParents,
+          linked_parent_nicknames: linkedParents,
           epicBossTask: epicBossTask,
           epicBossXP: epicBossXP,
-          updated_at: new Date().toISOString()
-        }, { merge: true });
-
-        // If Parent: Also sync assigned tasks and epic boss to each child's own user_data doc
-        if (role === 'parent' && Array.isArray(children)) {
-          for (const child of children) {
-            if (child.nickname) {
-              const childTag = child.nickname.toLowerCase().replace(/^@/, '');
-              const childDocId = `usr_${childTag}`;
-              setDoc(doc(db, 'user_data', childDocId), {
-                tasks: child.tasks || [],
-                epicBossTask: child.epicBossTask || epicBossTask,
-                epicBossXP: typeof child.epicBossXP === 'number' ? child.epicBossXP : epicBossXP,
-                updated_at: new Date().toISOString()
-              }, { merge: true }).catch(() => {});
-            }
-          }
-        }
-
-        // If Child: Sync quest completion and XP up to each linked parent's user_data doc
-        if (role === 'child' && Array.isArray(linkedParents) && linkedParents.length > 0) {
-          for (const parentTag of linkedParents) {
-            const cleanPTag = parentTag.toLowerCase().replace(/^@/, '');
-            const pDocId = `usr_${cleanPTag}`;
-            getDoc(doc(db, 'user_data', pDocId)).then(async pSnap => {
-              if (pSnap.exists()) {
-                const pData = normalizeBrandState(pSnap.data());
-                const pChildren = Array.isArray(pData.children) ? pData.children : [];
-                const idx = pChildren.findIndex((c: any) => (c.nickname || '').toLowerCase() === userTag);
-                if (idx >= 0) {
-                  pChildren[idx] = {
-                    ...pChildren[idx],
-                    xp,
-                    level,
-                    coins,
-                    tasks,
-                    wonPrizes,
-                    currentAvatar,
-                    updated_at: new Date().toISOString()
-                  };
-                  await setDoc(doc(db, 'user_data', pDocId), { children: pChildren }, { merge: true });
-                }
-              }
-            }).catch(() => {});
+          coins,
+          xp,
+          level,
+          current_avatar: currentAvatar,
+          active_theme: get().activeTheme,
+          unlocked_themes: get().unlockedThemes,
+          last_spin_date: get().lastSpinDate,
+          approval_status: get().approvalStatus,
+        });
+        if (role === 'parent' && get().selectedChildId) {
+          const selectedChild = children.find((child) => child.id === get().selectedChildId);
+          if (selectedChild && !selectedChild.id.startsWith('usr_')) {
+            await saveLinkedChildData(selectedChild.id, {
+              tasks: selectedChild.tasks,
+              won_prizes: selectedChild.wonPrizes,
+              coins: selectedChild.coins,
+              xp: selectedChild.xp,
+              level: selectedChild.level,
+              current_avatar: selectedChild.currentAvatar,
+              epicBossTask: selectedChild.epicBossTask,
+              epicBossXP: selectedChild.epicBossXP,
+            });
           }
         }
       }
@@ -1515,19 +1577,53 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
 
-      // Cross-Device FIRESTORE Real-Time Sync
+      // Cross-device Firestore refresh. Local state remains the offline fallback.
       const effectiveTag = (get().nickname || get().userEmail?.split('@')[0] || currentNick || activeTag || '').toLowerCase().replace(/^@/, '');
-      if (effectiveTag) {
+      if (CLOUD_SYNC_ENABLED && effectiveTag && auth.currentUser) {
         try {
-          const docId = `usr_${effectiveTag}`;
-          const userDocSnap = await getDoc(doc(db, 'user_data', docId));
-          if (userDocSnap.exists()) {
-            const cloudData = normalizeBrandState(userDocSnap.data());
+          const cloudRaw = await loadOwnCloudData();
+          if (cloudRaw) {
+            const cloudData = normalizeBrandState(cloudRaw);
             const currentRole = get().role;
 
             if (currentRole === 'parent') {
-              if (Array.isArray(cloudData.children)) {
-                const cloudChildren: ChildProfile[] = cloudData.children;
+              const [linkedRows, invites] = await Promise.all([loadLinkedChildren(), listFamilyInvites()]);
+              const cloudChildren: ChildProfile[] = linkedRows.map(({ profile, data }) => ({
+                id: profile.uid,
+                name: profile.full_name || profile.nickname,
+                nickname: profile.nickname,
+                level: typeof data.level === 'number' ? data.level : 1,
+                xp: typeof data.xp === 'number' ? data.xp : 0,
+                coins: typeof data.coins === 'number' ? data.coins : 0,
+                tasks: Array.isArray(data.tasks) ? data.tasks : [],
+                wonPrizes: Array.isArray(data.won_prizes) ? data.won_prizes : [],
+                unlockedAvatars: Array.isArray(data.unlocked_avatars) ? data.unlocked_avatars : ['default'],
+                currentAvatar: data.current_avatar || 'default',
+                linkedParents: Array.isArray(data.linked_parent_nicknames) ? data.linked_parent_nicknames : [effectiveTag],
+                isApproved: true,
+                epicBossTask: data.epicBossTask,
+                epicBossXP: data.epicBossXP,
+              }));
+              for (const invite of invites.filter((item) => item.parent_uid === auth.currentUser?.uid && item.status === 'pending')) {
+                if (!cloudChildren.some((child) => child.id === invite.child_uid)) {
+                  cloudChildren.push({
+                    id: invite.child_uid,
+                    name: invite.child_nickname,
+                    nickname: invite.child_nickname,
+                    level: 1,
+                    xp: 0,
+                    coins: 0,
+                    tasks: [],
+                    wonPrizes: [],
+                    unlockedAvatars: ['default'],
+                    currentAvatar: 'default',
+                    linkedParents: [effectiveTag],
+                    isApproved: false,
+                    initiatedBy: invite.created_by === invite.parent_uid ? 'parent' : 'kid',
+                  });
+                }
+              }
+              if (cloudChildren.length > 0) {
                 const activeSelected = get().selectedChildId || (cloudChildren[0]?.id || null);
                 const activeChild = cloudChildren.find(c => c.id === activeSelected) || cloudChildren[0];
                 
@@ -1548,28 +1644,29 @@ export const useAppStore = create<AppState>((set, get) => ({
               if (cloudData.approval_status !== undefined && cloudData.approval_status !== get().approvalStatus) {
                 updates.approvalStatus = cloudData.approval_status;
               }
-              if (cloudData.parent_email && cloudData.parent_email !== get().parentEmail) {
-                updates.parentEmail = cloudData.parent_email;
-              }
-              if (Array.isArray(cloudData.linked_parents) && cloudData.linked_parents.length > 0) {
-                const mergedParents = Array.from(new Set([...(get().linkedParents || []), ...cloudData.linked_parents]));
+              if (Array.isArray(cloudData.linked_parent_nicknames)) {
+                const mergedParents = Array.from(new Set([...(get().linkedParents || []), ...cloudData.linked_parent_nicknames]));
                 updates.linkedParents = mergedParents;
+                updates.parentEmail = mergedParents[0] || null;
+                if (mergedParents.length > 0) updates.approvalStatus = 'approved';
               }
-              if (Array.isArray(cloudData.tasks) && cloudData.tasks.length > 0) {
+              if (Array.isArray(cloudData.tasks)) {
                 updates.tasks = cloudData.tasks;
               }
+              if (typeof cloudData.coins === 'number') updates.coins = cloudData.coins;
+              if (typeof cloudData.xp === 'number') updates.xp = cloudData.xp;
+              if (typeof cloudData.level === 'number') updates.level = cloudData.level;
+              if (typeof cloudData.current_avatar === 'string') updates.currentAvatar = cloudData.current_avatar;
               if (cloudData.epicBossTask) {
                 updates.epicBossTask = cloudData.epicBossTask;
                 if (typeof cloudData.epicBossXP === 'number') {
                   updates.epicBossXP = cloudData.epicBossXP;
                 }
               }
-              if (cloudData.approval_status === 'approved') {
-                updates.approvalStatus = 'approved';
-                const currentKids = get().children;
-                if (currentKids.length > 0) {
-                  updates.children = currentKids.map(c => ({ ...c, isApproved: true }));
-                }
+              const pendingInvite = (await listFamilyInvites()).find((invite) => invite.child_uid === auth.currentUser?.uid && invite.status === 'pending');
+              if (pendingInvite && !updates.parentEmail) {
+                updates.parentEmail = pendingInvite.parent_nickname;
+                updates.approvalStatus = 'pending';
               }
               if (Object.keys(updates).length > 0) {
                 set(updates);

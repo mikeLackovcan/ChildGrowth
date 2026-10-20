@@ -1,43 +1,47 @@
-# QuestBlox Google Play release pack
+# Quest Habi Google Play release pack
 
 ## Product identity
 
-- App name: `QuestBlox`
-- Package name: `com.questblox.app`
+- App name: `Quest Habi`
+- Package name: `com.questhero.app`
 - Category: Parenting / Productivity
 - Primary audience: Families with children
-- Brand promise: Turn everyday tasks into exciting quests and rewards.
+- Brand promise: Help children turn habits and chores into small daily wins.
 
 ## Store assets
 
-- App icon: `google-play-icon-512.png` (512 × 512)
+- App icon: `questpip-play-512.png` (512 × 512)
+- Launcher source: `questpip-icon-1024.png` (1024 × 1024)
+- Editable mark: `questpip-mark.svg`
+- Adaptive foreground: `questpip-adaptive.png`
+- Themed icon: `questpip-monochrome.png`
 - Feature graphic: `google-play-feature-graphic.png` (1024 × 500)
-- Source logo: `questblox-logo.png`
-- Wordmark: `questblox-wordmark.svg`
 
-Google Play still needs device screenshots captured from the final production build. Use the QuestBlox blue/gold palette and show: child quest tracker, parent dashboard, prize wheel/shop, and account-link approval.
+Google Play still needs final screenshots captured from the signed Android build. Use the clean white Quest Habi interface and show: today's quests, a focus session, Habi celebrating, rewards/shop, progress, and parent controls. Do not submit web-renderer previews as final Android screenshots.
 
 ## Listing copy
 
 Short description:
 
-> Turn everyday tasks into exciting quests and rewards.
+> Habits and chores become fun daily quests for kids.
 
 Full description:
 
-> QuestBlox helps families turn routines into adventures. Parents create quests, approve progress, and choose real-world rewards. Kids complete daily challenges, earn XP and coins, unlock avatars, and build momentum one quest at a time.
+> Quest Habi turns everyday routines into clear, playful quests children can understand at a glance. Kids can complete chores, homework, focus sessions, and healthy habits while Habi celebrates each small win.
 >
-> Built for families, QuestBlox makes responsibility visible, motivating, and fun—with parent controls and Firebase-backed accounts for syncing across devices.
+> Visual task presets reduce reading. Optional reminders, alarms, and focus timers help children start and finish at the right time. Coins, XP, character items, and family rewards make progress visible without punishing missed days.
+>
+> Parents can create quests, choose rewards, review progress, and securely link with a child account. Families may also begin in guest mode without registration.
 
 ## Release checklist
 
 - In Firebase Console, enable Authentication → Sign-in method → Google.
-- Create an Android OAuth client for package `com.questblox.app` and the EAS/Play signing SHA-1.
+- Create an Android OAuth client for package `com.questhero.app` and the EAS/Play signing SHA-1.
 - Add the Google OAuth client IDs from `.env` as EAS environment variables.
 - Create a Web OAuth client and add the Firebase auth domain to its authorized JavaScript origins.
 - Deploy `firestore.rules` before production testing.
 - Create an EAS production project and Android signing credentials.
-- Verify the package ID `com.questblox.app` in Play Console.
+- Verify the package ID `com.questhero.app` in Play Console.
 - Build the internal-testing bundle with `eas build --platform android --profile production`.
 - Capture production screenshots on supported Android phone/tablet sizes.
 - Add a public privacy policy URL and complete Play Console data-safety declarations.
@@ -47,4 +51,4 @@ Full description:
 
 From the native app directory, copy `.env.example` to `.env` and fill in the three OAuth client IDs. For an EAS build, set the same values in the EAS project environment instead of committing `.env`.
 
-The Android OAuth client must use the exact application ID `com.questblox.app`. Add both the local development SHA-1 and the Google Play App Signing SHA-1 if you test both builds.
+The Android OAuth client must use the exact application ID `com.questhero.app`. Add both the EAS upload certificate and Google Play App Signing SHA-1/SHA-256 fingerprints, then download an updated `google-services.json` if Firebase changes it.

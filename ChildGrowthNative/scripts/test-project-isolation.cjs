@@ -9,7 +9,7 @@ const firebase = fs.readFileSync(path.join(root, 'src/lib/firebase.ts'), 'utf8')
 const store = fs.readFileSync(path.join(root, 'src/store/useAppStore.ts'), 'utf8');
 const rules = fs.readFileSync(path.join(root, '..', 'firestore.rules'), 'utf8');
 
-assert.equal(app.name, 'Quest Hero');
+assert.equal(app.name, 'Quest Habi');
 assert.equal(app.slug, 'quest-hero');
 assert.equal(app.scheme, 'questhero');
 assert.equal(app.android.package, 'com.questhero.app');
@@ -20,6 +20,10 @@ assert.ok(google.client[0].oauth_client.some(client => client.client_type === 1)
 assert.ok(google.client[0].oauth_client.some(client => client.client_type === 3));
 assert.match(firebase, /initializeApp\(firebaseConfig, firebaseConfig\.projectId\)/);
 assert.doesNotMatch(firebase, /questblox-10c14|35992182600/);
-assert.match(store, /const CLOUD_SYNC_ENABLED = false/);
-assert.match(rules, /allow read, write: if false/);
-console.log('PASS Quest Hero Firebase, OAuth, EAS and storage isolation.');
+assert.match(store, /const CLOUD_SYNC_ENABLED = true/);
+assert.match(rules, /request\.auth\.uid == uid/);
+assert.match(rules, /request\.auth\.uid != resource\.data\.created_by/);
+assert.match(rules, /isApprovedParentOf\(uid\)/);
+assert.match(rules, /approvedInvite\(childUid, request\.auth\.uid\)/);
+assert.doesNotMatch(rules, /approvedInvite\(request\.auth\.uid, uid\)/);
+console.log('PASS Quest Habi Firebase, OAuth, EAS and UID-based family isolation.');

@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ import {
 import '../i18n';
 import { useAppStore } from '../store/useAppStore';
 import { Colors } from '../constants/theme';
+import { registerQuestNotificationActions } from '../lib/notifications';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -35,6 +36,21 @@ export default function RootLayout() {
     }
   }, [loaded, error]);
 
+  useEffect(() => {
+    let dispose: () => void = () => {};
+    registerQuestNotificationActions((action, taskId) => {
+      const store = useAppStore.getState();
+      if (action === 'DONE' || action === 'FINISH') store.completeTask(taskId);
+      if (action === 'NOT_DONE') store.updateTask(taskId, { done: false, pendingApproval: false });
+      if (action === 'START') {
+        const task = store.tasks.find((item) => item.id === taskId);
+        if (task?.focusDurationMinutes) router.push({ pathname: '/focus-session', params: { taskId } } as never);
+        else router.push('/(tabs)');
+      }
+    }).then((cleanup) => { dispose = cleanup; });
+    return () => dispose();
+  }, []);
+
   if (!loaded && !error) {
     return null;
   }
@@ -51,6 +67,7 @@ export default function RootLayout() {
           <Stack.Screen name="waiting" />
           <Stack.Screen name="parent-dashboard" />
           <Stack.Screen name="manage-tasks" />
+          <Stack.Screen name="focus-session" />
           <Stack.Screen name="tracker" />
           <Stack.Screen name="(tabs)" />
         </Stack>

@@ -13,7 +13,7 @@ export async function requestGoogleTokens(): Promise<{ idToken: string; accessTo
   }
 
   if (Constants.appOwnership === 'expo') {
-    throw new Error('Google sign-in needs the QuestPip Android app, not Expo Go. You can continue as a guest.');
+    throw new Error('Google sign-in needs the Quest Habi Android app, not Expo Go. You can continue as a guest.');
   }
   if (Platform.OS !== 'android') {
     throw new Error('Google sign-in is currently configured for Android only.');
@@ -22,7 +22,7 @@ export async function requestGoogleTokens(): Promise<{ idToken: string; accessTo
   const clients = googleServices.client.flatMap(client => client.oauth_client);
   const webClientId = clients.find(client => client.client_type === 3)?.client_id;
   if (!webClientId?.startsWith('814466475791-')) {
-    throw new Error('QuestPip Google configuration is missing.');
+    throw new Error('Quest Habi Google configuration is missing.');
   }
 
   const { GoogleSignin, isSuccessResponse } = await import('@react-native-google-signin/google-signin');

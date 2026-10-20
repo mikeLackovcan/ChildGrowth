@@ -1,6 +1,8 @@
 import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
+const COMPLETE_SOUND = require('../../assets/audio/habi-complete.wav');
+
 export type SoundEffect = 'coin' | 'complete' | 'levelup' | 'boss_hit' | 'spin' | 'unlock';
 
 let audioCtx: AudioContext | null = null;
@@ -45,6 +47,18 @@ export function playSound(effect: SoundEffect) {
           break;
       }
     } catch (e) {}
+
+    if (effect === 'complete' || effect === 'coin' || effect === 'levelup' || effect === 'unlock') {
+      try {
+        const { createAudioPlayer } = require('expo-audio');
+        const player = createAudioPlayer(COMPLETE_SOUND);
+        player.volume = effect === 'coin' ? 0.32 : 0.48;
+        player.play();
+        setTimeout(() => {
+          try { player.release(); } catch (_) {}
+        }, 1200);
+      } catch (_) {}
+    }
   }
 
   // 2. Web Audio Synthesized Sound FX

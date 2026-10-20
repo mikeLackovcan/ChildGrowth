@@ -2,10 +2,60 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Staging guard until UID ownership, family membership, and reward
-    // transactions are implemented and emulator-tested.
-    match /{document=**} {
-      allow read, write: if false;
+    function signedIn() { return request.auth != null; }
+    function owns(uid) { return signedIn() && request.auth.uid == uid; }
+    function approvedInvite(childUid, parentUid) {
+      return exists(/databases/$(database)/documents/family_invites/$(childUid + '_' + parentUid))
+        && get(/databases/$(database)/documents/family_invites/$(childUid + '_' + parentUid)).data.status == 'approved';
     }
+    function isApprovedParentOf(childUid) {
+      return signedIn() && approvedInvite(childUid, request.auth.uid);
+    }
+
+    match /profiles/{uid} {
+      allow read: if signedIn();
+      allow create, update: if owns(uid)
+        && request.resource.data.keys().hasOnly(['nickname', 'full_name', 'role', 'updated_at'])
+        && request.resource.data.role in ['parent', 'child'];
+      allow delete: if owns(uid);
+    }
+
+    match /family_invites/{inviteId} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          'id', 'child_uid', 'parent_uid', 'child_nickname', 'parent_nickname',
+          'participant_uids', 'created_by', 'status', 'updated_at'
+        ])
+        && request.resource.data.created_by == request.auth.uid
+        && request.resource.data.child_uid != request.resource.data.parent_uid
+        && request.resource.data.participant_uids is list
+        && request.resource.data.participant_uids.size() == 2
+        && request.resource.data.participant_uids.hasAll([
+          request.resource.data.child_uid,
+          request.resource.data.parent_uid
+        ])
+        && request.auth.uid in request.resource.data.participant_uids
+        && request.resource.data.status == 'pending'
+        && inviteId == request.resource.data.child_uid + '_' + request.resource.data.parent_uid
+        && exists(/databases/$(database)/documents/profiles/$(request.resource.data.child_uid))
+        && exists(/databases/$(database)/documents/profiles/$(request.resource.data.parent_uid))
+        && get(/databases/$(database)/documents/profiles/$(request.resource.data.child_uid)).data.role == 'child'
+        && get(/databases/$(database)/documents/profiles/$(request.resource.data.parent_uid)).data.role == 'parent';
+      allow read, delete: if signedIn() && request.auth.uid in resource.data.participant_uids;
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.participant_uids
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'answered_by', 'updated_at'])
+        && request.resource.data.status in ['approved', 'denied']
+        && (request.resource.data.status == 'denied' || request.auth.uid != resource.data.created_by);
+    }
+
+    match /user_data/{uid} {
+      allow create: if owns(uid);
+      allow read: if owns(uid) || isApprovedParentOf(uid);
+      allow update: if owns(uid) || isApprovedParentOf(uid);
+      allow delete: if owns(uid);
+    }
+
+    match /{document=**} { allow read, write: if false; }
   }
 }

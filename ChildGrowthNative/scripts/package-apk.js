@@ -2,8 +2,8 @@
 const path = require('path');
 
 const src = path.join(__dirname, '..', 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
-const destDist = path.join(__dirname, '..', 'dist', 'QuestBlox.apk');
-const destArtifact = 'C:\\Users\\mikef\\.gemini\\antigravity-ide\\brain\\de1629bb-8064-4edd-8e35-d8b6da8963d9\\QuestBlox.apk';
+const destDist = path.join(__dirname, '..', 'dist', 'QuestHabi.apk');
+const destArtifact = 'C:\\Users\\mikef\\.gemini\\antigravity-ide\\brain\\de1629bb-8064-4edd-8e35-d8b6da8963d9\\QuestHabi.apk';
 
 function copyIfReady() {
   if (fs.existsSync(src)) {

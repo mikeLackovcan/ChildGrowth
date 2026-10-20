@@ -5,6 +5,7 @@ import { Check, Coins, Lock, X } from 'lucide-react-native';
 import { Colors, ThemeKey, WORLD_THEMES } from '../../constants/theme';
 import { useAppStore } from '../../store/useAppStore';
 import QuestHero from '../../components/QuestHero';
+import AnimatedQuestHero from '../../components/AnimatedQuestHero';
 
 export interface QuestAvatar {
   id: string;
@@ -24,15 +25,15 @@ const hero = (id: string, name: string, price: number, rarity: QuestAvatar['rari
 export const AVAILABLE_AVATARS: QuestAvatar[] = [
   hero('quest_sprout', 'Sprout Hero', 0, 'Common', 'Beginner luck', '+10% coins on easy quests', '#3270EB'),
   hero('quest_ember', 'Ember Hero', 350, 'Common', 'Daily spark', '+15% XP from daily quests', '#FF806C'),
-  hero('quest_drift', 'Drift Hero', 700, 'Common', 'Steady steps', 'Protect one missed-day streak', '#6EABDE'),
+  hero('quest_drift', 'Drift Hero', 700, 'Common', 'Steady steps', '+10% coins from daily quests', '#6EABDE'),
   hero('quest_forge', 'Forge Hero', 1400, 'Rare', 'Ready to help', 'Extra coins for home chores', '#D9A34E'),
   hero('quest_coral', 'Coral Hero', 2100, 'Rare', 'Kindness boost', 'Bonus on helping quests', '#E68DAC'),
   hero('quest_dusk', 'Dusk Hero', 2800, 'Rare', 'Focus time', 'Faster progress on focus quests', '#9B83D5'),
   hero('quest_jade', 'Jade Hero', 3500, 'Epic', 'Growing strong', '+25% XP across quests', '#55AD84'),
   hero('quest_nova', 'Nova Hero', 4200, 'Epic', 'Learning light', 'Bonus coins for reading and math', '#7887DA'),
-  hero('quest_pulse', 'Pulse Hero', 4900, 'Epic', 'Momentum', '+50 XP after a full quest day', '#48BFD5'),
-  hero('quest_prism', 'Prism Hero', 5600, 'Legendary', 'Bright outlook', 'A bonus family reward chance', '#B485D3'),
-  hero('quest_frost', 'Frost Hero', 6300, 'Legendary', 'Stay cool', 'One automatic streak saver', '#8CCDD4'),
+  hero('quest_pulse', 'Pulse Hero', 4900, 'Epic', 'Momentum', '+50 XP on the final quest of a full day', '#48BFD5'),
+  hero('quest_prism', 'Prism Hero', 5600, 'Legendary', 'Bright outlook', '+20 coins on the final quest of a full day', '#B485D3'),
+  hero('quest_frost', 'Frost Hero', 6300, 'Legendary', 'Healthy cool', '+30% XP from health quests', '#8CCDD4'),
   hero('quest_sunrise', 'Sunrise Hero', 7000, 'Legendary', 'Fresh start', '+50% coins and XP on a perfect day', '#EAC263'),
 ];
 
@@ -80,10 +81,10 @@ export default function ShopScreen() {
           <View style={styles.wallet}><Coins size={18} color={Colors.amber} /><Text style={styles.walletText}>{coins}</Text></View>
         </View>
 
-        <View style={styles.activeCard}>
-          <QuestHero id={current} style={styles.activeHero} />
+        <View style={[styles.activeCard, { backgroundColor: WORLD_THEMES[activeTheme].accent }]}>
+          <AnimatedQuestHero id={current} style={styles.activeHero} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.eyebrow}>YOUR QUESTPIP HERO</Text>
+            <Text style={styles.eyebrow}>YOUR HABI HERO</Text>
             <Text style={styles.activeName}>{AVAILABLE_AVATARS.find((item) => item.id === current)?.name || 'Sprout Hero'}</Text>
             <Text style={styles.activeText}>A friendly companion for every small win.</Text>
           </View>
@@ -111,8 +112,8 @@ export default function ShopScreen() {
           })}
         </View>
 
-        <Text style={styles.sectionTitle}>Color worlds</Text>
-        <Text style={styles.sectionSub}>Choose a look that feels like yours.</Text>
+        <Text style={styles.sectionTitle}>Hero auras</Text>
+        <Text style={styles.sectionSub}>Choose the color your hero brings to progress and navigation.</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.themeRow}>
           {(Object.keys(WORLD_THEMES) as ThemeKey[]).map((key) => {
             const theme = WORLD_THEMES[key];
@@ -134,7 +135,7 @@ export default function ShopScreen() {
           {selected && (
             <View style={styles.modalCard}>
               <TouchableOpacity style={styles.close} onPress={() => setSelected(null)}><X size={20} color={Colors.textSecondary} /></TouchableOpacity>
-              <QuestHero id={selected.id} style={styles.modalHero} />
+              <AnimatedQuestHero id={selected.id} style={styles.modalHero} motion="celebrate" />
               <Text style={styles.modalName}>{selected.name}</Text>
               <Text style={styles.modalSkill}>{selected.skillName}</Text>
               <Text style={styles.modalDescription}>{selected.skillDesc}</Text>

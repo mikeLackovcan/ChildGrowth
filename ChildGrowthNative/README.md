@@ -1,6 +1,6 @@
-# QuestBlox — React Native app
+# Quest Habi — React Native app
 
-QuestBlox is the canonical React Native/Expo app in this repository. It uses Firebase Authentication and Firestore for the cloud backend.
+Quest Habi is the React Native/Expo children’s habit and chore app on this branch. It uses Firebase Authentication and Firestore for secure optional account sync, while guest mode works locally without registration.
 
 ## Get started
 

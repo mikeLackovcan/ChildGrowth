@@ -133,7 +133,7 @@ export default function LoginScreen() {
             <QuestPipMark size={92} />
           </View>
           
-          <Text style={styles.title}>{t('app_title', 'QuestPip')}</Text>
+          <Text style={styles.title}>{t('app_title', 'Quest Habi')}</Text>
           <Text style={styles.subtitle}>{t('app_subtitle', 'Small steps. Big adventures.')}</Text>
 
           {/* Auth Mode Selection Tabs: Clean 2 Tabs (Login & Register) */}
@@ -213,7 +213,7 @@ export default function LoginScreen() {
                 <Tag size={18} color={Colors.textMuted} />
                 <TextInput
                   style={styles.input}
-                  placeholder={t('nickname_placeholder', 'QuestPip nickname (e.g. AlexQuest)')}
+                  placeholder={t('nickname_placeholder', 'Quest Habi nickname (e.g. AlexQuest)')}
                   placeholderTextColor={Colors.textMuted}
                   autoComplete="username"
                   textContentType="nickname"

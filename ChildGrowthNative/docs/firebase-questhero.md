@@ -1,7 +1,6 @@
-# Quest Hero backend status
+# Quest Habi backend status
 
-Updated 2026-10-19 on branch questhero. QuestBlox main and its Firebase
-project were not changed.
+Updated 2026-10-20 on the Quest Habi branch. The registered Firebase/EAS project and Android package retain their internal Quest Hero identifiers so existing credentials remain valid.
 
 ## Configured
 
@@ -11,24 +10,17 @@ project were not changed.
 - Email/password and Google authentication providers enabled.
 - Separate EAS project daed5f3a-fd4f-44a8-9b72-be86f5b6f2a2.
 - Separate Android upload keystore registered in Firebase with SHA-1 and SHA-256.
-- Refreshed google-services.json has Quest Hero Android and web OAuth clients.
+- Refreshed google-services.json has the Android and web OAuth clients.
 - Native Google sign-in plugin configured for development and production builds.
-- Local AsyncStorage keys are prefixed for Quest Hero.
+- Local AsyncStorage keys retain the internal Quest Hero prefix for safe migration.
 
-## Intentional safety lock
+## Current sync model
 
-Firestore rules deny all reads and writes, and the app cloud-sync path is
-disabled. Authentication can identify a user, but task, family, and reward data
-stay on that device. This avoids exposing children's data through the legacy
-nickname-based whole-profile synchronization model.
+Cloud sync uses Firebase Auth UIDs as canonical document IDs. Profiles contain only minimal nickname, display name, and role fields. Quest and reward data live in protected `user_data` documents. Family invitations identify both participants by UID and require the invited account to approve before linked access is allowed. Legacy nickname-keyed synchronization is disabled.
 
-Before enabling cloud sync, implement server-owned immutable roles, expiring
-single-use family pairing, canonical UID membership, transactional/idempotent
-reward commands, App Check, and emulator tests for cross-account denial and
-two-device concurrency. Cloud Functions deployment requires the Blaze plan;
-no billing upgrade was made.
+The repository rules must be deployed before account sync is tested. Before a public children’s launch, also add expiring one-time pairing, App Check, abuse limits, emulator tests for cross-account denial, and transactional/idempotent reward operations. No billing upgrade was made.
 
 Google sign-in cannot run in Expo Go because it uses native code. Test it in a
-new Quest Hero development or preview build. After Google Play App Signing is
+new Quest Habi development or preview build. After Google Play App Signing is
 enabled, also register Play's app-signing SHA fingerprints in Firebase and
 download google-services.json again.

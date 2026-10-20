@@ -31,10 +31,10 @@ export type ThemeColor = Exclude<keyof WorldTheme, 'price' | 'id'>;
 export const WORLD_THEMES: Record<ThemeKey, WorldTheme> = {
   classic: {
     id: 'classic',
-    name: 'QuestPip',
+    name: 'Quest Habi',
     icon: '✓',
     price: 0,
-    background: '#F7F4EC',
+    background: '#FFFFFF',
     surface: '#FFFFFF',
     surface2: '#EDF4FF',
     border: '#D9E2EF',

@@ -1,16 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { Check, ChevronRight, Clock3, Coins, Plus, Settings } from 'lucide-react-native';
 import { useAppStore } from '../../store/useAppStore';
-import { Colors } from '../../constants/theme';
+import { Colors, WORLD_THEMES } from '../../constants/theme';
 import SettingsModal from '../../components/SettingsModal';
-import DancingBananaModal from '../../components/DancingBananaModal';
-import { playSuccessChime } from '../../utils/audio';
 import { configureNotifications, scheduleTaskReminders } from '../../lib/notifications';
 import QuestPipMark from '../../components/QuestPipMark';
+import AnimatedQuestHero from '../../components/AnimatedQuestHero';
+import { calculateQuestReward } from '../../lib/heroRewards';
+import HeroCelebrationModal from '../../components/HeroCelebrationModal';
 
 export default function TrackerScreen() {
   const userEmail = useAppStore((state) => state.userEmail);
@@ -19,12 +20,18 @@ export default function TrackerScreen() {
   const nickname = useAppStore((state) => state.nickname);
   const tasks = useAppStore((state) => state.tasks);
   const coins = useAppStore((state) => state.coins);
+  const currentAvatar = useAppStore((state) => state.currentAvatar);
+  const activeTheme = useAppStore((state) => state.activeTheme);
+  const theme = WORLD_THEMES[activeTheme];
   const prizes = useAppStore((state) => state.prizes);
   const linkedParents = useAppStore((state) => state.linkedParents);
   const toggleTaskDone = useAppStore((state) => state.toggleTaskDone);
+  const completeQuest = useAppStore((state) => state.completeTask);
   const addWonPrize = useAppStore((state) => state.addWonPrize);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationCoins, setCelebrationCoins] = useState(0);
+  const [heroDancing, setHeroDancing] = useState(false);
 
   useEffect(() => {
     if (!userEmail) router.replace('/');
@@ -50,10 +57,17 @@ export default function TrackerScreen() {
   const completeTask = (taskId: string) => {
     const task = tasks.find((item) => item.id === taskId);
     if (!task) return;
-    const becomingDone = !task.done;
-    toggleTaskDone(taskId);
-    if (!becomingDone) return;
-    playSuccessChime();
+    if (task.done) {
+      toggleTaskDone(taskId);
+      return;
+    }
+    if (task.focusDurationMinutes) {
+      router.push({ pathname: '/focus-session', params: { taskId } } as never);
+      return;
+    }
+    const result = completeQuest(taskId);
+    if (!result.completed) return;
+    setCelebrationCoins(result.reward?.coins || 0);
     setShowCelebration(true);
     const remaining = tasks.filter((item) => item.id !== taskId && !item.done);
     if (remaining.length === 0 && prizes.length > 0) {
@@ -69,7 +83,7 @@ export default function TrackerScreen() {
         <View style={styles.header}>
           <View style={styles.brandLockup}>
             <QuestPipMark size={36} />
-            <Text style={styles.wordmark}>Quest<Text style={styles.wordmarkPip}>Pip</Text></Text>
+            <Text style={styles.wordmark}>Quest <Text style={[styles.wordmarkPip, { color: theme.accent }]}>Habi</Text></Text>
           </View>
           <View style={styles.headerActions}>
             <View style={styles.coinPill}>
@@ -84,12 +98,23 @@ export default function TrackerScreen() {
 
         <Text style={styles.greeting}>{firstName}’s quests</Text>
 
-        <View style={styles.heroCard}>
+        <View style={[styles.heroCard, { backgroundColor: theme.accent }]}>
           <View style={styles.heroCopy}>
             <Text style={styles.heroTitle}>Small steps.{"\n"}Big adventures.</Text>
-            <Text style={styles.heroSubtitle}>Pip is ready. Pick a quest!</Text>
+            <Text style={styles.heroSubtitle}>Habi is ready. Pick a quest!</Text>
           </View>
-          <Image source={require('../../../assets/images/quest-hero-v2.png')} style={styles.heroImage} resizeMode="contain" />
+          <TouchableOpacity
+            style={styles.heroTouch}
+            activeOpacity={0.9}
+            accessibilityLabel="Make Habi dance"
+            onPress={() => {
+              setHeroDancing(false);
+              requestAnimationFrame(() => setHeroDancing(true));
+              setTimeout(() => setHeroDancing(false), 1200);
+            }}
+          >
+            <AnimatedQuestHero id={currentAvatar} style={styles.heroImage} motion={showCelebration ? 'celebrate' : heroDancing ? 'dance' : 'idle'} />
+          </TouchableOpacity>
           <QuestPipMark size={48} style={styles.bannerPip} />
         </View>
 
@@ -115,6 +140,8 @@ export default function TrackerScreen() {
                 <Text style={[styles.taskTitle, task.done && styles.taskTitleDone]}>{task.name}</Text>
                 <View style={styles.taskMetaRow}>
                   <Text style={styles.taskMeta}>{task.freq === 'daily' ? 'Every day' : task.freq.replace('_', ' ')}</Text>
+                  <Text style={styles.taskReward}>+{calculateQuestReward(task, tasks, currentAvatar).coins} coins</Text>
+                  {task.focusDurationMinutes ? <Text style={styles.taskReward}>{task.focusDurationMinutes} min focus</Text> : null}
                   {task.reminderEnabled && task.reminderTime && (
                     <View style={styles.taskTime}>
                       <Clock3 size={12} color={Colors.primary} />
@@ -123,8 +150,9 @@ export default function TrackerScreen() {
                   )}
                 </View>
               </View>
-              <View style={[styles.checkCircle, task.done && styles.checkCircleDone]}>
+              <View style={[styles.checkCircle, task.done && styles.checkCircleDone, task.pendingApproval && styles.checkCirclePending]}>
                 {task.done && <Check size={20} strokeWidth={3} color={Colors.text} />}
+                {task.pendingApproval && !task.done && <Clock3 size={16} color={Colors.amber} />}
               </View>
             </TouchableOpacity>
           ))}
@@ -134,7 +162,7 @@ export default function TrackerScreen() {
           <Plus size={20} color="#FFFFFF" />
           <Text style={styles.addButtonText}>{tasks.length ? 'Add a quest' : 'Create my first quest'}</Text>
         </TouchableOpacity>
-        <Text style={styles.encouragement}>Pip celebrates every small win.</Text>
+        <Text style={styles.encouragement}>Habi celebrates every small win.</Text>
 
         {role !== 'parent' && linkedParents.length === 0 && (
           <TouchableOpacity style={styles.familyCard} onPress={() => router.push('/link-account')}>
@@ -147,7 +175,7 @@ export default function TrackerScreen() {
         )}
       </ScrollView>
       <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
-      <DancingBananaModal visible={showCelebration} onClose={() => setShowCelebration(false)} />
+      <HeroCelebrationModal visible={showCelebration} onClose={() => setShowCelebration(false)} heroId={currentAvatar} coins={celebrationCoins} />
     </SafeAreaView>
   );
 }
@@ -168,7 +196,8 @@ const styles = StyleSheet.create({
   heroCopy: { paddingHorizontal: 22, paddingVertical: 19, width: '62%', zIndex: 2 },
   heroTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 25, lineHeight: 27, color: '#FFFFFF' },
   heroSubtitle: { marginTop: 8, fontFamily: 'Nunito_700Bold', fontSize: 14, color: '#DDE9FF' },
-  heroImage: { position: 'absolute', right: -4, bottom: -17, width: 172, height: 172 },
+  heroTouch: { position: 'absolute', right: 10, bottom: -2, width: 148, height: 148, zIndex: 2 },
+  heroImage: { width: '100%', height: '100%' },
   bannerPip: { position: 'absolute', right: 132, bottom: 10, zIndex: 3 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   sectionTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 22, color: Colors.text },
@@ -186,10 +215,12 @@ const styles = StyleSheet.create({
   taskTitleDone: { color: Colors.textSecondary },
   taskMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 3 },
   taskMeta: { fontFamily: 'Nunito_600SemiBold', fontSize: 12, color: Colors.textMuted, textTransform: 'capitalize' },
+  taskReward: { fontFamily: 'Nunito_700Bold', fontSize: 11, color: Colors.amber },
   taskTime: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   taskTimeText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: Colors.primary },
   checkCircle: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: Colors.border2, alignItems: 'center', justifyContent: 'center' },
   checkCircleDone: { backgroundColor: '#CBF250', borderColor: '#CBF250' },
+  checkCirclePending: { backgroundColor: Colors.amberDim, borderColor: Colors.amber },
   emptyCard: { alignItems: 'center', paddingVertical: 24 },
   emptyIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: Colors.blueDim, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   emptyTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 17, color: Colors.text },

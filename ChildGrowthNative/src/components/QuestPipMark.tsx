@@ -14,7 +14,7 @@ export default function QuestPipMark({ size = 44, style, background = true }: Qu
     <View
       style={[{ width: size, height: size }, style]}
       accessible
-      accessibilityLabel="Pip, the QuestPip companion"
+      accessibilityLabel="Habi, the Quest Habi companion"
     >
       <Svg width="100%" height="100%" viewBox="0 0 80 80">
         {background && <Rect x="2" y="2" width="76" height="76" rx="23" fill="#3270EB" />}
