@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Platform, TextInput, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Platform, TextInput, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Typography } from '../constants/theme';
 import { useAppStore } from '../store/useAppStore';
@@ -8,6 +8,7 @@ import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
 import * as WebBrowser from 'expo-web-browser';
 import { requestGoogleTokens } from '../lib/googleLogin';
+import QuestPipMark from '../components/QuestPipMark';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -129,15 +130,11 @@ export default function LoginScreen() {
 
           {/* App Logo & Branding */}
           <View style={styles.logoBox}>
-            <Image 
-              source={require('../../assets/images/quest-hero-v2.png')}
-              style={{ width: 88, height: 88, borderRadius: 22 }}
-              resizeMode="contain"
-            />
+            <QuestPipMark size={92} />
           </View>
           
-          <Text style={styles.title}>{t('app_title', 'Quest Hero')}</Text>
-          <Text style={styles.subtitle}>{t('app_subtitle', 'Small wins. Everyday adventures.')}</Text>
+          <Text style={styles.title}>{t('app_title', 'QuestPip')}</Text>
+          <Text style={styles.subtitle}>{t('app_subtitle', 'Small steps. Big adventures.')}</Text>
 
           {/* Auth Mode Selection Tabs: Clean 2 Tabs (Login & Register) */}
           <View style={styles.modeTabsRow}>
@@ -216,7 +213,7 @@ export default function LoginScreen() {
                 <Tag size={18} color={Colors.textMuted} />
                 <TextInput
                   style={styles.input}
-                  placeholder={t('nickname_placeholder', 'Quest Hero Nickname / Tag (e.g. AlexQuest2026)')}
+                  placeholder={t('nickname_placeholder', 'QuestPip nickname (e.g. AlexQuest)')}
                   placeholderTextColor={Colors.textMuted}
                   autoComplete="username"
                   textContentType="nickname"

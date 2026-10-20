@@ -1219,7 +1219,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     await get().saveMockState();
-    return { success: true, message: 'Registration successful! Welcome to Quest Hero! 🌟' };
+    return { success: true, message: 'Registration successful! Welcome to QuestPip!' };
   },
 
   loginWithEmail: async (email, password) => {

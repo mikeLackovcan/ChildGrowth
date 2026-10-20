@@ -10,6 +10,7 @@ import SettingsModal from '../../components/SettingsModal';
 import DancingBananaModal from '../../components/DancingBananaModal';
 import { playSuccessChime } from '../../utils/audio';
 import { configureNotifications, scheduleTaskReminders } from '../../lib/notifications';
+import QuestPipMark from '../../components/QuestPipMark';
 
 export default function TrackerScreen() {
   const userEmail = useAppStore((state) => state.userEmail);
@@ -66,7 +67,10 @@ export default function TrackerScreen() {
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.wordmark}>Quest Hero</Text>
+          <View style={styles.brandLockup}>
+            <QuestPipMark size={36} />
+            <Text style={styles.wordmark}>Quest<Text style={styles.wordmarkPip}>Pip</Text></Text>
+          </View>
           <View style={styles.headerActions}>
             <View style={styles.coinPill}>
               <Coins size={17} color={Colors.amber} />
@@ -78,14 +82,15 @@ export default function TrackerScreen() {
           </View>
         </View>
 
-        <Text style={styles.greeting}>Hi, {firstName}!</Text>
+        <Text style={styles.greeting}>{firstName}’s quests</Text>
 
         <View style={styles.heroCard}>
           <View style={styles.heroCopy}>
-            <Text style={styles.heroTitle}>Small steps.{"\n"}Big wins.</Text>
-            <Text style={styles.heroSubtitle}>You’ve got this!</Text>
+            <Text style={styles.heroTitle}>Small steps.{"\n"}Big adventures.</Text>
+            <Text style={styles.heroSubtitle}>Pip is ready. Pick a quest!</Text>
           </View>
           <Image source={require('../../../assets/images/quest-hero-v2.png')} style={styles.heroImage} resizeMode="contain" />
+          <QuestPipMark size={48} style={styles.bannerPip} />
         </View>
 
         <View style={styles.sectionHeader}>
@@ -129,7 +134,7 @@ export default function TrackerScreen() {
           <Plus size={20} color="#FFFFFF" />
           <Text style={styles.addButtonText}>{tasks.length ? 'Add a quest' : 'Create my first quest'}</Text>
         </TouchableOpacity>
-        <Text style={styles.encouragement}>One quest at a time.</Text>
+        <Text style={styles.encouragement}>Pip celebrates every small win.</Text>
 
         {role !== 'parent' && linkedParents.length === 0 && (
           <TouchableOpacity style={styles.familyCard} onPress={() => router.push('/link-account')}>
@@ -151,7 +156,9 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.background },
   container: { width: '100%', maxWidth: 620, alignSelf: 'center', padding: 20, paddingBottom: 36 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 },
+  brandLockup: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   wordmark: { fontFamily: 'Nunito_800ExtraBold', fontSize: 25, color: Colors.primary, letterSpacing: -0.8 },
+  wordmarkPip: { color: Colors.text },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   coinPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 6, height: 40 },
   coinText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 14, color: Colors.text },
@@ -162,6 +169,7 @@ const styles = StyleSheet.create({
   heroTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 25, lineHeight: 27, color: '#FFFFFF' },
   heroSubtitle: { marginTop: 8, fontFamily: 'Nunito_700Bold', fontSize: 14, color: '#DDE9FF' },
   heroImage: { position: 'absolute', right: -4, bottom: -17, width: 172, height: 172 },
+  bannerPip: { position: 'absolute', right: 132, bottom: 10, zIndex: 3 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   sectionTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 22, color: Colors.text },
   progressText: { fontFamily: 'Nunito_700Bold', fontSize: 13, color: Colors.textSecondary },

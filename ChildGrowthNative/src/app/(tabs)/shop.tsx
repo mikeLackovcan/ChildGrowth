@@ -83,7 +83,7 @@ export default function ShopScreen() {
         <View style={styles.activeCard}>
           <QuestHero id={current} style={styles.activeHero} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.eyebrow}>YOUR QUEST HERO</Text>
+            <Text style={styles.eyebrow}>YOUR QUESTPIP HERO</Text>
             <Text style={styles.activeName}>{AVAILABLE_AVATARS.find((item) => item.id === current)?.name || 'Sprout Hero'}</Text>
             <Text style={styles.activeText}>A friendly companion for every small win.</Text>
           </View>
