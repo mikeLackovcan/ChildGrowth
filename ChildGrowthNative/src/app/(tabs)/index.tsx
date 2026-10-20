@@ -117,7 +117,6 @@ export default function TrackerScreen() {
           >
             <AnimatedQuestHero id={currentAvatar} style={styles.heroImage} motion={showCelebration ? 'celebrate' : heroDancing ? 'dance' : 'idle'} />
           </TouchableOpacity>
-          <QuestPipMark size={48} style={styles.bannerPip} />
         </View>
 
         <View style={styles.sectionHeader}>
@@ -200,7 +199,6 @@ const styles = StyleSheet.create({
   heroSubtitle: { marginTop: 8, fontFamily: 'Nunito_700Bold', fontSize: 14, color: '#DDE9FF' },
   heroTouch: { position: 'absolute', right: 10, bottom: -2, width: 148, height: 148, zIndex: 2 },
   heroImage: { width: '100%', height: '100%' },
-  bannerPip: { position: 'absolute', right: 132, bottom: 10, zIndex: 3 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   sectionTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 22, color: Colors.text },
   progressText: { fontFamily: 'Nunito_700Bold', fontSize: 13, color: Colors.textSecondary },

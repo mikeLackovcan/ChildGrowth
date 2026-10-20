@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleProp, ViewStyle } from 'react-native';
 import QuestHero from './QuestHero';
+import QuestChampSprite from './QuestChampSprite';
+import { normalizeAvatarId } from '../lib/brandMigration';
 
 export type HeroMotion = 'idle' | 'celebrate' | 'focus' | 'dance';
 
@@ -65,9 +67,14 @@ export default function AnimatedQuestHero({
   const rotate = turn.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-6deg', '0deg', '6deg'] });
   const rotateY = depth.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-7deg', '0deg', '7deg'] });
   const translateX = depth.interpolate({ inputRange: [-1, 0, 1], outputRange: [-2, 0, 2] });
+  const normalizedId = !id || id === 'default' ? 'quest_champ' : normalizeAvatarId(id);
   return (
     <Animated.View style={[style, { transform: [{ perspective: 700 }, { translateY: float }, { translateX }, { scale: pulse }, { rotate }, { rotateY }] }]}> 
-      <QuestHero id={id} style={{ width: '100%', height: '100%' }} />
+      {normalizedId === 'quest_champ' ? (
+        <QuestChampSprite motion={motion} style={{ width: '100%', height: '100%' }} />
+      ) : (
+        <QuestHero id={id} style={{ width: '100%', height: '100%' }} />
+      )}
     </Animated.View>
   );
 }
