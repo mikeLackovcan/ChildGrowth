@@ -8,7 +8,6 @@ import { useAppStore } from '../../store/useAppStore';
 import { Colors, QUEST_BACKGROUNDS, WORLD_THEMES } from '../../constants/theme';
 import SettingsModal from '../../components/SettingsModal';
 import { configureNotifications, scheduleTaskReminders } from '../../lib/notifications';
-import QuestPipMark from '../../components/QuestPipMark';
 import AnimatedQuestHero from '../../components/AnimatedQuestHero';
 import { calculateQuestReward } from '../../lib/heroRewards';
 import HeroCelebrationModal from '../../components/HeroCelebrationModal';
@@ -84,7 +83,9 @@ export default function TrackerScreen() {
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.brandLockup}>
-            <QuestPipMark size={36} />
+            <View style={styles.brandBadge} accessibilityLabel="Quest Champ Q logo">
+              <Text style={styles.brandBadgeText}>Q</Text>
+            </View>
             <Text style={styles.wordmark}>Quest <Text style={[styles.wordmarkPip, { color: theme.accent }]}>Champ</Text></Text>
           </View>
           <View style={styles.headerActions}>
@@ -186,6 +187,8 @@ const styles = StyleSheet.create({
   container: { width: '100%', maxWidth: 620, alignSelf: 'center', padding: 20, paddingBottom: 36 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 },
   brandLockup: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  brandBadge: { width: 36, height: 36, borderRadius: 12, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+  brandBadgeText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 23, lineHeight: 27, color: '#CBF250' },
   wordmark: { fontFamily: 'Nunito_800ExtraBold', fontSize: 25, color: Colors.primary, letterSpacing: -0.8 },
   wordmarkPip: { color: Colors.text },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
