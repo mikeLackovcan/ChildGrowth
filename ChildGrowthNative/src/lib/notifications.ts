@@ -38,7 +38,7 @@ export async function configureNotifications(): Promise<void> {
       description: 'Reminders for unfinished Quest Champ habits and tasks.',
       importance: Notifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 180],
-      sound: 'habi-reminder.wav',
+      sound: 'habi_reminder.wav',
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
     await Notifications.setNotificationChannelAsync(ALARM_CHANNEL_ID, {
@@ -46,7 +46,7 @@ export async function configureNotifications(): Promise<void> {
       description: 'Louder alarms for quests and finished focus sessions.',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 450, 180, 450, 180, 650],
-      sound: 'habi-alarm.wav',
+      sound: 'habi_alarm.wav',
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
   }
@@ -100,7 +100,7 @@ async function replaceTaskReminders(tasks: Task[], heroId: string): Promise<void
       body: task.focusDurationMinutes
         ? `Ready for a ${task.focusDurationMinutes}-minute focus session?`
         : 'Ready for a small win? Start, finish, or try a little later.',
-      sound: task.reminderMode === 'alarm' ? 'habi-alarm.wav' : 'habi-reminder.wav',
+      sound: task.reminderMode === 'alarm' ? 'habi_alarm.wav' : 'habi_reminder.wav',
       categoryIdentifier: QUEST_REMINDER_CATEGORY,
       data: { kind: 'quest-reminder', taskId: task.id, questDate: localDateKey(date), route: '/(tabs)', heroId, focusDurationMinutes: task.focusDurationMinutes || 0 },
     };
@@ -127,7 +127,7 @@ export async function scheduleFocusEndNotification(task: Task, seconds: number):
     content: {
       title: `Focus complete: ${task.name}`,
       body: 'Time is up! Ready to mark your quest done?',
-      sound: 'habi-alarm.wav',
+      sound: 'habi_alarm.wav',
       categoryIdentifier: FOCUS_FINISHED_CATEGORY,
       data: { kind: 'focus-end', taskId: task.id, questDate: task.date, route: '/focus-session', focusFinished: true },
     },
@@ -181,7 +181,7 @@ export async function snoozeQuestReminder(task: Task): Promise<void> {
     content: {
       title: `${task.icon || '⭐'} ${task.name}`,
       body: 'Ready now? Your quest is here when you are.',
-      subtitle: 'Quest Champ', sound: 'habi-reminder.wav',
+      subtitle: 'Quest Champ', sound: 'habi_reminder.wav',
       categoryIdentifier: QUEST_REMINDER_CATEGORY,
       data: { kind: 'quest-snooze', taskId: task.id, questDate: task.date },
     },
@@ -204,7 +204,7 @@ export async function scheduleDailyQuestReminder(hour = 19, minute = 0): Promise
     content: {
       title: 'Quest Champ daily quests',
       body: 'Your hero quests are waiting!',
-      sound: 'habi-reminder.wav',
+      sound: 'habi_reminder.wav',
       ...(Platform.OS === 'android' ? { channelId: NOTIFICATION_CHANNEL_ID } : {}),
     },
     trigger: {

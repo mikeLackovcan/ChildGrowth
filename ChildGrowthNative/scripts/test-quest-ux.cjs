@@ -172,6 +172,13 @@ test('Android notification portrait metadata is idempotent and preserves unrelat
   assert.equal(entries.length, 2);
   assert.equal(entries[1].$['android:resource'], '@drawable/quest_champ_notification');
   assert.ok(fs.existsSync(path.join(root, 'assets/branding/quest-hero-play-512.png')));
+  const appConfig = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
+  const notificationPlugin = appConfig.expo.plugins.find(item => Array.isArray(item) && item[0] === 'expo-notifications');
+  for (const sound of notificationPlugin[1].sounds) {
+    const resourceName = path.basename(sound, path.extname(sound));
+    assert.match(resourceName, /^[a-z][a-z0-9_]*$/, `${resourceName} must be a valid Android resource name`);
+    assert.ok(fs.existsSync(path.join(root, sound)));
+  }
 });
 test('legacy guest progress and purchased heroes survive local-state migration', async () => {
   storage.set('active_user_tag', 'legacy');

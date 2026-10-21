@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useExperienceSettings } from '../store/useExperienceSettings';
 
-const COMPLETE_SOUND = require('../../assets/audio/habi-complete.wav');
+const COMPLETE_SOUND = require('../../assets/audio/habi_complete.wav');
 
 export type SoundEffect = 'coin' | 'complete' | 'levelup' | 'boss_hit' | 'spin' | 'unlock';
 

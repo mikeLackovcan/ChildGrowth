@@ -43,9 +43,9 @@
           "icon": "./assets/branding/quest-q-monochrome.png",
           "color": "#3270EB",
           "sounds": [
-            "./assets/audio/habi-reminder.wav",
-            "./assets/audio/habi-alarm.wav",
-            "./assets/audio/habi-complete.wav"
+            "./assets/audio/habi_reminder.wav",
+            "./assets/audio/habi_alarm.wav",
+            "./assets/audio/habi_complete.wav"
           ]
         }
       ],

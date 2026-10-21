@@ -28,16 +28,16 @@ function wav(name, notes) {
   fs.writeFileSync(path.join(output, name), Buffer.concat([header, data]));
 }
 
-wav('habi-reminder.wav', [
+wav('habi_reminder.wav', [
   { frequency: 659.25, duration: .16 },
   { frequency: 783.99, duration: .18 },
 ]);
-wav('habi-alarm.wav', [
+wav('habi_alarm.wav', [
   { frequency: 523.25, duration: .20 },
   { frequency: 783.99, duration: .20 },
   { frequency: 1046.50, duration: .30 },
 ]);
-wav('habi-complete.wav', [
+wav('habi_complete.wav', [
   { frequency: 523.25, duration: .12 },
   { frequency: 659.25, duration: .12 },
   { frequency: 783.99, duration: .12 },
