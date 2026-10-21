@@ -9,7 +9,7 @@ export default function PrivacyPolicy() {
 
       <Section title="Information we process">
         <Paragraph>Guest mode stores quests, progress, rewards, settings, and world customizations only on the device.</Paragraph>
-        <Paragraph>If a parent or family chooses an account, Quest Champ uses Firebase Authentication and Cloud Firestore. Account data may include an email address, Firebase user ID, display name, nickname, family role, quests and schedules, progress, rewards, avatar and world choices, and approved family links or invitations.</Paragraph>
+        <Paragraph>Cloud accounts are for parents and guardians only. If a parent or guardian chooses an account, Quest Champ uses Firebase Authentication and Cloud Firestore. Parent account data may include an email address, Firebase user ID, display name, nickname, family role, and family information the parent chooses to enter, such as a child nickname, quests and schedules, progress, rewards, avatar and world choices, and approved family links or invitations.</Paragraph>
         <Paragraph>Google Sign-In shares basic account information with Quest Champ only when the user chooses that sign-in method. Quest Champ does not collect precise location, contacts, microphone recordings, advertising IDs, or payment-card information.</Paragraph>
       </Section>
 
@@ -19,7 +19,7 @@ export default function PrivacyPolicy() {
       </Section>
 
       <Section title="Children and parents">
-        <Paragraph>Quest Champ is child-directed. Guest mode is the privacy-first option. A parent or guardian should supervise any account creation or family linking and may review, correct, unlink, or delete the child’s information.</Paragraph>
+        <Paragraph>Quest Champ is child-directed. Children use the privacy-first guest mode without an email or cloud account. Only a parent or guardian may create or use a cloud account, enter family information, or manage family linking. A parent or guardian may review, correct, unlink, or delete the information they provide.</Paragraph>
         <Paragraph>We do not sell children’s personal information, show third-party advertising, use behavioral advertising, or intentionally profile children for marketing.</Paragraph>
       </Section>
 

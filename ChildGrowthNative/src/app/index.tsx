@@ -27,7 +27,8 @@ export default function LoginScreen() {
   const signInWithGoogle = useAppStore((state) => state.signInWithGoogle);
 
   const [authMode, setAuthMode] = useState<'signin' | 'register'>('signin');
-  const [selectedRole, setSelectedRole] = useState<'child' | 'parent'>('child');
+  const selectedRole = 'parent' as const;
+  const [parentConfirmed, setParentConfirmed] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -54,6 +55,10 @@ export default function LoginScreen() {
 
   const handleGoogleSignIn = async () => {
     if (loading) return;
+    if (!parentConfirmed) {
+      setAuthMessage(t('parent_account_required'));
+      return;
+    }
     setLoading(true);
     setAuthMessage(null);
     try {
@@ -80,6 +85,10 @@ export default function LoginScreen() {
   };
 
   const handleAuthSubmit = async () => {
+    if (!parentConfirmed) {
+      setAuthMessage(t('parent_account_required'));
+      return;
+    }
     if (!email) {
       setAuthMessage(t('enter_valid_email', 'Please enter a valid email address!'));
       return;
@@ -158,42 +167,12 @@ export default function LoginScreen() {
           {/* Registration Extra Fields: Role, Name & Nickname */}
           {authMode === 'register' && (
             <>
-              {/* Role Selection Toggle */}
-              <Text style={{ fontFamily: 'Nunito_700Bold', color: Colors.textSecondary, fontSize: 13, marginBottom: 8, marginTop: 4 }}>
-                {t('select_account_type', 'Select Account Type / Role:')}
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
-                <TouchableOpacity
-                  style={[{ flex: 1, backgroundColor: Colors.surface2, borderRadius: 14, padding: 10, borderWidth: 1.5, borderColor: Colors.border, flexDirection: 'row', alignItems: 'center', gap: 8 }, selectedRole === 'child' && { borderColor: Colors.primary, backgroundColor: Colors.blueDim }]}
-                  onPress={() => setSelectedRole('child')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={{ fontSize: 20 }}>⭐</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[{ fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 13 }, selectedRole === 'child' && { color: Colors.primary }]}>
-                      {t('child_role', 'Kid')}
-                    </Text>
-                    <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, fontSize: 10 }} numberOfLines={1}>
-                      {t('child_role_sub', 'Habits & chores')}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[{ flex: 1, backgroundColor: Colors.surface2, borderRadius: 12, padding: 10, borderWidth: 1.5, borderColor: Colors.border, flexDirection: 'row', alignItems: 'center', gap: 8 }, selectedRole === 'parent' && { borderColor: Colors.amber, backgroundColor: Colors.cardYellow }]}
-                  onPress={() => setSelectedRole('parent')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={{ fontSize: 20 }}>👨‍👩‍👧</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[{ fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 13 }, selectedRole === 'parent' && { color: Colors.amber }]}>
-                      {t('parent_role', 'Parent')}
-                    </Text>
-                    <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, fontSize: 10 }} numberOfLines={1}>
-                      {t('parent_role_sub', 'Manage & Verify')}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+              <View style={styles.parentNotice}>
+                <Text style={styles.parentNoticeIcon}>👨‍👩‍👧</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.parentNoticeTitle}>{t('parent_account_title')}</Text>
+                  <Text style={styles.parentNoticeText}>{t('parent_account_note')}</Text>
+                </View>
               </View>
 
               <View style={styles.inputBox}>
@@ -306,6 +285,19 @@ export default function LoginScreen() {
 
           <View style={styles.divider} />
 
+          <TouchableOpacity
+            style={styles.parentCheckRow}
+            activeOpacity={0.8}
+            onPress={() => setParentConfirmed(value => !value)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: parentConfirmed }}
+          >
+            <View style={[styles.parentCheckbox, parentConfirmed && styles.parentCheckboxChecked]}>
+              <Text style={styles.parentCheckmark}>{parentConfirmed ? '✓' : ''}</Text>
+            </View>
+            <Text style={styles.parentCheckText}>{t('parent_account_confirm')}</Text>
+          </TouchableOpacity>
+
           {/* Google Sign-In */}
           <TouchableOpacity 
             style={styles.googleBtn}
@@ -322,7 +314,7 @@ export default function LoginScreen() {
             onPress={handleGuestMode}
             disabled={loading}
           >
-            <Text style={styles.guestBtnText}>Continue as guest</Text>
+            <Text style={styles.guestBtnText}>{t('kid_mode_no_account')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -356,6 +348,39 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 4,
   },
+  parentNotice: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  parentNoticeIcon: { fontSize: 24 },
+  parentNoticeTitle: { fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 14 },
+  parentNoticeText: { fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, fontSize: 11, marginTop: 2 },
+  parentCheckRow: {
+    width: '100%',
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  parentCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  parentCheckboxChecked: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  parentCheckmark: { color: '#FFF', fontFamily: 'Nunito_800ExtraBold', fontSize: 15 },
+  parentCheckText: { flex: 1, fontFamily: 'Nunito_700Bold', color: Colors.textSecondary, fontSize: 12 },
   coinBadge: {
     backgroundColor: Colors.amberDim,
     borderWidth: 1.5,
