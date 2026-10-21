@@ -1,0 +1,18 @@
+KayKit: City Builder Bits (1.0)
+
+Created and distributed by Kay Lousberg (www.kaylousberg.com)
+Creation date: 25 August 2023
+
+License: Creative Commons Zero (CC0 1.0 Universal)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+This content is free to use in personal, educational, and commercial projects.
+Credit to Kay Lousberg, www.kaylousberg.com, is appreciated but not required.
+
+Official sources:
+https://kaylousberg.itch.io/city-builder-bits
+https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0
+
+The PNG files in this directory were rendered for Quest Champ from the official
+CC0 OBJ models using scripts/render-kaykit-world.py. They are not unmodified
+copies offered for resale.

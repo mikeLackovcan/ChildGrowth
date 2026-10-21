@@ -43,8 +43,9 @@ const { localDateKey, freshTaskDay, isQuestDue } = load(path.join(root, 'src/lib
 const { calculateQuestReward } = load(path.join(root, 'src/lib/heroRewards.ts'));
 const { reminderPlan } = load(path.join(root, 'src/lib/reminderPlan.ts'));
 const { wheelPrizePresentation } = load(path.join(root, 'src/lib/wheelPrizePresentation.ts'));
-const { todayBuildPower, worldPowerBalance, canPlaceBuilding } = load(path.join(root, 'src/lib/worldEconomy.ts'));
+const { todayBuildPower, worldPowerBalance, canPlaceBuilding, WORLD_BUILDINGS } = load(path.join(root, 'src/lib/worldEconomy.ts'));
 const { useAppStore: store } = load(path.join(root, 'src/store/useAppStore.ts'));
+const { useWorldStore: worldStore } = load(path.join(root, 'src/store/useWorldStore.ts'));
 const initial = store.getState();
 const task = (id, extra = {}) => ({
   id, name: id, icon: '⭐', freq: 'daily', diff: 'med', mystery: false,
@@ -210,4 +211,22 @@ test('My World awards up to 10,000 power without mixing it into spendable coins'
   assert.equal(worldPowerBalance(100, 4_000), 11_000);
   assert.equal(canPlaceBuilding([], 'north', 'park', 5_000), true);
   assert.equal(canPlaceBuilding([{ plotId: 'north', type: 'home', level: 1 }], 'north', 'park', 50_000), false);
+});
+test('My World buildings have safe level caps and decorations cannot be upgraded', () => {
+  worldStore.setState({ spentPower: 0, placements: [
+    { plotId: 'home', type: 'home', level: 1 },
+    { plotId: 'light', type: 'streetlight', level: 1 },
+  ], ownerKey: 'guest-local', hydrated: true });
+  assert.equal(worldStore.getState().upgradeBuilding('light', 50_000), false);
+  assert.equal(worldStore.getState().upgradeBuilding('home', 50_000), true);
+  assert.equal(worldStore.getState().upgradeBuilding('home', 50_000), true);
+  assert.equal(worldStore.getState().upgradeBuilding('home', 50_000), false);
+  assert.equal(worldStore.getState().placements.find(item => item.plotId === 'home').level, 3);
+});
+test('every My World item is translated in all four supported languages', () => {
+  const source = fs.readFileSync(path.join(root, 'src/i18n/index.ts'), 'utf8');
+  for (const item of Object.values(WORLD_BUILDINGS)) {
+    const occurrences = source.match(new RegExp(`\\b${item.nameKey}\\s*:`, 'g')) || [];
+    assert.equal(occurrences.length, 4, `${item.nameKey} must exist in EN, CS, ES and DE`);
+  }
 });

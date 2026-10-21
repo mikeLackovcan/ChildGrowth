@@ -29,6 +29,7 @@ Do not remove or silently change these features during redesigns:
 12. Preserve all purchased/unlocked heroes, backgrounds, colors, prizes, goals, and guest/account progress when schemas or branding change.
 13. App sounds and reduced-motion controls remain available. System reduced-motion is honored. Avoid constant motion, shame, loss aversion, paid re-spins, or manipulative variable rewards.
 14. My World is a persistent, child-owned town. Town progress never decays and missing a day never destroys, removes, or downgrades anything.
+15. Every child-facing feature ships with matching English, Czech, Spanish, and German strings in the central localization file. Do not introduce hard-coded child-facing copy in screens.
 
 ## Main experience
 
@@ -58,7 +59,8 @@ Do not remove or silently change these features during redesigns:
 - Keep Build Power separate from spendable coins. A new child receives 5,000 starter Build Power and earns up to 10,000 per day in direct proportion to completed due quests.
 - The child drags buildings and decorations from a visual tray onto glowing plots. Tap-then-place remains available for accessibility.
 - Quest Champ moves to the chosen plot and gives a brief construction reaction. Buildings have three visual levels and world state persists locally for guests and in the authenticated child's Firebase data.
-- Use a scalable 2.5D isometric scene with original rounded architecture. No real-money purchase of Build Power, decay, stealing, combat, rankings, or construction waiting timers.
+- Use a scalable 2.5D isometric scene with a coherent, friendly town style. The current lightweight sprite set is rendered from the CC0 KayKit City Builder Bits source pack; keep its source/license record in `assets/world/kaykit/LICENSE.txt`, and compose or modify the pieces into a recognizable Quest Champ world rather than redistributing the source pack. No real-money purchase of Build Power, decay, stealing, combat, rankings, or construction waiting timers.
+- Buildings, roads, greenery, street furniture, and construction levels must feel like one visual family. Keep the rendered PNG pipeline in `scripts/render-kaykit-world.py` reproducible so Android remains performant and future town art can be regenerated consistently.
 
 ## Character animation contract
 

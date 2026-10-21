@@ -210,7 +210,7 @@ export default function ParentDashboardScreen() {
                     {task.verificationNote && (
                       <View style={{ backgroundColor: Colors.surface, padding: 8, borderRadius: 8, borderLeftWidth: 3, borderLeftColor: Colors.purple }}>
                         <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, fontSize: 12 }}>
-                          Note: "{task.verificationNote}"
+                          {'Note: "'}{task.verificationNote}{'"'}
                         </Text>
                       </View>
                     )}

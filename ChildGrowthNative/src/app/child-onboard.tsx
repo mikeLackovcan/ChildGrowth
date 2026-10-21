@@ -20,13 +20,13 @@ export default function ChildOnboardScreen() {
       <View style={styles.container}>
         <View style={styles.headerContainer}>
           <Text style={styles.title}>Link Account</Text>
-          <Text style={styles.subtitle}>Enter your parent's email address so they can approve your account.</Text>
+          <Text style={styles.subtitle}>{"Enter your parent's email address so they can approve your account."}</Text>
         </View>
 
         <View style={styles.formContainer}>
           <TextInput
             style={styles.input}
-            placeholder="Parent's Email"
+            placeholder={"Parent's Email"}
             placeholderTextColor={Colors.textSecondary}
             value={email}
             onChangeText={setEmail}

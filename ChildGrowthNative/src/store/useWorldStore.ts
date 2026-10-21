@@ -82,7 +82,7 @@ export const useWorldStore = create<WorldStore>((set, get) => {
     },
     upgradeBuilding: (plotId, availablePower) => {
       const building = get().placements.find(item => item.plotId === plotId);
-      if (!building || building.level >= 3) return false;
+      if (!building || building.level >= WORLD_BUILDINGS[building.type].maxLevel) return false;
       const cost = WORLD_BUILDINGS[building.type].upgradeCost * building.level;
       if (availablePower < cost) return false;
       set(state => ({
