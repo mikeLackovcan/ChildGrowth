@@ -12,6 +12,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
+import { deleteUser } from 'firebase/auth';
 import { auth, db } from './firebase';
 
 export type CloudRole = 'parent' | 'child';
@@ -181,4 +182,25 @@ export async function loadLinkedChildren(): Promise<Array<{ profile: CloudProfil
     };
   }));
   return rows.filter((row): row is { profile: CloudProfile; data: Record<string, any> } => Boolean(row));
+}
+
+/**
+ * Permanently removes the signed-in user's Quest Champ cloud data and
+ * Firebase Authentication account. Firestore documents are deleted first so
+ * the user's security-rule authorization is still available for cleanup.
+ */
+export async function deleteOwnCloudAccount(): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Sign in again before deleting this account.');
+  const uid = user.uid;
+  const inviteSnapshots = await getDocs(query(
+    collection(db, 'family_invites'),
+    where('participant_uids', 'array-contains', uid),
+  ));
+  await Promise.all([
+    ...inviteSnapshots.docs.map((snapshot) => deleteDoc(snapshot.ref)),
+    deleteDoc(doc(db, 'profiles', uid)),
+    deleteDoc(doc(db, 'user_data', uid)),
+  ]);
+  await deleteUser(user);
 }

@@ -14,6 +14,7 @@ import { cancelQuestNotification } from '../lib/notifications';
 import {
   answerFamilyInvite,
   createFamilyInvite,
+  deleteOwnCloudAccount,
   findProfileByNickname,
   listFamilyInvites,
   loadLinkedChildren,
@@ -200,6 +201,7 @@ interface AppState {
   loadMockState: () => Promise<void>;
   saveMockState: () => Promise<void>;
   clearAllData: () => Promise<void>;
+  deleteAccount: () => Promise<{ success: boolean; message?: string }>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -1895,6 +1897,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       epicBossTask: '30-min deep focus block 🧠',
       epicBossXP: 35,
     });
+  },
+  deleteAccount: async () => {
+    if (get().userId === 'guest-local' || !auth.currentUser) {
+      await get().clearAllData();
+      return { success: true };
+    }
+    try {
+      await deleteOwnCloudAccount();
+      await get().clearAllData();
+      return { success: true };
+    } catch (error: any) {
+      const requiresRecentLogin = error?.code === 'auth/requires-recent-login';
+      return {
+        success: false,
+        message: requiresRecentLogin
+          ? 'For security, sign out, sign in again, then delete the account.'
+          : (error?.message || 'The account could not be deleted. Please try again.'),
+      };
+    }
   },
   saveMockState: async () => {
     try {

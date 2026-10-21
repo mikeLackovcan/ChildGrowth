@@ -1,12 +1,15 @@
-# Quest Champ privacy policy draft
+# Quest Champ privacy and support release record
 
-Quest Champ uses Firebase Authentication and Cloud Firestore to provide account login, parent/child linking, quests, progress, rewards, and avatar data synchronization. The app may cache account state locally on the device for offline continuity. Guest-mode data remains on the device unless the user later signs in and sync is intentionally enabled.
+The in-app/web privacy policy is maintained in `src/app/privacy.tsx` and the support/account-deletion instructions are maintained in `src/app/support.tsx`.
 
-Quest Champ should not collect or store unnecessary sensitive information. Before publishing, replace this draft with a reviewed policy that identifies the publisher, support contact, retention period, deletion process, Firebase subprocessors, children’s privacy treatment, parental-consent flow, and applicable legal basis.
+Release facts:
 
-## Required product decisions before launch
+- Target audience: children ages 5–12 and their parents or guardians.
+- Guest mode stores progress locally and does not require an account.
+- Optional accounts use Firebase Authentication and Cloud Firestore.
+- Firestore location: Frankfurt, Germany (`europe-west3`).
+- No third-party ads, behavioral advertising, analytics SDK, precise location, contacts, microphone recordings, or payment-card collection.
+- Account deletion is available in Settings and removes the Firebase account, profile, synced data, and family invitations.
+- Public support/privacy contact currently configured in the app: `mike.fecko@gmail.com`.
 
-- Decide whether child accounts require verified parental consent.
-- Provide account and data deletion from inside the app or through a documented support process.
-- Document exactly which profile, quest, reward, and device data is stored.
-- Configure Firebase retention and access controls for production.
+Before production release, verify the public Firebase Hosting URLs after deployment and repeat the Data Safety audit against the final signed AAB.

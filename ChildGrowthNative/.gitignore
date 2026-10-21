@@ -63,3 +63,4 @@ scripts/generate-3d-models.js
 scripts/install-3d-arena.js
 *.apk
 *.aab
+.firebase/

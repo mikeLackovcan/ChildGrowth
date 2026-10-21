@@ -12,9 +12,11 @@ export default function SettingsModal({ visible, onClose }: { visible: boolean; 
   const state = useAppStore();
   const preferences = useExperienceSettings();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState('');
   const [unlink, setUnlink] = useState<string | null>(null);
   const [notificationStatus, setNotificationStatus] = useState('');
-  const close = () => { setConfirmReset(false); setUnlink(null); onClose(); };
+  const close = () => { setConfirmReset(false); setConfirmDelete(false); setDeleteStatus(''); setUnlink(null); onClose(); };
   return <ActionSheet visible={visible} title="Settings" onClose={close}>
     <Text style={styles.name}>{state.fullName || state.nickname || 'Hero'}</Text>
     <View style={styles.row}>
@@ -34,6 +36,8 @@ export default function SettingsModal({ visible, onClose }: { visible: boolean; 
     }}><Text style={styles.linkText}>Allow phone reminders</Text></Pressable>}
     {notificationStatus ? <Text style={styles.hint}>{notificationStatus}</Text> : null}
     <View style={styles.row}><Text style={styles.label}>Language</Text><LanguageSwitcher /></View>
+    <Pressable style={styles.link} accessibilityRole="link" onPress={() => { close(); router.push('/privacy'); }}><Text style={styles.linkText}>Privacy policy</Text></Pressable>
+    <Pressable style={styles.link} accessibilityRole="link" onPress={() => { close(); router.push('/support'); }}><Text style={styles.linkText}>Help &amp; support</Text></Pressable>
     <Pressable style={styles.link} accessibilityRole="button" onPress={() => { close(); router.push('/link-account'); }}><Text style={styles.linkText}>{state.linkedParents.length ? 'Family connection' : 'Connect with a parent'}</Text></Pressable>
     {state.linkedParents.map(parent => <View key={parent}>
       <Pressable style={styles.link} accessibilityRole="button" onPress={() => setUnlink(parent)}><Text style={styles.hint}>Connected to @{parent} · Manage</Text></Pressable>
@@ -50,6 +54,20 @@ export default function SettingsModal({ visible, onClose }: { visible: boolean; 
         <Pressable accessibilityRole="button" style={styles.link} onPress={async () => { await state.clearAllData(); close(); router.replace('/'); }}><Text style={styles.danger}>Yes, reset local data</Text></Pressable>
         <Pressable accessibilityRole="button" style={styles.link} onPress={() => setConfirmReset(false)}><Text style={styles.linkText}>Keep my data</Text></Pressable>
       </View>}
+    {state.userId && state.userId !== 'guest-local' && (!confirmDelete ?
+      <Pressable style={styles.link} accessibilityRole="button" onPress={() => { setDeleteStatus(''); setConfirmDelete(true); }}><Text style={styles.danger}>Delete account…</Text></Pressable> :
+      <View style={{ gap: 12 }}>
+        <Text style={styles.hint}>Permanently delete this account, cloud progress, profile, and family links? This cannot be undone.</Text>
+        <Pressable accessibilityRole="button" style={styles.link} onPress={async () => {
+          setDeleteStatus('Deleting…');
+          const result = await state.deleteAccount();
+          if (!result.success) { setDeleteStatus(result.message || 'Could not delete account.'); return; }
+          close();
+          router.replace('/');
+        }}><Text style={styles.danger}>Yes, delete my account</Text></Pressable>
+        {deleteStatus ? <Text style={styles.hint}>{deleteStatus}</Text> : null}
+        <Pressable accessibilityRole="button" style={styles.link} onPress={() => { setConfirmDelete(false); setDeleteStatus(''); }}><Text style={styles.linkText}>Keep my account</Text></Pressable>
+      </View>)}
   </ActionSheet>;
 }
 const styles = StyleSheet.create({

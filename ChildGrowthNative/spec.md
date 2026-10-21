@@ -8,7 +8,7 @@ This is the living product contract for the Quest Champ React Native app. Read i
 - Android package: `com.questhero.app` (Quest Champ is a separate app from QuestBlox).
 - Platform: Expo SDK 57 / React Native, primarily Android and Google Play.
 - Backend: the separate Quest Champ Firebase project. Use Firebase Auth and Firestore only for cloud account and family data.
-- Audience: young children and their parents. Language must be short, friendly, easy to pronounce, and never guilt-inducing.
+- Audience: children ages **5–12** and their parents or guardians. Language must be short, friendly, easy to pronounce, and never guilt-inducing.
 - Visual direction: clean white/pale surfaces, dark navy text, blue primary action, large icons, few containers, and at least 48dp touch targets.
 
 ## Protected product invariants
@@ -30,6 +30,7 @@ Do not remove or silently change these features during redesigns:
 13. App sounds and reduced-motion controls remain available. System reduced-motion is honored. Avoid constant motion, shame, loss aversion, paid re-spins, or manipulative variable rewards.
 14. My World is a persistent, child-owned town. Town progress never decays and missing a day never destroys, removes, or downgrades anything.
 15. Every child-facing feature ships with matching English, Czech, Spanish, and German strings in the central localization file. Do not introduce hard-coded child-facing copy in screens.
+16. Guest mode remains the privacy-first default for children. Account deletion must be available in-app and remove the signed-in user's Firebase Authentication account, profile, synced progress, and family invitations.
 
 ## Main experience
 
