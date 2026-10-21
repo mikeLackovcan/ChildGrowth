@@ -2,19 +2,20 @@ import React from 'react';
 import { Image, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { companionIds, normalizeAvatarId } from '../lib/brandMigration';
 import QuestChampSprite from './QuestChampSprite';
+import { heroFor } from '../lib/heroCatalog';
 
 /** Full-body 2D heroes from the shared Quest Champ character collection. */
 export default function QuestHero({ id = 'default', style }: { id?: string; style?: StyleProp<ViewStyle> }) {
   const normalizedId = id === 'default' ? 'quest_champ' : normalizeAvatarId(id);
 
   if (normalizedId === 'quest_champ') {
-    return <QuestChampSprite motion="idle" style={style} />;
+    return <QuestChampSprite motion="idle" playing={false} style={style} />;
   }
 
   const index = Math.max(0, companionIds.indexOf(normalizedId));
   const column = index % 4;
   const row = Math.floor(index / 4);
-  const name = companionIds[index].replace('quest_', '');
+  const name = heroFor(normalizedId).name;
 
   return (
     <View style={[styles.frame, style]} accessible accessibilityLabel={`${name} Quest Champ hero`}>

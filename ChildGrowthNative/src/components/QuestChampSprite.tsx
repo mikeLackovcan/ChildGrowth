@@ -21,9 +21,11 @@ const MOTION_SPEED: Record<SpriteMotion, number> = {
 export default function QuestChampSprite({
   motion = 'idle',
   style,
+  playing = true,
 }: {
   motion?: SpriteMotion;
   style?: StyleProp<ViewStyle>;
+  playing?: boolean;
 }) {
   const [step, setStep] = useState(0);
   const frames = MOTION_FRAMES[motion];
@@ -33,9 +35,10 @@ export default function QuestChampSprite({
 
   useEffect(() => {
     setStep(0);
+    if (!playing) return;
     const timer = setInterval(() => setStep((current) => current + 1), MOTION_SPEED[motion]);
     return () => clearInterval(timer);
-  }, [motion]);
+  }, [motion, playing]);
 
   return (
     <View style={[styles.frame, style]} accessible accessibilityLabel={`Quest Champ ${motion} animation`}>

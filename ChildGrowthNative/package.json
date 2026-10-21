@@ -3,11 +3,12 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
-    "@react-native-google-signin/google-signin": "16.1.5",
     "@expo-google-fonts/nunito": "^0.4.2",
     "@expo/ui": "~57.0.23",
     "@lottiefiles/dotlottie-react": "^0.13.5",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-google-signin/google-signin": "16.1.5",
+    "@rive-app/react-native": "^0.5.5",
     "expo": "~57.0.28",
     "expo-asset": "~57.0.19",
     "expo-audio": "~57.0.5",
@@ -36,6 +37,7 @@
     "react-i18next": "^17.0.13",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
+    "react-native-nitro-modules": "^0.36.5",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
@@ -61,7 +63,8 @@
     "lint": "expo lint",
     "test": "node ./scripts/test-linking-workflow.js",
     "test:firebase": "node ./scripts/test-full-firebase-linking.js",
-    "test:project": "node ./scripts/test-project-isolation.cjs"
+    "test:project": "node ./scripts/test-project-isolation.cjs",
+    "test:ux": "node --test ./scripts/test-quest-ux.cjs"
   },
   "private": true
 }

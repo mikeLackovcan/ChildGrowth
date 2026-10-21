@@ -1,320 +1,134 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import { Bell, BellRing, Check, ChevronLeft, Clock3, Network, Pencil, Plus, Timer, Trash2, Volume2, X } from 'lucide-react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Bell, ChevronLeft, Network, Repeat, Timer } from 'lucide-react-native';
 import { Colors } from '../constants/theme';
 import { requestNotificationPermissions } from '../lib/notifications';
 import { Task, useAppStore } from '../store/useAppStore';
 
-const CATEGORIES = [
-  { icon: '📚', label: 'Homework', focus: 30 },
-  { icon: '🪥', label: 'Brush teeth', focus: 2 },
-  { icon: '🧸', label: 'Tidy toys' },
-  { icon: '👕', label: 'Get dressed' },
-  { icon: '🐶', label: 'Pet care' },
-  { icon: '💖', label: 'Help someone' },
-  { icon: '＋', label: 'My own' },
+const TEMPLATES: Array<{ icon: string; name: string; minutes?: number }> = [
+  { icon: '🪥', name: 'Brush teeth', minutes: 2 }, { icon: '📚', name: 'Homework', minutes: 15 },
+  { icon: '🧸', name: 'Tidy toys' }, { icon: '📖', name: 'Read a book', minutes: 10 },
+  { icon: '👕', name: 'Get dressed' }, { icon: '🎒', name: 'Pack my bag' },
+  { icon: '🌱', name: 'Water plants' }, { icon: '💖', name: 'Help someone' },
+  { icon: '＋', name: '' },
 ];
-const REPEATS: Array<{ id: Task['freq']; label: string }> = [
-  { id: 'daily', label: 'Every day' },
-  { id: 'weekdays', label: 'Weekdays' },
-  { id: 'weekends', label: 'Weekends' },
+const REPEATS: Array<{ id: Task['freq']; name: string }> = [
+  { id: 'daily', name: 'Every day' }, { id: 'weekdays', name: 'School days' }, { id: 'weekends', name: 'Weekends' },
 ];
-const QUICK_TIMES = ['07:00', '15:00', '18:00', '20:00'];
-const FOCUS_DURATIONS = [2, 10, 15, 30, 60, 120];
-
-function normalizeTime(value: string): string {
-  const [rawHour = '18', rawMinute = '00'] = value.split(':');
-  const hour = Math.min(23, Math.max(0, Number.parseInt(rawHour, 10) || 0));
-  const minute = Math.min(59, Math.max(0, Number.parseInt(rawMinute, 10) || 0));
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-}
 
 export default function ManageTasksScreen() {
-  const tasks = useAppStore((state) => state.tasks);
-  const addTask = useAppStore((state) => state.addTask);
-  const updateTask = useAppStore((state) => state.updateTask);
-  const removeTask = useAppStore((state) => state.removeTask);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [name, setName] = useState('');
-  const [icon, setIcon] = useState('🧹');
-  const [frequency, setFrequency] = useState<Task['freq']>('daily');
-  const [reminderEnabled, setReminderEnabled] = useState(false);
-  const [reminderTime, setReminderTime] = useState('18:00');
-  const [reminderMode, setReminderMode] = useState<'notification' | 'alarm'>('notification');
-  const [focusEnabled, setFocusEnabled] = useState(false);
-  const [focusDurationMinutes, setFocusDurationMinutes] = useState(15);
-  const [requiresApproval, setRequiresApproval] = useState(false);
+  const { taskId } = useLocalSearchParams<{ taskId?: string }>();
+  const state = useAppStore();
+  const original = state.tasks.find(task => task.id === taskId);
+  const [chosen, setChosen] = useState(Boolean(original));
+  const [name, setName] = useState(original?.name || '');
+  const [icon, setIcon] = useState(original?.icon || '⭐');
+  const [frequency, setFrequency] = useState<Task['freq']>(original?.freq || 'daily');
+  const [reminderEnabled, setReminderEnabled] = useState(Boolean(original?.reminderEnabled));
+  const [reminderTime, setReminderTime] = useState(original?.reminderTime || '18:00');
+  const [reminderMode, setReminderMode] = useState<'notification' | 'alarm'>(original?.reminderMode || 'notification');
+  const [focusEnabled, setFocusEnabled] = useState(Boolean(original?.focusDurationMinutes));
+  const [minutes, setMinutes] = useState(original?.focusDurationMinutes || 15);
+  const [requiresApproval, setRequiresApproval] = useState(Boolean(original?.requiresApproval));
+  const [error, setError] = useState('');
+  const canApprove = state.linkedParents.length > 0 || state.role === 'parent';
 
   const setReminder = async (enabled: boolean) => {
-    if (!enabled) {
-      setReminderEnabled(false);
-      return;
-    }
+    if (!enabled) { setReminderEnabled(false); return; }
+    if (Platform.OS === 'web' || state.role === 'parent') { setReminderEnabled(true); return; }
     const granted = await requestNotificationPermissions();
     setReminderEnabled(granted);
+    if (!granted) setError('Allow notifications in your phone settings to receive reminders.');
   };
-
-  const createQuest = () => {
-    if (!name.trim()) return;
-    const values = {
-      name: name.trim(),
-      icon,
-      freq: frequency,
-      diff: 'med',
-      mystery: false,
-      reminderEnabled,
-      reminderTime: reminderEnabled ? normalizeTime(reminderTime) : undefined,
+  const save = () => {
+    if (!name.trim()) { setError('Give your quest a name.'); return; }
+    if (reminderEnabled && !/^([01]\d|2[0-3]):[0-5]\d$/.test(reminderTime)) { setError('Choose a time like 07:30 or 18:00.'); return; }
+    const values = { name: name.trim(), icon, freq: frequency, diff: original?.diff || 'med', mystery: false,
+      reminderEnabled, reminderTime: reminderEnabled ? reminderTime : undefined,
       reminderMode: reminderEnabled ? reminderMode : undefined,
-      focusDurationMinutes: focusEnabled ? focusDurationMinutes : undefined,
-      requiresApproval,
+      focusDurationMinutes: focusEnabled ? minutes : undefined, requiresApproval: canApprove && requiresApproval,
     } as const;
-    if (editingId) updateTask(editingId, values);
-    else addTask(values);
-    setEditingId(null);
-    setName('');
-    router.back();
+    if (taskId && !original) { setError('This quest was removed. Go back and create a new one.'); return; }
+    if (original) state.updateTask(original.id, values);
+    else state.addTask(values);
+    if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
   };
-
-  const editQuest = (task: Task) => {
-    setEditingId(task.id);
-    setName(task.name);
-    setIcon(task.icon || '🧹');
-    setFrequency(task.freq);
-    setReminderEnabled(Boolean(task.reminderEnabled));
-    setReminderTime(task.reminderTime || '18:00');
-    setReminderMode(task.reminderMode || 'notification');
-    setFocusEnabled(Boolean(task.focusDurationMinutes));
-    setFocusDurationMinutes(task.focusDurationMinutes || 15);
-    setRequiresApproval(Boolean(task.requiresApproval));
-  };
-
-  return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
+  return <SafeAreaView style={styles.screen} edges={['top', 'bottom', 'left', 'right']}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.back} onPress={() => router.back()} accessibilityLabel="Back"><ChevronLeft size={24} color={Colors.text} /></TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{editingId ? 'Edit quest' : 'New quest'}</Text>
-          <Text style={styles.subtitle}>{editingId ? 'Update the quest, timer, or reminder.' : 'Choose a small win for today.'}</Text>
-        </View>
-        {editingId && <TouchableOpacity style={styles.back} onPress={() => { setEditingId(null); setName(''); }} accessibilityLabel="Cancel editing"><X size={22} color={Colors.textSecondary} /></TouchableOpacity>}
+        <Pressable accessibilityRole="button" accessibilityLabel="Back" style={styles.back} onPress={() => router.back()}><ChevronLeft color={Colors.text} size={24} /></Pressable>
+        <Text style={styles.title}>{original ? 'Edit quest' : 'New quest'}</Text>
       </View>
-
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <TouchableOpacity style={styles.mapLink} onPress={() => router.push('/quest-map' as never)}>
-          <Network size={18} color={Colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.mapLinkTitle}>Build a Quest Map</Text>
-            <Text style={styles.mapLinkText}>Break a bigger goal into small steps</Text>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+        {!chosen ? <>
+          <Text style={styles.intro}>What will you do?</Text>
+          <View style={styles.grid}>
+            {TEMPLATES.map(template => <Pressable key={template.icon} accessibilityRole="button" accessibilityLabel={template.name || 'Create my own quest'} style={styles.template} onPress={() => {
+              setName(template.name); setIcon(template.icon === '＋' ? '⭐' : template.icon);
+              setFocusEnabled(Boolean(template.minutes)); setMinutes(template.minutes || 15); setChosen(true);
+            }}><Text style={styles.templateIcon}>{template.icon}</Text>{template.name ? <Text style={styles.templateName}>{template.name}</Text> : null}</Pressable>)}
           </View>
-          <ChevronLeft size={18} color={Colors.primary} style={{ transform: [{ rotate: '180deg' }] }} />
-        </TouchableOpacity>
-
-        <Text style={styles.label}>Quick quest</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categories}>
-          {CATEGORIES.map((category) => {
-            const selected = icon === category.icon || (category.label === 'My own' && icon === '⭐');
-            return (
-              <TouchableOpacity key={category.label} style={[styles.category, selected && styles.categorySelected]} onPress={() => {
-                setIcon(category.icon === '＋' ? '⭐' : category.icon);
-                setName(category.label === 'My own' ? '' : category.label);
-                setFocusEnabled(Boolean(category.focus));
-                if (category.focus) setFocusDurationMinutes(category.focus);
-              }}>
-                <Text style={styles.categoryEmoji}>{category.icon}</Text>
-                <Text style={[styles.categoryLabel, selected && styles.categoryLabelSelected]}>{category.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        <Text style={styles.label}>Quest name</Text>
-        <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="E.g. Tidy my room" placeholderTextColor={Colors.textMuted} maxLength={80} />
-
-        <Text style={styles.label}>Repeat</Text>
-        <View style={styles.repeatRow}>
-          {REPEATS.map((item) => {
-            const selected = frequency === item.id;
-            return (
-              <TouchableOpacity key={item.id} style={[styles.repeatChip, selected && styles.repeatChipSelected]} onPress={() => setFrequency(item.id)}>
-                <Text style={[styles.repeatText, selected && styles.repeatTextSelected]}>{item.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        <View style={styles.settingRow}>
-          <View style={styles.settingIcon}><BellRing size={20} color={Colors.primary} /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.approvalTitle}>Alarm & notification</Text>
-            <Text style={styles.approvalText}>A sound reminder at the quest time</Text>
+        </> : <>
+          <View style={styles.nameRow}>
+            <Text style={styles.chosenIcon}>{icon}</Text>
+            <TextInput style={styles.nameInput} accessibilityLabel="Quest name" placeholder="My quest" placeholderTextColor={Colors.textSecondary} value={name} onChangeText={value => { setName(value); setError(''); }} maxLength={80} />
           </View>
-          <Switch value={reminderEnabled} onValueChange={setReminder} trackColor={{ false: '#D9E2EF', true: Colors.primary }} thumbColor="#FFFFFF" />
-        </View>
-
-        {reminderEnabled && (
-          <View style={styles.timeSection}>
-            <Text style={styles.timeLabel}>Reminder style</Text>
-            <View style={styles.modeChoiceRow}>
-              <TouchableOpacity style={[styles.modeChoice, reminderMode === 'notification' && styles.modeChoiceSelected]} onPress={() => setReminderMode('notification')}>
-                <Bell size={17} color={reminderMode === 'notification' ? '#FFFFFF' : Colors.textSecondary} />
-                <Text style={[styles.modeChoiceText, reminderMode === 'notification' && styles.modeChoiceTextSelected]}>Notification</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modeChoice, reminderMode === 'alarm' && styles.modeChoiceSelected]} onPress={() => setReminderMode('alarm')}>
-                <Volume2 size={17} color={reminderMode === 'alarm' ? '#FFFFFF' : Colors.textSecondary} />
-                <Text style={[styles.modeChoiceText, reminderMode === 'alarm' && styles.modeChoiceTextSelected]}>Alarm</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.timeHeading}>
-              <Clock3 size={18} color={Colors.textSecondary} />
-              <Text style={styles.timeLabel}>Quest time</Text>
-            </View>
-            <TextInput
-              style={styles.timeInput}
-              value={reminderTime}
-              onChangeText={setReminderTime}
-              onBlur={() => setReminderTime(normalizeTime(reminderTime))}
-              placeholder="18:00"
-              placeholderTextColor={Colors.textMuted}
-              keyboardType="numbers-and-punctuation"
-              maxLength={5}
-              accessibilityLabel="Quest reminder time"
-            />
-            <View style={styles.quickTimes}>
-              {QUICK_TIMES.map((time) => (
-                <TouchableOpacity key={time} style={[styles.timeChip, reminderTime === time && styles.timeChipSelected]} onPress={() => setReminderTime(time)}>
-                  <Text style={[styles.timeChipText, reminderTime === time && styles.timeChipTextSelected]}>{time}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={styles.timeHint}>Uses your device time. Android may deliver within a short window to save battery.</Text>
+          {!original && <Pressable style={styles.link} onPress={() => setChosen(false)} accessibilityRole="button"><Text style={styles.linkText}>Choose another picture</Text></Pressable>}
+          <View style={styles.row}><Repeat color={Colors.primary} size={22} /><Text style={styles.rowTitle}>Repeat</Text></View>
+          <View style={styles.choices}>
+            {REPEATS.map(repeat => <Pressable accessibilityRole="button" accessibilityState={{ selected: frequency === repeat.id }} key={repeat.id} style={[styles.chip, frequency === repeat.id && styles.selected]} onPress={() => setFrequency(repeat.id)}><Text style={[styles.chipText, frequency === repeat.id && styles.selectedText]}>{repeat.name}</Text></Pressable>)}
+            {!REPEATS.some(item => item.id === frequency) && <Text style={styles.hint}>Every {frequency}</Text>}
           </View>
-        )}
-
-        <View style={styles.settingRow}>
-          <View style={styles.settingIcon}><Timer size={20} color={Colors.primary} /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.approvalTitle}>Focus session</Text>
-            <Text style={styles.approvalText}>A fun countdown with your hero</Text>
-          </View>
-          <Switch value={focusEnabled} onValueChange={setFocusEnabled} trackColor={{ false: '#D9E2EF', true: Colors.primary }} thumbColor="#FFFFFF" />
-        </View>
-
-        {focusEnabled && (
-          <View style={styles.timeSection}>
-            <Text style={styles.timeLabel}>Focus time</Text>
-            <View style={styles.focusTimes}>
-              {FOCUS_DURATIONS.map((minutes) => (
-                <TouchableOpacity key={minutes} style={[styles.durationChip, focusDurationMinutes === minutes && styles.timeChipSelected]} onPress={() => setFocusDurationMinutes(minutes)}>
-                  <Text style={[styles.timeChipText, focusDurationMinutes === minutes && styles.timeChipTextSelected]}>{minutes < 60 ? `${minutes} min` : `${minutes / 60} hr`}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        <View style={styles.settingRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.approvalTitle}>Parent approval</Text>
-            <Text style={styles.approvalText}>Optional for linked families</Text>
-          </View>
-          <Switch value={requiresApproval} onValueChange={setRequiresApproval} trackColor={{ false: '#D9E2EF', true: Colors.primary }} thumbColor="#FFFFFF" />
-        </View>
-
-        <View style={styles.tipRow}>
-          <Check size={18} color={Colors.primary} />
-          <Text style={styles.tipText}>Short, specific quests are easier to complete and more rewarding.</Text>
-        </View>
-
-        {tasks.length > 0 && (
-          <View style={styles.existingSection}>
-            <Text style={styles.existingTitle}>Current quests</Text>
-            {tasks.map((task) => (
-              <View key={task.id} style={styles.existingCard}>
-                <Text style={styles.existingEmoji}>{task.icon || '✓'}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.existingName}>{task.name}</Text>
-                  <Text style={styles.existingMeta}>{task.freq === 'daily' ? 'Every day' : task.freq}{task.reminderEnabled && task.reminderTime ? `  ·  ${task.reminderMode === 'alarm' ? 'Alarm' : 'Notify'} ${task.reminderTime}` : ''}{task.focusDurationMinutes ? `  ·  Focus ${task.focusDurationMinutes}m` : ''}</Text>
-                </View>
-                <TouchableOpacity accessibilityLabel={`Edit ${task.name}`} style={styles.editButton} onPress={() => editQuest(task)}>
-                  <Pencil size={17} color={Colors.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity accessibilityLabel={`Delete ${task.name}`} style={styles.deleteButton} onPress={() => removeTask(task.id)}>
-                  <Trash2 size={18} color={Colors.red} />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        )}
+          <View style={styles.row}><Bell color={Colors.primary} size={22} /><Text style={styles.rowTitle}>Remind me</Text><Switch accessibilityLabel="Remind me" value={reminderEnabled} onValueChange={setReminder} trackColor={{ false: '#CFD8E3', true: Colors.primary }} /></View>
+          {reminderEnabled && <View style={styles.reveal}>
+            <TextInput accessibilityLabel="Reminder time in 24-hour format" style={styles.time} value={reminderTime} onChangeText={setReminderTime} keyboardType="numbers-and-punctuation" maxLength={5} />
+            <View style={styles.choices}>{(['notification', 'alarm'] as const).map(mode => <Pressable key={mode} accessibilityRole="button" accessibilityState={{ selected: reminderMode === mode }} onPress={() => setReminderMode(mode)} style={[styles.chip, reminderMode === mode && styles.selected]}><Text style={[styles.chipText, reminderMode === mode && styles.selectedText]}>{mode === 'notification' ? '🔔 Notification' : '⏰ Alarm sound'}</Text></Pressable>)}</View>
+            <Text style={styles.hint}>{Platform.OS === 'web' ? 'Preview only. Reminders are delivered by the Android app.' : reminderMode === 'alarm' ? 'A louder reminder. Your phone’s sound settings still apply.' : 'A gentle reminder with Start, Done and Later.'}</Text>
+          </View>}
+          <View style={styles.row}><Timer color={Colors.primary} size={22} /><Text style={styles.rowTitle}>Use a timer</Text><Switch accessibilityLabel="Use a timer" value={focusEnabled} onValueChange={setFocusEnabled} trackColor={{ false: '#CFD8E3', true: Colors.primary }} /></View>
+          {focusEnabled && <View style={styles.reveal}><View style={styles.choices}>
+            {[2, 10, 15, 30, 60, 120].map(value => <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: minutes === value }} style={[styles.chip, minutes === value && styles.selected]} onPress={() => setMinutes(value)}><Text style={[styles.chipText, minutes === value && styles.selectedText]}>{value < 60 ? `${value} min` : `${value / 60} hr`}</Text></Pressable>)}
+          </View><Text style={styles.hint}>A little sound when time is up.</Text></View>}
+          {canApprove && <View style={styles.row}><Text style={styles.rowTitle}>Parent checks when done</Text><Switch accessibilityLabel="Parent checks when done" value={requiresApproval} onValueChange={setRequiresApproval} trackColor={{ false: '#CFD8E3', true: Colors.primary }} /></View>}
+          <Pressable style={styles.mapLink} accessibilityRole="button" onPress={() => router.push('/quest-map')}><Network size={20} color={Colors.primary} /><Text style={styles.linkText}>Bigger goal? Make small steps</Text></Pressable>
+        </>}
+        {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       </ScrollView>
-
-      <View style={styles.footer}>
-        <TouchableOpacity style={[styles.createButton, !name.trim() && styles.createButtonDisabled]} disabled={!name.trim()} onPress={createQuest}>
-          <Plus size={21} color="#FFFFFF" />
-          <Text style={styles.createButtonText}>{editingId ? 'Save changes' : 'Create quest'}</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-  );
+      {chosen && <View style={styles.footer}><Pressable style={styles.save} onPress={save} accessibilityRole="button"><Text style={styles.saveText}>{original ? 'Save changes' : 'Add quest'}</Text></Pressable></View>}
+    </KeyboardAvoidingView>
+  </SafeAreaView>;
 }
-
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 14, backgroundColor: Colors.background },
-  back: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
-  title: { fontFamily: 'Nunito_800ExtraBold', fontSize: 25, color: Colors.text },
-  subtitle: { fontFamily: 'Nunito_600SemiBold', fontSize: 13, color: Colors.textSecondary, marginTop: 1 },
-  container: { width: '100%', maxWidth: 620, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 30 },
-  mapLink: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  mapLinkTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 14, color: Colors.primary },
-  mapLinkText: { fontFamily: 'Nunito_600SemiBold', fontSize: 12, color: Colors.textSecondary, marginTop: 1 },
-  label: { fontFamily: 'Nunito_800ExtraBold', fontSize: 14, color: Colors.text, marginBottom: 9, marginTop: 16 },
-  categories: { gap: 6, paddingRight: 20 },
-  category: { width: 78, height: 82, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  categorySelected: { backgroundColor: Colors.blueDim },
-  categoryEmoji: { fontSize: 28, marginBottom: 7 },
-  categoryLabel: { fontFamily: 'Nunito_700Bold', fontSize: 11, color: Colors.textSecondary },
-  categoryLabelSelected: { color: Colors.primary },
-  input: { minHeight: 56, borderWidth: 1.5, borderColor: Colors.border2, borderRadius: 16, backgroundColor: Colors.surface, paddingHorizontal: 16, fontFamily: 'Nunito_700Bold', fontSize: 16, color: Colors.text },
-  repeatRow: { flexDirection: 'row', gap: 8 },
-  repeatChip: { flex: 1, minHeight: 46, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border2, borderRadius: 14, backgroundColor: Colors.surface },
-  repeatChipSelected: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  repeatText: { fontFamily: 'Nunito_700Bold', fontSize: 13, color: Colors.textSecondary },
-  repeatTextSelected: { color: '#FFFFFF' },
-  settingRow: { minHeight: 72, marginTop: 12, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: Colors.border },
-  settingIcon: { width: 38, height: 38, borderRadius: 19, marginRight: 11, backgroundColor: Colors.blueDim, alignItems: 'center', justifyContent: 'center' },
-  approvalTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 15, color: Colors.text },
-  approvalText: { fontFamily: 'Nunito_600SemiBold', fontSize: 12, color: Colors.textSecondary, marginTop: 3 },
-  timeSection: { paddingLeft: 49, paddingTop: 10, paddingBottom: 8 },
-  modeChoiceRow: { flexDirection: 'row', gap: 8, marginTop: 8, marginBottom: 14 },
-  modeChoice: { minHeight: 42, flex: 1, borderRadius: 13, borderWidth: 1, borderColor: Colors.border2, backgroundColor: Colors.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  modeChoiceSelected: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  modeChoiceText: { fontFamily: 'Nunito_700Bold', fontSize: 12, color: Colors.textSecondary },
-  modeChoiceTextSelected: { color: '#FFFFFF' },
-  timeHeading: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 },
-  timeLabel: { fontFamily: 'Nunito_800ExtraBold', fontSize: 13, color: Colors.textSecondary },
-  timeInput: { width: 112, height: 48, borderRadius: 14, backgroundColor: Colors.surface, borderWidth: 1.5, borderColor: Colors.primary, paddingHorizontal: 15, fontFamily: 'Nunito_800ExtraBold', fontSize: 20, color: Colors.text, letterSpacing: 1.4 },
-  quickTimes: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 9 },
-  focusTimes: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 9 },
-  durationChip: { minWidth: 68, height: 38, paddingHorizontal: 10, borderRadius: 19, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
-  timeChip: { minWidth: 62, height: 34, paddingHorizontal: 10, borderRadius: 17, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center' },
-  timeChipSelected: { backgroundColor: Colors.primary },
-  timeChipText: { fontFamily: 'Nunito_700Bold', fontSize: 12, color: Colors.textSecondary },
-  timeChipTextSelected: { color: '#FFFFFF' },
-  timeHint: { marginTop: 8, fontFamily: 'Nunito_600SemiBold', fontSize: 11, lineHeight: 15, color: Colors.textMuted, paddingRight: 12 },
-  tipRow: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 14 },
-  tipText: { flex: 1, fontFamily: 'Nunito_600SemiBold', fontSize: 12, lineHeight: 17, color: Colors.textSecondary },
-  existingSection: { marginTop: 26 },
-  existingTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 19, color: Colors.text, marginBottom: 10 },
-  existingCard: { flexDirection: 'row', alignItems: 'center', minHeight: 64, borderBottomWidth: 1, borderBottomColor: Colors.border, paddingVertical: 10 },
-  existingEmoji: { fontSize: 23, width: 42 },
-  existingName: { fontFamily: 'Nunito_800ExtraBold', fontSize: 14, color: Colors.text },
-  existingMeta: { fontFamily: 'Nunito_600SemiBold', fontSize: 11, color: Colors.textMuted, marginTop: 2, textTransform: 'capitalize' },
-  deleteButton: { width: 38, height: 38, borderRadius: 12, backgroundColor: Colors.redDim, alignItems: 'center', justifyContent: 'center' },
-  editButton: { width: 38, height: 38, borderRadius: 12, backgroundColor: Colors.blueDim, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
-  footer: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 8, backgroundColor: Colors.background, borderTopWidth: 1, borderTopColor: Colors.border },
-  createButton: { maxWidth: 580, width: '100%', alignSelf: 'center', minHeight: 56, borderRadius: 17, backgroundColor: Colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  createButtonDisabled: { opacity: 0.45 },
-  createButtonText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 17, color: '#FFFFFF' },
+  screen: { flex: 1, backgroundColor: '#FFFFFF' },
+  header: { flexDirection: 'row', alignItems: 'center', width: '100%', maxWidth: 620, alignSelf: 'center', padding: 10 },
+  back: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
+  title: { fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 25 },
+  content: { width: '100%', maxWidth: 620, alignSelf: 'center', padding: 24, paddingTop: 12 },
+  intro: { fontFamily: 'Nunito_800ExtraBold', fontSize: 23, color: Colors.text, marginBottom: 22 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
+  template: { width: '30%', minHeight: 116, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1F5FC', padding: 8, gap: 8 },
+  templateIcon: { fontSize: 36, color: Colors.primary },
+  templateName: { fontSize: 14, fontFamily: 'Nunito_800ExtraBold', color: Colors.text, textAlign: 'center' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 },
+  chosenIcon: { fontSize: 38 },
+  nameInput: { flex: 1, minHeight: 60, borderBottomWidth: 2, borderColor: Colors.border, fontFamily: 'Nunito_800ExtraBold', fontSize: 23, color: Colors.text },
+  link: { minHeight: 48, justifyContent: 'center', marginBottom: 10 },
+  linkText: { color: Colors.primary, fontFamily: 'Nunito_800ExtraBold', fontSize: 14 },
+  row: { flexDirection: 'row', alignItems: 'center', minHeight: 72, gap: 12, borderTopWidth: 1, borderColor: '#E5EBF2', marginTop: 10 },
+  rowTitle: { flex: 1, fontFamily: 'Nunito_800ExtraBold', fontSize: 17, color: Colors.text },
+  choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { minHeight: 48, minWidth: 64, borderRadius: 14, paddingHorizontal: 14, backgroundColor: '#F0F4FA', justifyContent: 'center', alignItems: 'center' },
+  selected: { backgroundColor: Colors.primary },
+  chipText: { fontFamily: 'Nunito_700Bold', fontSize: 14, color: Colors.text },
+  selectedText: { color: '#FFFFFF' },
+  reveal: { gap: 12, paddingBottom: 6 },
+  time: { fontFamily: 'Nunito_800ExtraBold', fontSize: 30, color: Colors.text, borderBottomWidth: 1, borderColor: Colors.border, width: 120, minHeight: 56 },
+  hint: { color: Colors.textSecondary, fontFamily: 'Nunito_600SemiBold', fontSize: 13, lineHeight: 19 },
+  mapLink: { flexDirection: 'row', gap: 10, alignItems: 'center', minHeight: 56, marginTop: 20 },
+  error: { color: '#AF332A', fontFamily: 'Nunito_700Bold', fontSize: 15, marginTop: 14 },
+  footer: { width: '100%', maxWidth: 620, alignSelf: 'center', paddingHorizontal: 24, paddingBottom: 12 },
+  save: { minHeight: 56, borderRadius: 17, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+  saveText: { fontFamily: 'Nunito_800ExtraBold', color: '#FFFFFF', fontSize: 17 },
 });

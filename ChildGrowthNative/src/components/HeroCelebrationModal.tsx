@@ -4,6 +4,7 @@ import { Coins, Sparkles } from 'lucide-react-native';
 import { Colors } from '../constants/theme';
 import AnimatedQuestHero from './AnimatedQuestHero';
 import { playSound } from '../lib/sound';
+import useReducedMotion from '../hooks/useReducedMotion';
 
 export default function HeroCelebrationModal({
   visible,
@@ -16,6 +17,7 @@ export default function HeroCelebrationModal({
   heroId: string;
   coins: number;
 }) {
+  const reduced = useReducedMotion();
   useEffect(() => {
     if (!visible) return;
     playSound('complete');
@@ -24,19 +26,19 @@ export default function HeroCelebrationModal({
   }, [onClose, visible]);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType={reduced ? 'none' : 'fade'} onRequestClose={onClose}>
       <TouchableOpacity activeOpacity={1} style={styles.backdrop} onPress={onClose} accessibilityLabel="Close celebration">
         <View style={styles.burstOne} />
         <View style={styles.burstTwo} />
         <View style={styles.card}>
           <Sparkles size={30} color={Colors.amber} />
           <AnimatedQuestHero id={heroId} style={styles.hero} motion="celebrate" />
-          <Text style={styles.title}>Quest complete!</Text>
+          <Text style={styles.title}>All done for today!</Text>
           <View style={styles.reward}>
             <Coins size={20} color={Colors.amber} />
             <Text style={styles.rewardText}>+{coins}</Text>
           </View>
-          <Text style={styles.message}>Your Quest Champ is proud of your win.</Text>
+          <Text style={styles.message}>You did it. Enjoy the rest of your day.</Text>
         </View>
       </TouchableOpacity>
     </Modal>

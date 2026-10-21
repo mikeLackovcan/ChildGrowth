@@ -14,6 +14,8 @@ import { useAppStore } from '../store/useAppStore';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react-native';
 import Svg, { Path, G, Text as SvgText, Circle, Polygon } from 'react-native-svg';
+import useReducedMotion from '../hooks/useReducedMotion';
+import { wheelPrizePresentation } from '../lib/wheelPrizePresentation';
 
 interface PrizeWheelModalProps {
   visible: boolean;
@@ -46,6 +48,7 @@ const DEFAULT_PRIZES = [
 
 export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWheelModalProps) {
   const { t } = useTranslation();
+  const reducedMotion = useReducedMotion();
   const storePrizes = useAppStore((state) => state.prizes);
   
   const rotation = useSharedValue(0);
@@ -61,7 +64,9 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
   const wheelSlices = prizesList.map((prize, idx) => ({
     prize,
     color: SLICE_COLORS[idx % SLICE_COLORS.length],
+    presentation: wheelPrizePresentation(prize),
   }));
+  const winner = wheelPrizePresentation(displayedPrize || prizeName);
 
   const triggerFinishHaptic = () => {
     try {
@@ -71,6 +76,15 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
 
   const handleStartSpin = () => {
     if (isSpinning) return;
+    if (reducedMotion) {
+      const selectedPrize = prizeName || wheelSlices[0].prize;
+      const selectedIndex = Math.max(0, wheelSlices.findIndex(slice => slice.prize === selectedPrize));
+      setDisplayedPrize(selectedPrize);
+      rotation.value = 360 - (selectedIndex * 60 + 30);
+      setHasSpun(true);
+      triggerFinishHaptic();
+      return;
+    }
     setIsSpinning(true);
     setHasSpun(false);
 
@@ -122,7 +136,6 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
       rotation.value = 0;
       setHasSpun(false);
       setIsSpinning(false);
-      handleStartSpin();
     } else {
       scale.value = 0.4;
       rotation.value = 0;
@@ -171,24 +184,31 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
         textRotate += 180;
       }
 
-      const emoji = slice.prize.match(/[\uD800-\uDBFF][\uDC00-\uDFFF]/)?.[0] || '🎁';
-      const label = slice.prize.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/, '').trim();
-
       return (
         <G key={i}>
           <Path d={pathData} fill={slice.color} stroke="#FFFFFF" strokeWidth="2.5" />
           
-          {/* Text and Emoji rotated along radial axis */}
+          {/* One dominant picture and a maximum two-word child-facing label. */}
           <G transform={`translate(${tx}, ${ty}) rotate(${textRotate})`}>
             <SvgText
               x={0}
-              y={4}
+              y={1}
               fill="#FFFFFF"
-              fontSize="12"
+              fontSize="24"
               fontWeight="bold"
               textAnchor="middle"
             >
-              {`${label} ${emoji}`}
+              {slice.presentation.icon}
+            </SvgText>
+            <SvgText
+              x={0}
+              y={18}
+              fill="#FFFFFF"
+              fontSize="8"
+              fontWeight="bold"
+              textAnchor="middle"
+            >
+              {slice.presentation.label}
             </SvgText>
           </G>
         </G>
@@ -209,16 +229,16 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType={reducedMotion ? 'none' : 'fade'} onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Animated.View style={[styles.modalCard, cardAnimatedStyle]}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <X size={20} color="rgba(255,255,255,0.6)" />
+          <TouchableOpacity style={styles.closeButton} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close reward wheel">
+            <X size={20} color="#53657D" />
           </TouchableOpacity>
 
           {/* Header Title & Subtitle matching original screenshot */}
-          <Text style={styles.titleText}>{t('daily_quests_complete', 'Daily Quests Complete!')}</Text>
-          <Text style={styles.subText}>{t('spin_wheel_sub', 'Spin the wheel to claim your reward!')}</Text>
+          <Text style={styles.titleText}>Daily quests complete!</Text>
+          <Text style={styles.subText}>Your reward is safe. Spin to reveal it!</Text>
 
           {/* Interactive Wheel Stage */}
           <View style={styles.wheelStage}>
@@ -245,15 +265,16 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
           {/* Bottom Spin / Winner Card matching original screenshot */}
           {hasSpun ? (
             <View style={styles.winnerBox}>
-              <Text style={styles.congratsText}>🎉 {t('you_won', 'YOU WON:')}</Text>
-              <Text style={styles.prizeNameText}>{displayedPrize || prizeName}</Text>
+              <Text style={styles.congratsText}>{t('you_won', 'YOU WON:')}</Text>
+              <Text style={styles.winnerIcon}>{winner.icon}</Text>
+              <Text style={styles.prizeNameText}>{winner.label}</Text>
               
               <View style={styles.dayBadgeRow}>
-                <Text style={styles.dayBadgeText}>{t('reward_day_today', 'Today (Day 1) 📅')} · {t('reward_valid_days', 'Valid for 1 Day 🗓️')}</Text>
+                <Text style={styles.dayBadgeText}>Saved to your reward shelf ✓</Text>
               </View>
 
-              <TouchableOpacity style={styles.spinButton} onPress={onClose}>
-                <Text style={styles.spinButtonText}>{t('claim_prize', 'CLAIM REWARD!')}</Text>
+              <TouchableOpacity style={styles.spinButton} onPress={onClose} accessibilityRole="button">
+                <Text style={styles.spinButtonText}>SEE MY REWARDS</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -261,6 +282,8 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
               style={[styles.spinButton, isSpinning && styles.spinButtonDisabled]} 
               onPress={handleStartSpin}
               disabled={isSpinning}
+              accessibilityRole="button"
+              accessibilityLabel="Spin reward wheel"
             >
               <Text style={styles.spinButtonText}>
                 {isSpinning ? t('spinning_status', 'SPINNING...') : t('spin_wheel_btn', 'SPIN WHEEL 🎡')}
@@ -276,23 +299,21 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.88)',
+    backgroundColor: 'rgba(8,26,75,0.38)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalCard: {
-    backgroundColor: '#181818',
-    borderWidth: 2.5,
-    borderColor: '#FFB800',
-    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
     padding: 24,
     alignItems: 'center',
     maxWidth: 380,
     width: '100%',
-    shadowColor: '#FFB800',
+    shadowColor: '#081A4B',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.18,
     shadowRadius: 20,
     elevation: 12,
     position: 'relative',
@@ -307,7 +328,7 @@ const styles = StyleSheet.create({
   titleText: {
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 22,
-    color: '#FFB800',
+    color: '#081A4B',
     textAlign: 'center',
     marginBottom: 4,
     letterSpacing: 0.2,
@@ -315,7 +336,7 @@ const styles = StyleSheet.create({
   subText: {
     fontFamily: 'Nunito_700Bold',
     fontSize: 13,
-    color: '#FFFFFF',
+    color: '#53657D',
     textAlign: 'center',
     marginBottom: 16,
     opacity: 0.9,
@@ -349,7 +370,7 @@ const styles = StyleSheet.create({
   congratsText: {
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
+    color: '#53657D',
     marginBottom: 4,
   },
   prizeNameText: {
@@ -359,29 +380,34 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 8,
   },
+  winnerIcon: {
+    fontSize: 54,
+    lineHeight: 64,
+    marginTop: 2,
+  },
   dayBadgeRow: {
-    backgroundColor: '#262626',
+    backgroundColor: '#EDF3FF',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: '#D9E2EF',
     marginBottom: 14,
   },
   dayBadgeText: {
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 11,
-    color: '#21B8F6',
+    color: '#3270EB',
   },
   spinButton: {
-    backgroundColor: '#FFB800',
+    backgroundColor: '#3270EB',
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 999,
     width: '100%',
     alignItems: 'center',
     marginTop: 14,
-    shadowColor: '#FFB800',
+    shadowColor: '#3270EB',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
@@ -391,7 +417,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   spinButtonText: {
-    color: '#121212',
+    color: '#FFFFFF',
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 17,
     letterSpacing: 1,

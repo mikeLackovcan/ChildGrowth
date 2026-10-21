@@ -1,5 +1,8 @@
 import { Platform } from 'react-native';
 import type { Task } from '../store/useAppStore';
+import { heroFor } from './heroCatalog';
+import { reminderPlan } from './reminderPlan';
+import { localDateKey } from './questSchedule';
 
 const NOTIFICATION_CHANNEL_ID = 'quest-notifications';
 const ALARM_CHANNEL_ID = 'quest-alarms';
@@ -50,12 +53,12 @@ export async function configureNotifications(): Promise<void> {
 
   await Notifications.setNotificationCategoryAsync(QUEST_REMINDER_CATEGORY, [
     { identifier: 'START', buttonTitle: 'Start', options: { opensAppToForeground: true } },
-    { identifier: 'DONE', buttonTitle: 'Done', options: { opensAppToForeground: false } },
-    { identifier: 'NOT_DONE', buttonTitle: 'Not done', options: { opensAppToForeground: false } },
+    { identifier: 'DONE', buttonTitle: 'Done ✓', options: { opensAppToForeground: true } },
+    { identifier: 'LATER', buttonTitle: 'Later · 10 min', options: { opensAppToForeground: true } },
   ]);
   await Notifications.setNotificationCategoryAsync(FOCUS_FINISHED_CATEGORY, [
     { identifier: 'FINISH', buttonTitle: 'Finish quest', options: { opensAppToForeground: true } },
-    { identifier: 'NOT_DONE', buttonTitle: 'Not done', options: { opensAppToForeground: false } },
+    { identifier: 'LATER', buttonTitle: 'Later · 10 min', options: { opensAppToForeground: true } },
   ]);
 }
 
@@ -63,34 +66,20 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   if (Platform.OS === 'web') return true;
   const Notifications = await getNotifications();
   if (!Notifications) return false;
+  await configureNotifications();
   const current = await Notifications.getPermissionsAsync();
   if (current.status === 'granted') return true;
   const requested = await Notifications.requestPermissionsAsync();
   return requested.status === 'granted';
 }
 
-const WEEKDAYS: Record<Task['freq'], number[]> = {
-  daily: [],
-  sunday: [1],
-  monday: [2],
-  tuesday: [3],
-  wednesday: [4],
-  thursday: [5],
-  friday: [6],
-  saturday: [7],
-  weekdays: [2, 3, 4, 5, 6],
-  weekends: [1, 7],
-};
-
-function parseReminderTime(value?: string): { hour: number; minute: number } | null {
-  if (!value) return null;
-  const [hourValue, minuteValue] = value.split(':').map(Number);
-  if (!Number.isInteger(hourValue) || !Number.isInteger(minuteValue)) return null;
-  if (hourValue < 0 || hourValue > 23 || minuteValue < 0 || minuteValue > 59) return null;
-  return { hour: hourValue, minute: minuteValue };
+let reminderQueue: Promise<void> = Promise.resolve();
+export function scheduleTaskReminders(tasks: Task[], heroId = 'default'): Promise<void> {
+  reminderQueue = reminderQueue.catch(() => undefined).then(() => replaceTaskReminders(tasks, heroId));
+  return reminderQueue;
 }
 
-export async function scheduleTaskReminders(tasks: Task[]): Promise<void> {
+async function replaceTaskReminders(tasks: Task[], heroId: string): Promise<void> {
   const Notifications = await getNotifications();
   if (!Notifications) return;
 
@@ -104,53 +93,27 @@ export async function scheduleTaskReminders(tasks: Task[]): Promise<void> {
       .map((item) => Notifications.cancelScheduledNotificationAsync(item.identifier)),
   );
 
-  const activeTasks = tasks
-    .filter((task) => !task.done && task.reminderEnabled && parseReminderTime(task.reminderTime))
-    .slice(0, 12);
-
-  for (const task of activeTasks) {
-    const reminder = parseReminderTime(task.reminderTime);
-    if (!reminder) continue;
+  for (const { task, date } of reminderPlan(tasks)) {
     const content = {
-      title: `⏰ ${task.name}`,
+      title: `${task.icon || '⭐'} ${task.name}`,
+      subtitle: `${heroFor(heroId).name} · Quest Champ`,
       body: task.focusDurationMinutes
         ? `Ready for a ${task.focusDurationMinutes}-minute focus session?`
-        : `Your quest is due at ${task.reminderTime}. You’ve got this!`,
+        : 'Ready for a small win? Start, finish, or try a little later.',
       sound: task.reminderMode === 'alarm' ? 'habi-alarm.wav' : 'habi-reminder.wav',
       categoryIdentifier: QUEST_REMINDER_CATEGORY,
-      data: { kind: 'quest-reminder', taskId: task.id, route: '/(tabs)', focusDurationMinutes: task.focusDurationMinutes || 0 },
+      data: { kind: 'quest-reminder', taskId: task.id, questDate: localDateKey(date), route: '/(tabs)', heroId, focusDurationMinutes: task.focusDurationMinutes || 0 },
     };
     const channelId = task.reminderMode === 'alarm' ? ALARM_CHANNEL_ID : NOTIFICATION_CHANNEL_ID;
     const androidChannel = Platform.OS === 'android' ? { channelId } : {};
-    const weekdays = WEEKDAYS[task.freq];
-
-    if (weekdays.length === 0) {
-      await Notifications.scheduleNotificationAsync({
-        content,
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour: reminder.hour,
-          minute: reminder.minute,
-          ...androidChannel,
-        },
-      });
-      continue;
-    }
-
-    for (const weekday of weekdays) {
-      await Notifications.scheduleNotificationAsync({
-      content: {
-          ...content,
-      },
+    await Notifications.scheduleNotificationAsync({
+      content,
       trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-          weekday,
-          hour: reminder.hour,
-          minute: reminder.minute,
-          ...androidChannel,
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date,
+        ...androidChannel,
       },
-      });
-    }
+    });
   }
 }
 
@@ -163,10 +126,10 @@ export async function scheduleFocusEndNotification(task: Task, seconds: number):
   return Notifications.scheduleNotificationAsync({
     content: {
       title: `Focus complete: ${task.name}`,
-      body: 'Your hero stayed with you. Finish your quest when you are ready!',
+      body: 'Time is up! Ready to mark your quest done?',
       sound: 'habi-alarm.wav',
       categoryIdentifier: FOCUS_FINISHED_CATEGORY,
-      data: { kind: 'focus-end', taskId: task.id, route: '/focus-session', focusFinished: true },
+      data: { kind: 'focus-end', taskId: task.id, questDate: task.date, route: '/focus-session', focusFinished: true },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -184,16 +147,50 @@ export async function cancelQuestNotification(identifier?: string): Promise<void
 }
 
 export async function registerQuestNotificationActions(
-  onAction: (action: string, taskId: string) => void,
+  onAction: (action: string, taskId: string, questDate?: string) => void | Promise<void>,
 ): Promise<() => void> {
   const Notifications = await getNotifications();
   if (!Notifications) return () => undefined;
   await configureNotifications();
-  const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+  const seen = new Set<string>();
+  const handle = async (response: import('expo-notifications').NotificationResponse) => {
     const taskId = String(response.notification.request.content.data?.taskId || '');
-    if (taskId) onAction(response.actionIdentifier, taskId);
-  });
+    const key = `${response.notification.request.identifier}:${response.notification.date}:${response.actionIdentifier}`;
+    if (!taskId || seen.has(key)) return;
+    seen.add(key);
+    const date = response.notification.request.content.data?.questDate;
+    await onAction(response.actionIdentifier, taskId, typeof date === 'string' ? date : undefined);
+    await Notifications.clearLastNotificationResponseAsync();
+  };
+  const subscription = Notifications.addNotificationResponseReceivedListener(response => { void handle(response).catch(console.warn); });
+  try {
+    const previous = await Notifications.getLastNotificationResponseAsync();
+    if (previous) await handle(previous);
+  } catch (error) { console.warn('Could not restore notification action:', error); }
   return () => subscription.remove();
+}
+
+export async function snoozeQuestReminder(task: Task): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications || task.done || task.pendingApproval) return;
+  await configureNotifications();
+  if ((await Notifications.getPermissionsAsync()).status !== 'granted') return;
+  await Notifications.cancelScheduledNotificationAsync(`later-${task.id}`).catch(() => undefined);
+  await Notifications.scheduleNotificationAsync({
+    identifier: `later-${task.id}`,
+    content: {
+      title: `${task.icon || '⭐'} ${task.name}`,
+      body: 'Ready now? Your quest is here when you are.',
+      subtitle: 'Quest Champ', sound: 'habi-reminder.wav',
+      categoryIdentifier: QUEST_REMINDER_CATEGORY,
+      data: { kind: 'quest-snooze', taskId: task.id, questDate: task.date },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 600, repeats: false,
+      ...(Platform.OS === 'android' ? { channelId: NOTIFICATION_CHANNEL_ID } : {}),
+    },
+  });
 }
 
 export async function scheduleDailyQuestReminder(hour = 19, minute = 0): Promise<string | null> {

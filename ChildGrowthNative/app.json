@@ -57,6 +57,7 @@
           "enableBackgroundPlayback": false
         }
       ],
+      "./plugins/withHeroNotification.cjs",
       "expo-asset",
       "expo-font",
       "expo-image",

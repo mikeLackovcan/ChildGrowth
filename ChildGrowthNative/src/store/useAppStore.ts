@@ -9,6 +9,8 @@ import i18n from '../i18n';
 import { playSound } from '../lib/sound';
 import { BackgroundKey, ThemeKey } from '../constants/theme';
 import { calculateQuestReward } from '../lib/heroRewards';
+import { freshTaskDay, isQuestDue, localDateKey } from '../lib/questSchedule';
+import { cancelQuestNotification } from '../lib/notifications';
 import {
   answerFamilyInvite,
   createFamilyInvite,
@@ -60,6 +62,30 @@ export interface WonPrize {
   redeemed: boolean;
 }
 
+export interface RewardGoal {
+  id: string;
+  title: string;
+  target: number;
+  startCoins: number;
+  claimed?: boolean;
+}
+
+function rewardState(data: any, cloud = false) {
+  const totalEarned = cloud ? data.total_earned : data.totalEarned;
+  const ledger = cloud ? data.daily_earnings : data.dailyEarnings;
+  const goal = cloud ? data.reward_goal : data.rewardGoal;
+  const recordedToday = (Array.isArray(data.tasks) ? data.tasks : [])
+    .filter((task: Task) => task.done && task.date === localDateKey())
+    .reduce((sum: number, task: Task) => sum + (task.rewardedCoins || 0), 0);
+  return {
+    // Historical spending was not tracked. Preserve the confirmed wallet baseline.
+    totalEarned: Number.isFinite(totalEarned) ? totalEarned : Math.max(0, data.coins || 0),
+    dailyEarnings: ledger?.date === localDateKey() && Number.isFinite(ledger.coins)
+      ? ledger : { date: localDateKey(), coins: recordedToday },
+    rewardGoal: goal?.title && Number.isFinite(goal.target) && goal.target > 0 && Number.isFinite(goal.startCoins) ? goal as RewardGoal : null,
+  };
+}
+
 export interface ChildProfile {
   id: string;
   name: string;
@@ -76,6 +102,9 @@ export interface ChildProfile {
   initiatedBy?: 'kid' | 'parent';
   epicBossTask?: string;
   epicBossXP?: number;
+  totalEarned?: number;
+  dailyEarnings?: { date: string; coins: number };
+  rewardGoal?: RewardGoal | null;
 }
 
 interface AppState {
@@ -91,6 +120,13 @@ interface AppState {
   prizes: string[];
   wonPrizes: WonPrize[];
   coins: number;
+  totalEarned: number;
+  dailyEarnings: { date: string; coins: number };
+  rewardGoal: RewardGoal | null;
+  setRewardGoal: (title: string, target: number) => void;
+  claimRewardGoal: () => void;
+  restoreTask: (task: Task) => void;
+  undoTaskCompletion: (id: string) => boolean;
   unlockedAvatars: string[];
   currentAvatar: string;
   activeTheme: ThemeKey;
@@ -133,7 +169,7 @@ interface AppState {
   setActiveTheme: (themeKey: ThemeKey) => void;
   unlockBackground: (backgroundKey: BackgroundKey, price: number) => boolean;
   setActiveBackground: (backgroundKey: BackgroundKey) => void;
-  claimDailySpin: (rewardType: 'coins' | 'xp', amount: number) => void;
+  claimDailyWheelPrize: () => string | null;
   submitTaskForApproval: (taskId: string, note?: string) => void;
   verifyChildTask: (childId: string, taskId: string, approved: boolean) => void;
   
@@ -174,13 +210,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   role: null,
   isSick: false,
   language: 'en',
-  lastActiveDate: new Date().toISOString().split('T')[0],
+  lastActiveDate: localDateKey(),
   xp: 0,
   level: 1,
   tasks: [], // Kids start with 0 quests first time!
   prizes: ['Family surprise 🎁', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
   wonPrizes: [],
   coins: 0,
+  totalEarned: 0,
+  dailyEarnings: { date: localDateKey(), coins: 0 },
+  rewardGoal: null,
   unlockedAvatars: ['default'],
   currentAvatar: 'default',
   activeTheme: 'classic',
@@ -196,13 +235,68 @@ export const useAppStore = create<AppState>((set, get) => ({
   dailyMood: null,
   epicBossTask: '30-min deep focus block 🧠',
   epicBossXP: 35,
+
+  setRewardGoal: (title, target) => {
+    if (!title.trim() || !Number.isFinite(target) || target < 1) return;
+    const rewardGoal: RewardGoal = {
+      id: `goal_${Date.now()}`,
+      title: title.trim().slice(0, 80),
+      target: Math.floor(target),
+      startCoins: get().totalEarned,
+    };
+    set(state => ({
+      rewardGoal,
+      children: state.children.map(child => child.id === state.selectedChildId ? { ...child, rewardGoal } : child),
+    }));
+    get().saveMockState();
+  },
+  claimRewardGoal: () => {
+    const { rewardGoal, totalEarned } = get();
+    if (!rewardGoal || rewardGoal.claimed || totalEarned - rewardGoal.startCoins < rewardGoal.target) return;
+    const claimed = { ...rewardGoal, claimed: true };
+    set(state => ({
+      rewardGoal: claimed,
+      children: state.children.map(child => child.id === state.selectedChildId ? { ...child, rewardGoal: claimed } : child),
+    }));
+    get().addWonPrize(rewardGoal.title);
+  },
+  restoreTask: (task) => {
+    if (get().tasks.some(item => item.id === task.id)) return;
+    const tasks = [...get().tasks, freshTaskDay(task)];
+    set(state => ({
+      tasks,
+      children: state.children.map(child => child.id === state.selectedChildId ? { ...child, tasks } : child),
+    }));
+    get().saveMockState();
+  },
+  undoTaskCompletion: (id) => {
+    const task = get().tasks.find(item => item.id === id);
+    if (!task?.done || task.date !== localDateKey() || get().coins < (task.rewardedCoins || 0)) return false;
+    const goal = get().rewardGoal;
+    if (goal?.claimed && get().totalEarned - (task.rewardedCoins || 0) - goal.startCoins < goal.target) return false;
+    const totalXp = Math.max(0, (get().level - 1) * 100 + get().xp - (task.rewardedXP || 0));
+    const change = {
+      tasks: get().tasks.map(item => item.id === id ? { ...item, done: false, rewardedXP: 0, rewardedCoins: 0 } : item),
+      coins: get().coins - (task.rewardedCoins || 0),
+      totalEarned: Math.max(0, get().totalEarned - (task.rewardedCoins || 0)),
+      dailyEarnings: { date: localDateKey(), coins: Math.max(0, get().dailyEarnings.coins - (task.rewardedCoins || 0)) },
+      xp: totalXp % 100,
+      level: Math.floor(totalXp / 100) + 1,
+    };
+    set(state => ({
+      ...change,
+      children: state.children.map(child => child.id === state.selectedChildId ? { ...child, ...change } : child),
+    }));
+    get().saveMockState();
+    return true;
+  },
   
   logout: async () => {
     try {
       const userTag = (get().nickname || get().userEmail?.split('@')[0] || '').toLowerCase().replace(/^@/, '');
       if (userTag) {
         const { isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, activeBackground, unlockedBackgrounds, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role } = get();
-        const stateObj = { isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, activeBackground, unlockedBackgrounds, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role };
+        const stateObj = { ...rewardState(get()), isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, activeBackground, unlockedBackgrounds, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role };
         await AsyncStorage.setItem(`mockState_${userTag}`, JSON.stringify(stateObj));
       }
     } catch (e) {}
@@ -216,7 +310,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       await AsyncStorage.removeItem('mockState');
     } catch (e) {}
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDateKey();
     set({
       userEmail: null,
       userId: null,
@@ -230,6 +324,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       prizes: ['Family surprise 🎁', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
       wonPrizes: [],
       coins: 0,
+      totalEarned: 0,
+      dailyEarnings: { date: localDateKey(), coins: 0 },
+      rewardGoal: null,
       unlockedAvatars: ['default'],
       currentAvatar: 'default',
       activeTheme: 'classic',
@@ -280,13 +377,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveMockState();
   },
   addXP: (amount) => {
-    const initialLevel = get().level;
     const totalXp = Math.max(0, ((get().level - 1) * 100) + get().xp + amount);
     const currentLevel = Math.floor(totalXp / 100) + 1;
     const currentXp = totalXp % 100;
-    if (currentLevel > initialLevel) {
-      playSound('levelup');
-    }
     set({ xp: currentXp, level: currentLevel });
     
     // Also sync updates to active selected child profile if parent
@@ -300,7 +393,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveMockState();
   },
   addTask: (task) => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDateKey();
     const newTask: Task = {
       ...task,
       id: Math.random().toString(36).substring(7),
@@ -319,6 +412,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveMockState();
   },
   removeTask: (id) => {
+    void cancelQuestNotification(get().tasks.find(task => task.id === id)?.focusNotificationId);
+    void cancelQuestNotification(`later-${id}`);
     set((state) => ({ tasks: state.tasks.filter(t => t.id !== id) }));
     const { selectedChildId, children } = get();
     if (selectedChildId && children.length > 0) {
@@ -329,6 +424,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveMockState();
   },
   updateTask: (id, updates) => {
+    const original = get().tasks.find(task => task.id === id);
+    if (original && Object.prototype.hasOwnProperty.call(updates, 'focusDurationMinutes')
+      && original.focusDurationMinutes !== updates.focusDurationMinutes) {
+      void cancelQuestNotification(original.focusNotificationId);
+      updates = { ...updates, activeFocusStartedAt: undefined, focusNotificationId: undefined };
+    }
     const updatedTasks = get().tasks.map(t => t.id === id ? { ...t, ...updates } : t);
     const { selectedChildId, children } = get();
     set({
@@ -348,41 +449,34 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
 
-    const xpToRemove = task.rewardedXP || (task.diff === 'hard' ? 35 : task.diff === 'med' ? 20 : 10);
-    const coinsToRemove = task.rewardedCoins || 0;
-    const updatedTasks = get().tasks.map((t) => (t.id === id ? { ...t, done: false, rewardedXP: 0, rewardedCoins: 0 } : t));
-    set({ tasks: updatedTasks });
-    
-    const { selectedChildId, children } = get();
-    if (selectedChildId && children.length > 0) {
-      set({
-        children: children.map(c => c.id === selectedChildId ? { ...c, tasks: updatedTasks } : c)
-      });
-    }
-    
-    get().addXP(-xpToRemove);
-    set({ coins: Math.max(0, get().coins - coinsToRemove) });
-    get().saveMockState();
+    get().undoTaskCompletion(id);
   },
   completeTask: (id) => {
+    if (get().lastActiveDate !== localDateKey()) get().resetTasksForNewDay();
     const task = get().tasks.find((item) => item.id === id);
-    if (!task || task.done) return { completed: false, pendingApproval: Boolean(task?.pendingApproval) };
-    if (task.requiresApproval) {
+    if (!task || task.done || task.pendingApproval || !isQuestDue(task)) return { completed: false, pendingApproval: Boolean(task?.pendingApproval) };
+    void cancelQuestNotification(task.focusNotificationId);
+    void cancelQuestNotification(`later-${id}`);
+    if (task.requiresApproval && get().linkedParents.length > 0 && get().role !== 'parent') {
       get().submitTaskForApproval(id);
       return { completed: false, pendingApproval: true };
     }
 
-    const reward = calculateQuestReward(task, get().tasks, get().currentAvatar);
+    const earnedToday = get().dailyEarnings.date === localDateKey() ? get().dailyEarnings.coins : 0;
+    const reward = calculateQuestReward(task, get().tasks, get().currentAvatar, earnedToday);
     const updatedTasks = get().tasks.map((item) => item.id === id ? {
       ...item,
       done: true,
+      date: localDateKey(),
       pendingApproval: false,
       activeFocusStartedAt: undefined,
       focusNotificationId: undefined,
       rewardedXP: reward.xp,
       rewardedCoins: reward.coins,
     } : item);
-    set({ tasks: updatedTasks, coins: get().coins + reward.coins });
+    set({ tasks: updatedTasks, coins: get().coins + reward.coins,
+      totalEarned: get().totalEarned + reward.coins,
+      dailyEarnings: { date: localDateKey(), coins: earnedToday + reward.coins } });
     get().addXP(reward.xp);
     const { selectedChildId, children } = get();
     if (selectedChildId) {
@@ -393,6 +487,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           coins: get().coins,
           xp: get().xp,
           level: get().level,
+          totalEarned: get().totalEarned,
+          dailyEarnings: get().dailyEarnings,
         } : child),
       });
     }
@@ -400,21 +496,28 @@ export const useAppStore = create<AppState>((set, get) => ({
     return { completed: true, pendingApproval: false, reward };
   },
   resetTasksForNewDay: () => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const resetTasksList = get().tasks.map((t) => ({ ...t, done: false, date: todayStr }));
+    const todayStr = localDateKey();
+    if (get().lastActiveDate === todayStr) return;
+    const resetTasksList = get().tasks.map((t) => freshTaskDay(t, todayStr));
     
     set((state) => ({
       lastActiveDate: todayStr,
       dailyMood: null,
       tasks: resetTasksList,
+      dailyEarnings: rewardState(state).dailyEarnings,
       children: state.children.map(child => ({
         ...child,
-        tasks: child.tasks.map(t => ({ ...t, done: false, date: todayStr }))
+        tasks: child.tasks.map(t => freshTaskDay(t, todayStr)),
+        dailyEarnings: rewardState(child).dailyEarnings,
       }))
     }));
     get().saveMockState();
   },
   deleteAllTasks: () => {
+    for (const task of get().tasks) {
+      void cancelQuestNotification(task.focusNotificationId);
+      void cancelQuestNotification(`later-${task.id}`);
+    }
     set({ tasks: [] });
     const { selectedChildId, children } = get();
     if (selectedChildId && children.length > 0) {
@@ -480,7 +583,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   spendCoins: (amount) => {
     const { coins } = get();
-    if (coins >= amount) {
+    if (Number.isFinite(amount) && amount >= 0 && coins >= amount) {
       set({ coins: coins - amount });
       get().saveMockState();
       return true;
@@ -544,17 +647,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     playSound('spin');
     get().saveMockState();
   },
-  claimDailySpin: (rewardType: 'coins' | 'xp', amount: number) => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (rewardType === 'coins') {
-      set({ coins: get().coins + amount, lastSpinDate: todayStr });
-      playSound('coin');
-    } else {
-      get().addXP(amount);
-      set({ lastSpinDate: todayStr });
-      playSound('levelup');
-    }
+  claimDailyWheelPrize: () => {
+    const todayStr = localDateKey();
+    const due = get().tasks.filter(task => isQuestDue(task));
+    if (!due.length || due.some(task => !task.done) || get().lastSpinDate === todayStr) return null;
+    const choices = get().prizes.map(prize => prize.trim()).filter(Boolean);
+    const prize = (choices.length ? choices : ['Family surprise 🎁'])[Math.floor(Math.random() * Math.max(1, choices.length))];
+    const won: WonPrize = { id: `wheel_${Date.now()}`, prize, date: new Date().toISOString(), redeemed: false };
+    const wonPrizes = [won, ...get().wonPrizes];
+    set(state => ({
+      lastSpinDate: todayStr,
+      wonPrizes,
+      children: state.children.map(child => child.id === state.selectedChildId ? { ...child, wonPrizes } : child),
+    }));
+    playSound('spin');
     get().saveMockState();
+    return prize;
   },
   submitTaskForApproval: (taskId: string, note?: string) => {
     const updatedTasks = get().tasks.map(t => t.id === taskId ? { ...t, pendingApproval: true, activeFocusStartedAt: undefined, focusNotificationId: undefined, verificationNote: note || 'Completed! Waiting for parent review 📸' } : t);
@@ -586,11 +694,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const updatedChildren = children.map(c => {
       if (c.id === childId) {
         const targetTask = c.tasks.find(t => t.id === taskId);
-        const reward = targetTask ? calculateQuestReward(targetTask, c.tasks, c.currentAvatar) : { xp: 0, coins: 0 };
+        if (!targetTask || targetTask.done || !targetTask.pendingApproval) return c;
+        const economy = rewardState(c);
+        const reward = calculateQuestReward(targetTask, c.tasks, c.currentAvatar, economy.dailyEarnings.coins);
         const updatedTasks = c.tasks.map(t => {
           if (t.id === taskId) {
             if (approved) {
-              return { ...t, done: true, pendingApproval: false, rewardedXP: reward.xp, rewardedCoins: reward.coins };
+              return { ...t, done: true, date: localDateKey(), pendingApproval: false, rewardedXP: reward.xp, rewardedCoins: reward.coins };
             } else {
               return { ...t, done: false, pendingApproval: false, rewardedXP: 0, rewardedCoins: 0 };
             }
@@ -607,6 +717,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           tasks: updatedTasks,
           xp: totalChildXp % 100,
           coins: Math.max(0, c.coins + bonusCoins),
+          totalEarned: economy.totalEarned + bonusCoins,
+          dailyEarnings: { date: localDateKey(), coins: economy.dailyEarnings.coins + bonusCoins },
           level: Math.floor(totalChildXp / 100) + 1,
         };
       }
@@ -621,6 +733,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         coins: selected.coins,
         xp: selected.xp,
         level: selected.level,
+        ...rewardState(selected),
       } : {}),
     });
     if (approved) {
@@ -1234,8 +1347,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         tasks: child.tasks || [],
         wonPrizes: child.wonPrizes || [],
         coins: child.coins || 0,
+        ...rewardState(child),
         level: child.level || 1,
         xp: child.xp || 0,
+        currentAvatar: child.currentAvatar || 'default',
+        unlockedAvatars: child.unlockedAvatars || ['default'],
         epicBossTask: child.epicBossTask || get().epicBossTask || '30-min deep focus block 🧠',
         epicBossXP: child.epicBossXP || get().epicBossXP || 35,
       });
@@ -1477,6 +1593,10 @@ export const useAppStore = create<AppState>((set, get) => ({
           active_background: get().activeBackground,
           unlocked_backgrounds: get().unlockedBackgrounds,
           last_spin_date: get().lastSpinDate,
+          total_earned: get().totalEarned,
+          daily_earnings: get().dailyEarnings,
+          reward_goal: get().rewardGoal,
+          last_active_date: get().lastActiveDate,
           approval_status: get().approvalStatus,
         });
         if (role === 'parent' && get().selectedChildId) {
@@ -1491,6 +1611,9 @@ export const useAppStore = create<AppState>((set, get) => ({
               current_avatar: selectedChild.currentAvatar,
               epicBossTask: selectedChild.epicBossTask,
               epicBossXP: selectedChild.epicBossXP,
+              total_earned: rewardState(selectedChild).totalEarned,
+              daily_earnings: rewardState(selectedChild).dailyEarnings,
+              reward_goal: selectedChild.rewardGoal || null,
             });
           }
         }
@@ -1528,7 +1651,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (!data) {
           data = await AsyncStorage.getItem('mockState');
         }
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = localDateKey();
 
         if (data) {
           const parsed = normalizeBrandState(JSON.parse(data));
@@ -1545,12 +1668,12 @@ export const useAppStore = create<AppState>((set, get) => ({
             const isNewDay = storedLastDate !== todayStr;
 
             const validTasks = isNewDay
-              ? rawTasks.map((t) => ({ ...t, done: false, date: todayStr }))
+              ? rawTasks.map((t) => freshTaskDay(t, todayStr))
               : rawTasks;
 
             const rawChildren: ChildProfile[] = Array.isArray(parsed.children) ? parsed.children : [];
             const validChildren: ChildProfile[] = isNewDay
-              ? rawChildren.map((c: any) => ({ ...c, tasks: c.tasks?.map((t: any) => ({ ...t, done: false, date: todayStr })) } as ChildProfile))
+              ? rawChildren.map((c: any) => ({ ...c, ...rewardState(c), tasks: c.tasks?.map((t: Task) => freshTaskDay(t, todayStr)) } as ChildProfile))
               : rawChildren;
 
             const rawWonPrizes = Array.isArray(parsed.wonPrizes) ? parsed.wonPrizes : [];
@@ -1591,6 +1714,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               prizes: Array.isArray(parsed.prizes) && parsed.prizes.length > 0 ? parsed.prizes : ['Family surprise 🎁', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
               wonPrizes: normalizedWonPrizes,
               coins: typeof parsed.coins === 'number' ? parsed.coins : 0,
+              ...rewardState(parsed),
               unlockedAvatars: Array.isArray(parsed.unlockedAvatars) && parsed.unlockedAvatars.length > 0 ? parsed.unlockedAvatars : ['default'],
               currentAvatar: parsed.currentAvatar || 'default',
               activeTheme: parsed.activeTheme || 'classic',
@@ -1632,7 +1756,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                 level: typeof data.level === 'number' ? data.level : 1,
                 xp: typeof data.xp === 'number' ? data.xp : 0,
                 coins: typeof data.coins === 'number' ? data.coins : 0,
-                tasks: Array.isArray(data.tasks) ? data.tasks : [],
+                ...rewardState(data, true),
+                tasks: Array.isArray(data.tasks) ? data.tasks.map((task: Task) => freshTaskDay(task)) : [],
                 wonPrizes: Array.isArray(data.won_prizes) ? data.won_prizes : [],
                 unlockedAvatars: Array.isArray(data.unlocked_avatars) ? data.unlocked_avatars : ['default'],
                 currentAvatar: data.current_avatar || 'default',
@@ -1666,8 +1791,15 @@ export const useAppStore = create<AppState>((set, get) => ({
                 
                 set({
                   children: cloudChildren,
-                  selectedChildId: activeSelected,
+                  selectedChildId: activeChild.id,
                   tasks: activeChild?.tasks || get().tasks,
+                  coins: activeChild.coins,
+                  xp: activeChild.xp,
+                  level: activeChild.level,
+                  wonPrizes: activeChild.wonPrizes,
+                  currentAvatar: activeChild.currentAvatar,
+                  unlockedAvatars: activeChild.unlockedAvatars,
+                  ...rewardState(activeChild),
                   epicBossTask: activeChild?.epicBossTask || cloudData.epicBossTask || get().epicBossTask,
                   epicBossXP: typeof activeChild?.epicBossXP === 'number' ? activeChild.epicBossXP : (typeof cloudData.epicBossXP === 'number' ? cloudData.epicBossXP : get().epicBossXP)
                 });
@@ -1688,9 +1820,11 @@ export const useAppStore = create<AppState>((set, get) => ({
                 if (mergedParents.length > 0) updates.approvalStatus = 'approved';
               }
               if (Array.isArray(cloudData.tasks)) {
-                updates.tasks = cloudData.tasks;
+                updates.tasks = cloudData.tasks.map((task: Task) => freshTaskDay(task));
               }
               if (typeof cloudData.coins === 'number') updates.coins = cloudData.coins;
+              Object.assign(updates, rewardState(cloudData, true));
+              if (Array.isArray(cloudData.won_prizes)) updates.wonPrizes = cloudData.won_prizes;
               if (typeof cloudData.xp === 'number') updates.xp = cloudData.xp;
               if (typeof cloudData.level === 'number') updates.level = cloudData.level;
               if (typeof cloudData.current_avatar === 'string') updates.currentAvatar = cloudData.current_avatar;
@@ -1728,7 +1862,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (e) {
       console.warn('Failed to clear async storage:', e);
     }
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDateKey();
     set({
       userEmail: null,
       userId: null,
@@ -1742,6 +1876,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       prizes: ['Family surprise 🎁', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
       wonPrizes: [],
       coins: 0,
+      totalEarned: 0,
+      dailyEarnings: { date: localDateKey(), coins: 0 },
+      rewardGoal: null,
       unlockedAvatars: ['default'],
       currentAvatar: 'default',
       activeTheme: 'classic',
@@ -1768,7 +1905,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         return;
       }
       const userTag = (nickname || userEmail.split('@')[0]).toLowerCase().replace(/^@/, '');
-      const stateObj = { isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, activeBackground, unlockedBackgrounds, lastSpinDate, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role };
+      const stateObj = { ...rewardState(get()), isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, activeBackground, unlockedBackgrounds, lastSpinDate, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role };
       
       await AsyncStorage.setItem('active_user_tag', userTag);
       await AsyncStorage.setItem('mockState', JSON.stringify(stateObj));

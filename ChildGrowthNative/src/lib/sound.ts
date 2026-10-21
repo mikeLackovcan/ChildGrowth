@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useExperienceSettings } from '../store/useExperienceSettings';
 
 const COMPLETE_SOUND = require('../../assets/audio/habi-complete.wav');
 
@@ -22,6 +23,7 @@ function getAudioContext(): AudioContext | null {
 }
 
 export function playSound(effect: SoundEffect) {
+  if (!useExperienceSettings.getState().soundEnabled) return;
   // 1. Native Haptic Feedback
   if (Platform.OS !== 'web') {
     try {

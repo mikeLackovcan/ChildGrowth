@@ -7,6 +7,7 @@ import { useAppStore } from '../store/useAppStore';
 import { LogOut, UserPlus, User, Gift, CheckCircle2, Circle, CheckSquare, RotateCcw, ShoppingBag, Coins, Shield, Tag, Trash2, Plus } from 'lucide-react-native';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { AVAILABLE_AVATARS } from './(tabs)/shop';
+import RewardGoalCard from '../components/RewardGoalCard';
 
 export default function ParentDashboardScreen() {
   const { t } = useTranslation();
@@ -69,10 +70,11 @@ export default function ParentDashboardScreen() {
 
   React.useEffect(() => {
     if (activeChild) {
+      if (selectedChildId !== activeChild.id) selectChild(activeChild.id);
       setEpicBossTitleInput(activeChild.epicBossTask || epicBossTask || '30-min deep focus block 🧠');
       setEpicBossXPInput(String(activeChild.epicBossXP || epicBossXP || 35));
     }
-  }, [activeChild?.id, epicBossTask, epicBossXP]);
+  }, [activeChild?.id, selectedChildId, selectChild, epicBossTask, epicBossXP]);
 
   if (!userEmail) {
     return null;
@@ -315,6 +317,7 @@ export default function ParentDashboardScreen() {
           )}
         </View>
 
+        {activeChild && <RewardGoalCard key={activeChild.id} ownerName={activeChild.name} />}
         {/* Add Child by Nickname Section (No Email Required!) */}
         <View style={styles.section}>
           <Text style={styles.secTitle}>{t('add_child_by_nickname', 'ADD CHILD BY NICKNAME 👨‍👩‍👧')}</Text>
@@ -457,11 +460,11 @@ export default function ParentDashboardScreen() {
                 style={[styles.resetDayButton, { flex: 1, marginTop: 0 }]} 
                 onPress={() => {
                   resetTasksForNewDay();
-                  alert(t('new_day_alert', '🔄 New Day Started! All daily quests reset to 0/N completed.'));
+                  alert('Today’s quests are up to date. Completed quests reset automatically on the next day.');
                 }}
               >
                 <RotateCcw size={16} color={Colors.blue} />
-                <Text style={styles.resetDayButtonText}>{t('start_fresh_new_day', 'Reset Daily Quests (0/N)')}</Text>
+                <Text style={styles.resetDayButtonText}>Refresh today’s quests</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
