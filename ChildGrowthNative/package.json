@@ -66,7 +66,8 @@
     "test": "node ./scripts/test-linking-workflow.js",
     "test:firebase": "node ./scripts/test-full-firebase-linking.js",
     "test:project": "node ./scripts/test-project-isolation.cjs",
-    "test:ux": "node --test ./scripts/test-quest-ux.cjs"
+    "test:ux": "node --test ./scripts/test-quest-ux.cjs",
+    "test:locales": "node ./scripts/test-i18n-parity.cjs"
   },
   "private": true
 }

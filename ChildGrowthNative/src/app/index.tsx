@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Platform, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput, ScrollView } from 'react-native';
 import { router } from 'expo-router';
-import { Colors, Typography } from '../constants/theme';
+import { Colors } from '../constants/theme';
 import { useAppStore } from '../store/useAppStore';
-import { Lock, Mail, User, Tag, KeyRound, Sparkles, Wand2, Eye, EyeOff } from 'lucide-react-native';
+import { Lock, Mail, User, Tag, Eye, EyeOff } from 'lucide-react-native';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
 import * as WebBrowser from 'expo-web-browser';
@@ -17,9 +17,7 @@ export default function LoginScreen() {
   const loadMockState = useAppStore((state) => state.loadMockState);
   const userEmail = useAppStore((state) => state.userEmail);
   const role = useAppStore((state) => state.role);
-  const setUser = useAppStore((state) => state.setUser);
   const continueAsGuest = useAppStore((state) => state.continueAsGuest);
-  const coins = useAppStore((state) => state.coins);
   
   const registerWithEmail = useAppStore((state) => state.registerWithEmail);
   const loginWithEmail = useAppStore((state) => state.loginWithEmail);
@@ -39,7 +37,7 @@ export default function LoginScreen() {
 
   useEffect(() => {
     loadMockState();
-  }, []);
+  }, [loadMockState]);
 
   useEffect(() => {
     if (userEmail) {
@@ -78,10 +76,6 @@ export default function LoginScreen() {
     setAuthMessage(null);
     await continueAsGuest();
     setLoading(false);
-  };
-
-  const handleTestLogin = (testRole: 'parent' | 'child') => {
-    setUser(`test-${testRole}@growth.app`, testRole);
   };
 
   const handleAuthSubmit = async () => {
@@ -130,10 +124,10 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.authBox}>
+        <View style={styles.authContent}>
           
           {/* Top Bar Language Switcher */}
-          <View style={{ width: '100%', flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 14 }}>
+          <View style={styles.languageRow}>
             <LanguageSwitcher />
           </View>
 
@@ -145,13 +139,29 @@ export default function LoginScreen() {
           <Text style={styles.title}>{t('app_title', 'Quest Champ')}</Text>
           <Text style={styles.subtitle}>{t('app_subtitle', 'Small steps. Big adventures.')}</Text>
 
+          <TouchableOpacity
+            style={styles.guestBtn}
+            activeOpacity={0.82}
+            onPress={handleGuestMode}
+            disabled={loading}
+            accessibilityRole="button"
+          >
+            <Text style={styles.guestBtnText}>{t('kid_mode_start')}</Text>
+            <Text style={styles.guestBtnHint}>{t('kid_mode_no_account')}</Text>
+          </TouchableOpacity>
+
+          <View style={styles.sectionDivider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.sectionLabel}>{t('parent_signin_heading')}</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
           {/* Auth Mode Selection Tabs: Clean 2 Tabs (Login & Register) */}
           <View style={styles.modeTabsRow}>
             <TouchableOpacity 
               style={[styles.modeTab, authMode === 'signin' && styles.modeTabActive]} 
               onPress={() => { setAuthMode('signin'); setAuthMessage(null); }}
             >
-              <KeyRound size={16} color={authMode === 'signin' ? Colors.primary : Colors.textMuted} />
               <Text style={[styles.modeTabText, authMode === 'signin' && styles.modeTabTextActive]}>{t('auth_signin', 'Sign In')}</Text>
             </TouchableOpacity>
 
@@ -159,7 +169,6 @@ export default function LoginScreen() {
               style={[styles.modeTab, authMode === 'register' && styles.modeTabActive]} 
               onPress={() => { setAuthMode('register'); setAuthMessage(null); }}
             >
-              <User size={16} color={authMode === 'register' ? Colors.primary : Colors.textMuted} />
               <Text style={[styles.modeTabText, authMode === 'register' && styles.modeTabTextActive]}>{t('auth_register', 'Create Account')}</Text>
             </TouchableOpacity>
           </View>
@@ -167,13 +176,7 @@ export default function LoginScreen() {
           {/* Registration Extra Fields: Role, Name & Nickname */}
           {authMode === 'register' && (
             <>
-              <View style={styles.parentNotice}>
-                <Text style={styles.parentNoticeIcon}>👨‍👩‍👧</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.parentNoticeTitle}>{t('parent_account_title')}</Text>
-                  <Text style={styles.parentNoticeText}>{t('parent_account_note')}</Text>
-                </View>
-              </View>
+              <Text style={styles.parentNoticeText}>{t('parent_account_note')}</Text>
 
               <View style={styles.inputBox}>
                 <User size={18} color={Colors.textMuted} />
@@ -283,8 +286,6 @@ export default function LoginScreen() {
             </Text>
           </TouchableOpacity>
 
-          <View style={styles.divider} />
-
           <TouchableOpacity
             style={styles.parentCheckRow}
             activeOpacity={0.8}
@@ -305,16 +306,8 @@ export default function LoginScreen() {
             onPress={handleGoogleSignIn}
             disabled={loading}
           >
-            <Text style={styles.googleBtnText}>Sign in with Google</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.guestBtn}
-            activeOpacity={0.8}
-            onPress={handleGuestMode}
-            disabled={loading}
-          >
-            <Text style={styles.guestBtnText}>{t('kid_mode_no_account')}</Text>
+            <Text style={styles.googleMark}>G</Text>
+            <Text style={styles.googleBtnText}>{t('google_sign_in')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -328,39 +321,33 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 18,
     maxWidth: 440,
     width: '100%',
     alignSelf: 'center',
   },
-  authBox: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 28,
-    padding: 24,
+  authContent: {
+    paddingVertical: 8,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 4,
   },
-  parentNotice: {
+  languageRow: {
     width: '100%',
     flexDirection: 'row',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 14,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    marginBottom: 8,
   },
-  parentNoticeIcon: { fontSize: 24 },
-  parentNoticeTitle: { fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 14 },
-  parentNoticeText: { fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, fontSize: 11, marginTop: 2 },
+  parentNoticeText: {
+    width: '100%',
+    fontFamily: 'Nunito_600SemiBold',
+    color: Colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
   parentCheckRow: {
     width: '100%',
     minHeight: 48,
@@ -381,44 +368,12 @@ const styles = StyleSheet.create({
   parentCheckboxChecked: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   parentCheckmark: { color: '#FFF', fontFamily: 'Nunito_800ExtraBold', fontSize: 15 },
   parentCheckText: { flex: 1, fontFamily: 'Nunito_700Bold', color: Colors.textSecondary, fontSize: 12 },
-  coinBadge: {
-    backgroundColor: Colors.amberDim,
-    borderWidth: 1.5,
-    borderColor: Colors.amber,
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    marginBottom: 20,
-    shadowColor: Colors.amber,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  coinBadgeText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 14,
-    color: Colors.amber,
-  },
   logoBox: {
-    width: 98,
-    height: 98,
-    backgroundColor: Colors.blueDim,
-    borderRadius: 28,
+    width: 96,
+    height: 96,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-  questDiamond: {
-    width: 24,
-    height: 24,
-    backgroundColor: '#FFFFFF',
-    transform: [{ rotate: '45deg' }],
+    marginBottom: 8,
   },
   title: {
     fontFamily: 'Nunito_800ExtraBold',
@@ -430,24 +385,17 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito_700Bold',
     fontSize: 14,
     color: Colors.textMuted,
-    marginBottom: 28,
+    marginBottom: 18,
   },
   googleBtn: {
     width: '100%',
-    backgroundColor: Colors.surface,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    paddingVertical: 14,
-    borderRadius: 16,
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 1,
-    marginBottom: 16,
+    flexDirection: 'row',
+    gap: 9,
   },
+  googleMark: { fontFamily: 'Nunito_800ExtraBold', fontSize: 18, color: '#4285F4' },
   googleBtnText: {
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 16,
@@ -455,65 +403,63 @@ const styles = StyleSheet.create({
   },
   guestBtn: {
     width: '100%',
-    paddingVertical: 12,
+    backgroundColor: Colors.primary,
+    paddingVertical: 13,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 3,
   },
   guestBtnText: {
-    fontFamily: 'Nunito_700Bold',
-    color: Colors.textSecondary,
-    fontSize: 14,
-    textDecorationLine: 'underline',
+    fontFamily: 'Nunito_800ExtraBold',
+    color: '#FFFFFF',
+    fontSize: 16,
   },
-  divider: {
+  guestBtnHint: {
+    fontFamily: 'Nunito_600SemiBold',
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  sectionDivider: {
     width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
     height: 1,
     backgroundColor: Colors.border2,
-    marginVertical: 16,
   },
-  testBtn: {
-    width: '100%',
-    backgroundColor: Colors.surface2,
-    borderWidth: 1,
-    borderColor: Colors.border2,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  testBtnText: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 13,
-    color: Colors.textSecondary,
+  sectionLabel: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 10,
+    color: Colors.textMuted,
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
   },
   modeTabsRow: {
     flexDirection: 'row',
-    backgroundColor: Colors.surface2,
-    borderRadius: 14,
-    padding: 4,
     width: '100%',
-    marginBottom: 20,
-    gap: 4,
+    marginBottom: 18,
   },
   modeTab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 8,
-    borderRadius: 11,
+    paddingVertical: 9,
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.border2,
   },
   modeTabActive: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    borderBottomColor: Colors.primary,
   },
   modeTabText: {
     fontFamily: 'Nunito_700Bold',
@@ -528,14 +474,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: Colors.surface2,
-    borderWidth: 1,
-    borderColor: Colors.border2,
-    borderRadius: 14,
-    paddingHorizontal: 14,
+    borderBottomWidth: 1.5,
+    borderBottomColor: Colors.border,
+    paddingHorizontal: 2,
     height: 48,
     width: '100%',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   input: {
     flex: 1,
@@ -551,7 +495,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 6,
+    marginTop: 8,
     marginBottom: 10,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
@@ -566,11 +510,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   msgBanner: {
-    backgroundColor: Colors.amberDim,
-    borderWidth: 1,
-    borderColor: Colors.amber,
-    borderRadius: 8,
-    padding: 10,
+    paddingVertical: 8,
     width: '100%',
     marginBottom: 12,
   },
