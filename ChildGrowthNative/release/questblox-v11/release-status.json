@@ -1,0 +1,22 @@
+{
+  "app": "QuestBlox",
+  "package": "com.questblox.app",
+  "channel": "internal-testing",
+  "buildId": "fa3bc3dc-eda0-41f3-8f33-8d44b9887512",
+  "versionCode": 11,
+  "status": "Native module compiled; cloud build still running. Not published. Superseded locally by approved icon and microphone placement.",
+  "finalBuild": "User explicitly approved EAS source upload; version 12 build requested. Version 11 is superseded and must not be published.",
+  "backend": "applyProgress deployed successfully; per-quest reminderMode supported.",
+  "checks": [
+    "TypeScript passed",
+    "634 translation keys in four languages",
+    "10 reminder checks",
+    "23 quest checks",
+    "70 Firebase emulator tests",
+    "Progress/account/push checks passed",
+    "Web previews in all four languages",
+    "Icon inspected at 48px and 64px and with a round mask"
+  ],
+  "playDraft": "https://play.google.com/console/u/0/developers/8678689728528439012/app/4973160647974386489/tracks/4701374113761647208/releases/6/prepare",
+  "physicalDeviceChecks": "Not performed; see device-checks.md"
+}

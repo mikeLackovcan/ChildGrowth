@@ -1,0 +1,12 @@
+<en-US>
+Choose a notification or ringing alarm for each quest. Add task names by voice. Cleaner quest controls, clearer task pictures and rolling time selection.
+</en-US>
+<cs-CZ>
+U každého úkolu vyberte oznámení nebo budík. Názvy úkolů můžete nadiktovat. Přehlednější ovládání, výrazné obrázky a posuvný výběr času.
+</cs-CZ>
+<es-ES>
+Elige una notificación o alarma para cada misión. Dicta los nombres de las tareas. Controles más sencillos, imágenes claras y selector de hora deslizante.
+</es-ES>
+<de-DE>
+Wähle für jede Aufgabe eine Benachrichtigung oder einen Wecker. Sprich Aufgabennamen ein. Übersichtliche Bedienung, klare Bilder und rollende Zeitauswahl.
+</de-DE>

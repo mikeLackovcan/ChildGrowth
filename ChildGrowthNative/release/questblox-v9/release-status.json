@@ -1,0 +1,30 @@
+{
+  "app": "QuestBlox",
+  "package": "com.questblox.app",
+  "version": "1.0.0",
+  "versionCode": 9,
+  "channel": "internal-testing",
+  "runtime": "05f76430bb6f3c027ef570ed47b20405c017a028",
+  "buildId": "756b4e3e-4f58-4683-a8b1-c95fb72dc1de",
+  "buildStatus": "FINISHED",
+  "buildUrl": "https://expo.dev/accounts/misko7/projects/QuestBlox/builds/756b4e3e-4f58-4683-a8b1-c95fb72dc1de",
+  "aabFile": "questblox-1.0.0-v9.aab",
+  "aabSha256": "13fba90e5616c17992e97fbfb468a3bd90f927a22f0801b3ddef8b19597283a4",
+  "googlePlayStatus": "Available to internal testers",
+  "googlePlayRelease": "5",
+  "googlePlayReleaseUrl": "https://play.google.com/console/u/0/developers/8678689728528439012/app/4973160647974386489/tracks/4701374113761647208/releases/5/details",
+  "googlePlayWarnings": [
+    "Missing optional deobfuscation mapping file"
+  ],
+  "googlePlayPublishedLocal": "2026-10-25 02:14 Europe/Prague",
+  "latestOta": {
+    "groupId": "89384660-f52b-4ee4-93b6-e4456bd97e19",
+    "androidUpdateId": "01a17074-d991-7da1-9272-3f42d2c3d20b",
+    "status": "published",
+    "runtime": "05f76430bb6f3c027ef570ed47b20405c017a028",
+    "channel": "internal-testing",
+    "platform": "android",
+    "message": "Clearer quest editor, alarm-style time wheels and Android safe-area fix",
+    "checks": "TypeScript; 617 translation keys across English, Czech, Spanish and German; 23 quest checks; 8 reminder checks; responsive web editor and time-wheel interactions. Physical Android safe-area rendering not verified."
+  }
+}

@@ -1,9 +1,11 @@
+import ReminderController from '../components/ReminderController';
 import { Stack } from 'expo-router';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
 import { 
   useFonts, 
+  Nunito_900Black,
   Nunito_500Medium, 
   Nunito_600SemiBold, 
   Nunito_700Bold, 
@@ -17,6 +19,7 @@ SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
+    Nunito_900Black,
     Nunito_500Medium,
     Nunito_600SemiBold,
     Nunito_700Bold,
@@ -38,6 +41,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="login" />
         <Stack.Screen name="role-select" />
         <Stack.Screen name="link-account" />
         <Stack.Screen name="child-onboard" />
@@ -47,6 +51,7 @@ export default function RootLayout() {
         <Stack.Screen name="tracker" />
         <Stack.Screen name="(tabs)" />
       </Stack>
+      <ReminderController />
     </GestureHandlerRootView>
   );
 }

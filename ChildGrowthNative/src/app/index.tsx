@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput, ScrollView, Image } from 'react-native';
-import { router } from 'expo-router';
-import { Colors, Typography } from '../constants/theme';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput, ScrollView, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { router, usePathname } from 'expo-router';
+import { Colors } from '../constants/theme';
 import { useAppStore } from '../store/useAppStore';
-import { Lock, Mail, User, Tag, KeyRound, Sparkles, Wand2, Eye, EyeOff } from 'lucide-react-native';
+import { Lock, Mail, User, Tag, Eye, EyeOff, ArrowLeft } from 'lucide-react-native';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
 import * as Google from 'expo-auth-session/providers/google';
@@ -13,13 +13,13 @@ WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const { t } = useTranslation();
+  const pathname = usePathname();
+  const userId = useAppStore(state => state.userId);
   const loadMockState = useAppStore((state) => state.loadMockState);
   const userEmail = useAppStore((state) => state.userEmail);
   const role = useAppStore((state) => state.role);
-  const setUser = useAppStore((state) => state.setUser);
   const continueAsGuest = useAppStore((state) => state.continueAsGuest);
-  const coins = useAppStore((state) => state.coins);
-  
+
   const registerWithEmail = useAppStore((state) => state.registerWithEmail);
   const loginWithEmail = useAppStore((state) => state.loginWithEmail);
   const sendMagicLink = useAppStore((state) => state.sendMagicLink);
@@ -27,7 +27,7 @@ export default function LoginScreen() {
   const signInWithGoogle = useAppStore((state) => state.signInWithGoogle);
 
   const [authMode, setAuthMode] = useState<'signin' | 'register'>('signin');
-  const [selectedRole, setSelectedRole] = useState<'child' | 'parent'>('child');
+  const [selectedRole, setSelectedRole] = useState<'child' | 'parent' | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -35,6 +35,7 @@ export default function LoginScreen() {
   const [nickname, setNickname] = useState('');
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const googleClientIds = {
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '35992182600-oounvs8ja932t3drbsq2e3ru0lemh8c2.apps.googleusercontent.com',
@@ -43,14 +44,17 @@ export default function LoginScreen() {
   };
   const googleConfigured = Boolean(googleClientIds.androidClientId && googleClientIds.webClientId);
 
-  const [googleRequest, googleResponse, promptGoogleSignIn] = Google.useAuthRequest(googleClientIds);
+  const [googleRequest, googleResponse, promptGoogleSignIn] = Google.useAuthRequest({
+    ...googleClientIds,
+    selectAccount: true,
+  });
 
   useEffect(() => {
     loadMockState();
   }, []);
 
   useEffect(() => {
-    if (userEmail) {
+    if (userEmail && !(userId === 'guest-local' && pathname === '/login')) {
       if (!role) {
         router.replace('/role-select');
       } else if (role === 'parent') {
@@ -59,48 +63,78 @@ export default function LoginScreen() {
         router.replace('/(tabs)');
       }
     }
-  }, [userEmail, role]);
+  }, [userEmail, role, userId, pathname]);
 
+  // AuthSession completes its code exchange asynchronously on non-Android platforms.
   useEffect(() => {
-    if (googleResponse?.type !== 'success') return;
-
-    const finishGoogleSignIn = async () => {
-      setLoading(true);
-      setAuthMessage(null);
-      const result = await signInWithGoogle(
-        googleResponse.authentication?.idToken || '',
-        googleResponse.authentication?.accessToken,
-        selectedRole,
-      );
-      setAuthMessage(result.success ? null : (result.message || 'Google sign-in failed.'));
-      setLoading(false);
-    };
-
-    finishGoogleSignIn();
-  }, [googleResponse, selectedRole, signInWithGoogle]);
+    if (Platform.OS === 'android' || googleResponse?.type !== 'success' || !selectedRole) return;
+    let active = true;
+    setLoading(true);
+    signInWithGoogle(googleResponse.authentication?.idToken || googleResponse.params.id_token || '',
+      googleResponse.authentication?.accessToken, selectedRole)
+      .then(result => { if (active) setAuthMessage(result.success ? null : result.message || t('auth_retry')); })
+      .catch(() => { if (active) setAuthMessage(t('auth_retry')); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [googleResponse]);
 
   const handleGoogleSignIn = async () => {
-    if (!googleConfigured || !googleRequest) {
-      setAuthMessage('Google sign-in is not configured yet. Add the Google OAuth client IDs to the Expo environment.');
-      return;
+    if (loading || !selectedRole) return;
+    setLoading(true);
+    setAuthMessage(null);
+    try {
+      let idToken = '';
+      let accessToken: string | undefined;
+      if (Platform.OS === 'android') {
+        const { GoogleSignin, isSuccessResponse } = await import('@react-native-google-signin/google-signin');
+        GoogleSignin.configure({ webClientId: googleClientIds.webClientId, offlineAccess: false });
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        // Do not silently reuse the previous family member's Google account.
+        await GoogleSignin.signOut().catch(() => null);
+        const response = await GoogleSignin.signIn();
+        if (!isSuccessResponse(response)) return; // User cancelled the account picker.
+        idToken = response.data.idToken || '';
+      } else {
+        if (!googleConfigured || !googleRequest) {
+          setAuthMessage(t('auth_google_wait'));
+          return;
+        }
+        const response = await promptGoogleSignIn();
+        if (response.type === 'cancel' || response.type === 'dismiss') return;
+        if (response.type !== 'success') {
+          setAuthMessage(response.type === 'error' ? t('auth_retry') : t('auth_google_finish'));
+          return;
+        }
+        return; // The AuthSession response effect completes Firebase sign-in.
+      }
+      const result = await signInWithGoogle(idToken, accessToken, selectedRole);
+      if (!result.success) setAuthMessage(result.message || t('auth_retry'));
+    } catch (error: any) {
+      const code = String(error?.code || '');
+      if (code === 'SIGN_IN_CANCELLED') return;
+      setAuthMessage(code === '10' || code === 'DEVELOPER_ERROR'
+        ? t('auth_google_config')
+        : code === 'PLAY_SERVICES_NOT_AVAILABLE'
+          ? t('auth_google_services')
+          : t('auth_retry'));
+    } finally {
+      setLoading(false);
     }
-    await promptGoogleSignIn();
   };
 
   const handleGuestMode = async () => {
     setLoading(true);
     setAuthMessage(null);
-    await continueAsGuest();
-    setLoading(false);
-  };
-
-  const handleTestLogin = (testRole: 'parent' | 'child') => {
-    setUser(`test-${testRole}@growth.app`, testRole);
+    try {
+      await continueAsGuest();
+      router.replace('/(tabs)');
+    } catch { setAuthMessage(t('auth_retry')); }
+    finally { setLoading(false); }
   };
 
   const handleAuthSubmit = async () => {
-    console.log('[AUTH] handleAuthSubmit invoked:', { email, fullName, nickname, selectedRole, authMode });
-    if (!email) {
+    if (!selectedRole) return;
+    if (!email.trim()) {
       setAuthMessage(t('enter_valid_email', 'Please enter a valid email address!'));
       return;
     }
@@ -110,14 +144,14 @@ export default function LoginScreen() {
 
     try {
       if (authMode === 'register') {
-        if (!password || !fullName || !nickname) {
+        if (!password || !fullName.trim() || !nickname.trim()) {
           setAuthMessage(t('fill_all_fields', 'Please fill in Name, Nickname, Email, and Password!'));
           setLoading(false);
           return;
         }
-        const regRes = await registerWithEmail(email, password, fullName, nickname, selectedRole);
+        const regRes = await registerWithEmail(email.trim(), password, fullName.trim(), nickname.trim(), selectedRole);
         if (!regRes.success) {
-          setAuthMessage(regRes.message || 'Registration failed!');
+          setAuthMessage(regRes.message || t('auth_register_retry'));
           setLoading(false);
           return;
         }
@@ -133,7 +167,7 @@ export default function LoginScreen() {
           setLoading(false);
           return;
         }
-        const res = await loginWithEmail(email, password);
+        const res = await loginWithEmail(email.trim(), password);
         if (res.success) {
           const currentRole = useAppStore.getState().role;
           if (currentRole === 'parent') {
@@ -142,11 +176,11 @@ export default function LoginScreen() {
             router.replace('/(tabs)');
           }
         } else {
-          setAuthMessage(res.message || 'Login failed.');
+          setAuthMessage(res.message || t('auth_retry'));
         }
       }
     } catch (err: any) {
-      setAuthMessage(err?.message || 'Authentication completed.');
+      setAuthMessage(t('auth_retry'));
     } finally {
       setLoading(false);
     }
@@ -154,94 +188,106 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} showsVerticalScrollIndicator={false}>
         <View style={styles.authBox}>
-          
+
           {/* Top Bar Language Switcher */}
           <View style={{ width: '100%', flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 14 }}>
-            <LanguageSwitcher />
+            <LanguageSwitcher compact />
           </View>
 
-          {/* App Logo & Branding */}
-          <View style={styles.logoFrame}>
-            <Image 
-              source={require('../assets/images/questblox_hero.png')} 
-              style={styles.logoImg}
-              resizeMode="contain"
-            />
+          <View style={styles.brandRow}>
+            <Image source={require('../../assets/images/app-icon-v2.png')} style={styles.logoImg} resizeMode="contain" />
+            <Text style={styles.brand}>Questblox</Text>
           </View>
-          
-          <Text style={styles.title}>{t('app_title', 'QuestBlox')}</Text>
-          <Text style={styles.subtitle}>{t('app_subtitle', 'Roblox Habit & Battle Arena ⚔️')}</Text>
+          {!selectedRole ? (
+            <>
+              <Text style={styles.title}>{t('auth_who_clean')}</Text>
+              <Text style={styles.roleIntro}>{t('auth_role_first_hint')}</Text>
+              <View style={styles.roleChoiceGrid}>
+                {(['child', 'parent'] as const).map(accountRole => (
+                  <TouchableOpacity
+                    key={accountRole}
+                    testID={`auth-role-${accountRole}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={accountRole === 'child' ? t('auth_child_clean') : t('auth_parent_clean')}
+                    disabled={loading}
+                    onPress={() => { setSelectedRole(accountRole); setAuthMessage(null); }}
+                    style={[styles.roleChoiceCard, accountRole === 'child' ? styles.childRoleCard : styles.parentRoleCard]}
+                    activeOpacity={0.82}
+                  >
+                    <Text accessible={false} style={styles.roleChoiceIcon}>{accountRole === 'child' ? '🎮' : '👨‍👩‍👧'}</Text>
+                    <Text style={styles.roleChoiceText}>
+                      {accountRole === 'child' ? t('auth_child_clean') : t('auth_parent_clean')}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity
+                testID="auth-change-role"
+                accessibilityRole="button"
+                accessibilityLabel={t('auth_change_role')}
+                disabled={loading}
+                style={styles.selectedRoleRow}
+                onPress={() => { setSelectedRole(null); setAuthMessage(null); }}
+              >
+                <ArrowLeft size={20} color="#ffc857" />
+                <Text accessible={false} style={styles.selectedRoleIcon}>{selectedRole === 'child' ? '🎮' : '👨‍👩‍👧'}</Text>
+                <Text style={styles.selectedRoleText}>
+                  {selectedRole === 'child' ? t('auth_child_clean') : t('auth_parent_clean')}
+                </Text>
+                <Text style={styles.changeRoleText}>{t('auth_change_role')}</Text>
+              </TouchableOpacity>
+
+              <Text style={styles.title}>{authMode === 'signin' ? t('auth_welcome_clean', 'Welcome back') : t('auth_join_clean', 'Join the adventure')}</Text>
 
           {/* Auth Mode Selection Tabs: Clean 2 Tabs (Login & Register) */}
           <View style={styles.modeTabsRow}>
-            <TouchableOpacity 
-              testID="auth-tab-signin"
-              style={[styles.modeTab, authMode === 'signin' && styles.modeTabActive]} 
+            <TouchableOpacity
+              testID="auth-tab-signin" accessibilityRole="tab" accessibilityState={{ selected: authMode === 'signin' }} aria-selected={authMode === 'signin'} disabled={loading}
+              style={[styles.modeTab, authMode === 'signin' && styles.modeTabActive]}
               onPress={() => { setAuthMode('signin'); setAuthMessage(null); }}
             >
-              <KeyRound size={16} color={authMode === 'signin' ? Colors.amber : Colors.textMuted} />
               <Text style={[styles.modeTabText, authMode === 'signin' && styles.modeTabTextActive]}>{t('auth_signin', 'Sign In')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              testID="auth-tab-register"
-              style={[styles.modeTab, authMode === 'register' && styles.modeTabActive]} 
+            <TouchableOpacity
+              testID="auth-tab-register" accessibilityRole="tab" accessibilityState={{ selected: authMode === 'register' }} aria-selected={authMode === 'register'} disabled={loading}
+              style={[styles.modeTab, authMode === 'register' && styles.modeTabActive]}
               onPress={() => { setAuthMode('register'); setAuthMessage(null); }}
             >
-              <User size={16} color={authMode === 'register' ? Colors.amber : Colors.textMuted} />
               <Text style={[styles.modeTabText, authMode === 'register' && styles.modeTabTextActive]}>{t('auth_register', 'Create Account')}</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Registration Extra Fields: Role, Name & Nickname */}
+          {/* Google Sign-In */}
+          <TouchableOpacity
+            accessibilityRole="button" accessibilityState={{ disabled: loading, busy: loading }}
+            testID="auth-google-btn" accessibilityLabel={t('auth_google')}
+            style={[styles.googleBtn, loading && { opacity: 0.6 }]}
+            activeOpacity={0.8}
+            onPress={handleGoogleSignIn}
+            disabled={loading}
+          >
+            <Text accessible={false} style={styles.googleMark}>G</Text>
+            <Text style={styles.googleBtnText}>{t('auth_google')}</Text>
+          </TouchableOpacity>
+          <Text style={styles.alternativeLabel}>{t('auth_or_clean', 'or')}</Text>
+
           {authMode === 'register' && (
             <>
-              {/* Role Selection Toggle */}
-              <Text style={{ fontFamily: 'Nunito_700Bold', color: Colors.textSecondary, fontSize: 13, marginBottom: 8, marginTop: 4 }}>
-                {t('select_account_type', 'Select Account Type / Role:')}
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
-                <TouchableOpacity
-                  testID="auth-role-child"
-                  style={[{ flex: 1, backgroundColor: '#1A2035', borderRadius: 12, padding: 10, borderWidth: 1.5, borderColor: 'rgba(255, 255, 255, 0.08)', flexDirection: 'row', alignItems: 'center', gap: 8 }, selectedRole === 'child' && { borderColor: Colors.blue, backgroundColor: Colors.blueDim }]}
-                  onPress={() => setSelectedRole('child')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={{ fontSize: 20 }}>🎮</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[{ fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 13 }, selectedRole === 'child' && { color: Colors.blue }]}>
-                      {t('child_role', 'Kid')}
-                    </Text>
-                    <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, fontSize: 10 }} numberOfLines={1}>
-                      {t('child_role_sub', 'Quests & Battles')}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  testID="auth-role-parent"
-                  style={[{ flex: 1, backgroundColor: '#1A2035', borderRadius: 12, padding: 10, borderWidth: 1.5, borderColor: 'rgba(255, 255, 255, 0.08)', flexDirection: 'row', alignItems: 'center', gap: 8 }, selectedRole === 'parent' && { borderColor: Colors.amber, backgroundColor: Colors.cardYellow }]}
-                  onPress={() => setSelectedRole('parent')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={{ fontSize: 20 }}>👨‍👩‍👧</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[{ fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 13 }, selectedRole === 'parent' && { color: Colors.amber }]}>
-                      {t('parent_role', 'Parent')}
-                    </Text>
-                    <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, fontSize: 10 }} numberOfLines={1}>
-                      {t('parent_role_sub', 'Manage & Verify')}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.inputBox}>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={styles.inputLabel}>{t('auth_field_name', 'Name')}</Text>
+                <View style={[styles.inputBox, focusedField === 'name' && styles.inputFocused]}>
                 <User size={18} color={Colors.textMuted} />
                 <TextInput
                   testID="auth-input-name"
+                  onFocus={() => setFocusedField('name')} onBlur={() => setFocusedField(null)}
+                  accessibilityLabel={t('auth_field_name')}
                   style={styles.input}
                   placeholder={t('name_placeholder', 'Name (e.g. Alex)')}
                   placeholderTextColor={Colors.textMuted}
@@ -251,13 +297,18 @@ export default function LoginScreen() {
                   onChangeText={setFullName}
                 />
               </View>
+              </View>
 
-              <View style={styles.inputBox}>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={styles.inputLabel}>{t('auth_field_nickname', 'Nickname')}</Text>
+                <View style={[styles.inputBox, focusedField === 'nickname' && styles.inputFocused]}>
                 <Tag size={18} color={Colors.textMuted} />
                 <TextInput
                   testID="auth-input-nickname"
+                  onFocus={() => setFocusedField('nickname')} onBlur={() => setFocusedField(null)}
+                  accessibilityLabel={t('auth_field_nickname')}
                   style={styles.input}
-                  placeholder={t('nickname_placeholder', 'Roblox Nickname / Tag (e.g. AlexRoblox2026)')}
+                  placeholder={t('auth_nickname_clean', 'Nickname')}
                   placeholderTextColor={Colors.textMuted}
                   autoComplete="username"
                   textContentType="nickname"
@@ -266,14 +317,19 @@ export default function LoginScreen() {
                   onChangeText={setNickname}
                 />
               </View>
+              </View>
             </>
           )}
 
           {/* Email Input */}
-          <View style={styles.inputBox}>
+          <View style={{ marginBottom: 16 }}>
+                <Text style={styles.inputLabel}>{t('auth_field_email', 'Email')}</Text>
+                <View style={[styles.inputBox, focusedField === 'email' && styles.inputFocused]}>
             <Mail size={18} color={Colors.textMuted} />
             <TextInput
               testID="auth-input-email"
+                  onFocus={() => setFocusedField('email')} onBlur={() => setFocusedField(null)}
+                  accessibilityLabel={t('auth_field_email')}
               style={styles.input}
               placeholder={t('email_placeholder', 'Email address')}
               placeholderTextColor={Colors.textMuted}
@@ -285,12 +341,17 @@ export default function LoginScreen() {
               onChangeText={setEmail}
             />
           </View>
+              </View>
 
           {/* Password Input with Show/Hide Password toggle for Credential Saving */}
-          <View style={styles.inputBox}>
+          <View style={{ marginBottom: 16 }}>
+                <Text style={styles.inputLabel}>{t('auth_field_password', 'Password')}</Text>
+                <View style={[styles.inputBox, focusedField === 'password' && styles.inputFocused]}>
             <Lock size={18} color={Colors.textMuted} />
             <TextInput
               testID="auth-input-password"
+                  onFocus={() => setFocusedField('password')} onBlur={() => setFocusedField(null)}
+                  accessibilityLabel={t('auth_field_password')}
               style={styles.input}
               placeholder={t('password_placeholder', 'Password')}
               placeholderTextColor={Colors.textMuted}
@@ -300,7 +361,7 @@ export default function LoginScreen() {
               value={password}
               onChangeText={setPassword}
             />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 }}>
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} accessibilityRole="button" accessibilityLabel={showPassword ? t('auth_password_hide') : t('auth_password_show')} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
               {showPassword ? (
                 <EyeOff size={18} color={Colors.textMuted} />
               ) : (
@@ -308,18 +369,28 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
           </View>
+              </View>
 
           {/* Forgot password link */}
           {authMode === 'signin' && (
-            <TouchableOpacity 
-              style={{ alignSelf: 'flex-end', marginBottom: 12, marginTop: -4 }}
+            <TouchableOpacity
+              accessibilityRole="button" disabled={loading}
+              style={{ alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', marginTop: -8 }}
               onPress={async () => {
-                if (!email) {
+                if (!email.trim()) {
                   setAuthMessage(t('enter_valid_email', 'Please enter your email address first!'));
                   return;
                 }
-                const res = await sendPasswordReset(email);
-                setAuthMessage(res.message || 'Password reset link sent!');
+                setLoading(true);
+                setAuthMessage(null);
+                try {
+                  const res = await sendPasswordReset(email.trim());
+                  setAuthMessage(res.message || t(res.success ? 'auth_reset_sent' : 'auth_email_retry'));
+                } catch {
+                  setAuthMessage(t('auth_email_retry'));
+                } finally {
+                  setLoading(false);
+                }
               }}
             >
               <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.blue, fontSize: 13 }}>
@@ -330,284 +401,93 @@ export default function LoginScreen() {
 
           {/* Status Message Alert Banner */}
           {authMessage && (
-            <View style={styles.msgBanner}>
+            <View style={styles.msgBanner} accessibilityLiveRegion="polite">
               <Text style={styles.msgBannerText}>{authMessage}</Text>
             </View>
           )}
 
           {/* Primary Form Submit Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
+            accessibilityRole="button" accessibilityState={{ disabled: loading, busy: loading }}
             testID="auth-submit-btn"
-            style={styles.submitBtn} 
+            style={[styles.submitBtn, loading && { opacity: 0.6 }]}
             onPress={handleAuthSubmit}
             activeOpacity={0.8}
             disabled={loading}
           >
             <Text style={styles.submitBtnText}>
               {loading ? t('processing', 'Processing...') : (
-                authMode === 'register' ? t('btn_create_account', 'CREATE ACCOUNT 🚀') :
-                t('btn_sign_in', 'SIGN IN 🔑')
+                authMode === 'register' ? t('auth_create_clean', 'Create account') :
+                t('auth_signin', 'Sign in')
               )}
             </Text>
           </TouchableOpacity>
 
-          <View style={styles.divider} />
 
-          {/* Google Sign-In */}
-          <TouchableOpacity 
-            testID="auth-google-btn"
-            style={styles.googleBtn}
-            activeOpacity={0.8}
-            onPress={handleGoogleSignIn}
-            disabled={loading}
-          >
-            <Text style={styles.googleBtnText}>Sign in with Google</Text>
-          </TouchableOpacity>
 
+
+          {selectedRole === 'child' && (
           <TouchableOpacity
+            accessibilityRole="button" accessibilityState={{ disabled: loading, busy: loading }}
             testID="auth-guest-btn"
             style={styles.guestBtn}
             activeOpacity={0.8}
             onPress={handleGuestMode}
             disabled={loading}
           >
-            <Text style={styles.guestBtnText}>Continue as guest</Text>
+            <Text style={styles.guestBtnText}>{t('auth_guest')}</Text>
           </TouchableOpacity>
+          )}
+            </>
+          )}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-    maxWidth: 440,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  authBox: {
-    backgroundColor: '#131726',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 24,
-    padding: 28,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 6,
-  },
-  coinBadge: {
-    backgroundColor: Colors.amberDim,
-    borderWidth: 1.5,
-    borderColor: Colors.amber,
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    marginBottom: 20,
-    shadowColor: Colors.amber,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  coinBadgeText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 14,
-    color: Colors.amber,
-  },
-  logoFrame: {
-    width: 96,
-    height: 96,
-    borderRadius: 28,
-    backgroundColor: '#1E2235',
-    borderWidth: 3,
-    borderColor: '#FFB800',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowColor: '#FFB800',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 6,
-  },
-  logoImg: {
-    width: 90,
-    height: 90,
-    borderRadius: 22,
-  },
-  robloxDiamond: {
-    width: 24,
-    height: 24,
-    backgroundColor: '#FFFFFF',
-    transform: [{ rotate: '45deg' }],
-  },
-  title: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 28,
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 14,
-    color: Colors.textMuted,
-    marginBottom: 28,
-  },
-  googleBtn: {
-    width: '100%',
-    backgroundColor: Colors.red,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.red,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-    marginBottom: 16,
-  },
-  googleBtnText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 16,
-    color: '#FFFFFF',
-  },
-  guestBtn: {
-    width: '100%',
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  guestBtnText: {
-    fontFamily: 'Nunito_700Bold',
-    color: Colors.textSecondary,
-    fontSize: 14,
-    textDecorationLine: 'underline',
-  },
-  divider: {
-    width: '100%',
-    height: 1,
-    backgroundColor: Colors.border2,
-    marginVertical: 16,
-  },
-  testBtn: {
-    width: '100%',
-    backgroundColor: Colors.surface2,
-    borderWidth: 1,
-    borderColor: Colors.border2,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  testBtnText: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  modeTabsRow: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surface2,
-    borderRadius: 10,
-    padding: 4,
-    width: '100%',
-    marginBottom: 20,
-    gap: 4,
-  },
-  modeTab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  modeTabActive: {
-    backgroundColor: '#1A2035',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 184, 0, 0.4)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  modeTabText: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 11,
-    color: Colors.textMuted,
-  },
-  modeTabTextActive: {
-    color: Colors.amber,
-    fontFamily: 'Nunito_800ExtraBold',
-  },
-  inputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#1A2035',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 48,
-    width: '100%',
-    marginBottom: 12,
-  },
-  input: {
-    flex: 1,
-    height: '100%',
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 14,
-    color: Colors.text,
-  },
-  submitBtn: {
-    width: '100%',
-    backgroundColor: Colors.amber,
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
-    marginBottom: 10,
-    shadowColor: Colors.amber,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  submitBtnText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 14,
-    color: '#121212',
-    letterSpacing: 0.5,
-  },
-  msgBanner: {
-    backgroundColor: Colors.amberDim,
-    borderWidth: 1,
-    borderColor: Colors.amber,
-    borderRadius: 8,
-    padding: 10,
-    width: '100%',
-    marginBottom: 12,
-  },
-  msgBannerText: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 12,
-    color: Colors.amber,
-    textAlign: 'center',
-  },
+  safeArea: { flex: 1, backgroundColor: '#0e1422' },
+  container: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 26, paddingVertical: 24, maxWidth: 440, width: '100%', alignSelf: 'center' },
+  authBox: { width: '100%' },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 26 },
+  logoImg: { width: 48, height: 48, borderRadius: 12 },
+  brand: { fontFamily: 'Nunito_900Black', fontSize: 22, color: '#f6f7fd' },
+  title: { fontFamily: 'Nunito_900Black', fontSize: 30, lineHeight: 36, color: '#f6f7fd', marginBottom: 22 },
+  roleIntro: { fontFamily: 'Nunito_600SemiBold', fontSize: 17, lineHeight: 24, color: '#aab8cf', marginTop: -12, marginBottom: 22 },
+  roleChoiceGrid: { flexDirection: 'row', gap: 14 },
+  roleChoiceCard: { flex: 1, minHeight: 178, borderRadius: 24, alignItems: 'center', justifyContent: 'center', padding: 16, borderWidth: 2 },
+  childRoleCard: { backgroundColor: '#172d48', borderColor: '#4db8ff' },
+  parentRoleCard: { backgroundColor: '#342a18', borderColor: '#ffc857' },
+  roleChoiceIcon: { fontSize: 58, lineHeight: 70, marginBottom: 10 },
+  roleChoiceText: { fontFamily: 'Nunito_900Black', fontSize: 22, color: '#f6f7fd', textAlign: 'center' },
+  selectedRoleRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 14, alignSelf: 'flex-start' },
+  selectedRoleIcon: { fontSize: 25 },
+  selectedRoleText: { fontFamily: 'Nunito_900Black', fontSize: 17, color: '#f6f7fd' },
+  changeRoleText: { fontFamily: 'Nunito_700Bold', fontSize: 13, color: '#ffc857', marginLeft: 3 },
+  modeTabsRow: { flexDirection: 'row', gap: 24, marginBottom: 24, borderBottomWidth: 1, borderBottomColor: '#293347' },
+  modeTab: { minHeight: 48, justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: 'transparent' },
+  modeTabActive: { borderBottomColor: '#ffc857' },
+  modeTabText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 16, color: '#aab8cf' },
+  modeTabTextActive: { color: '#ffc857' },
+  fieldLabel: { fontFamily: 'Nunito_700Bold', fontSize: 14, color: '#aab8cf', marginBottom: 10 },
+  roleRow: { flexDirection: 'row', gap: 24, marginBottom: 20 },
+  roleOption: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 52, paddingBottom: 6, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  roleSelected: { borderBottomColor: '#ffc857' },
+  roleText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 16, color: '#aab8cf' },
+  inputBox: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: '#46516a', paddingHorizontal: 2, minHeight: 54, width: '100%' },
+  inputLabel: { fontFamily: 'Nunito_700Bold', fontSize: 13, color: '#aab8cf' },
+  inputFocused: { borderBottomColor: '#ffc857' },
+  input: { flex: 1, minHeight: 54, fontFamily: 'Nunito_600SemiBold', fontSize: 16, color: '#f6f7fd' },
+  submitBtn: { width: '100%', backgroundColor: '#ffc857', minHeight: 54, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  submitBtnText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 17, color: '#0e1422' },
+  alternativeLabel: { textAlign: 'center', color: '#aab8cf', fontFamily: 'Nunito_600SemiBold', marginTop: 16, marginBottom: 16 },
+  googleBtn: { width: '100%', minHeight: 60, paddingHorizontal: 18, paddingVertical: 14, borderRadius: 16, backgroundColor: '#ffffff', flexDirection: 'row', gap: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dadce0' },
+  googleMark: { fontSize: 28, fontWeight: '700', color: '#4285f4' },
+  googleBtnText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 17, color: '#1f1f1f', flexShrink: 1, textAlign: 'center' },
+  guestBtn: { minHeight: 48, marginTop: 8, alignItems: 'center', justifyContent: 'center' },
+  guestBtnText: { fontFamily: 'Nunito_700Bold', fontSize: 14, color: '#aab8cf' },
+  msgBanner: { borderLeftWidth: 3, borderLeftColor: '#ffc857', padding: 12, marginBottom: 12 },
+  msgBannerText: { fontFamily: 'Nunito_700Bold', fontSize: 14, color: '#ffc857' },
 });

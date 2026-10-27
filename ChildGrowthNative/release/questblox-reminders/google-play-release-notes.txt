@@ -1,0 +1,6 @@
+<en-US>
+Quest reminders are here! Enable notifications on your child's phone and choose reminder times for chores.
+Completed quests are skipped, with quiet hours and a rest-day pause.
+Cleaner sign-in and registration screens.
+Improved parent task editing, logout navigation and saved guest progress.
+</en-US>

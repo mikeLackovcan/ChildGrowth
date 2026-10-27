@@ -1,0 +1,24 @@
+<en-US>
+Visual quests, daily rewards and family battles.
+Clearer sign-in and parent/child linking.
+Quest reminders, voice guidance and Noob outfits.
+Improved saved progress and English, Czech, Spanish and German text.
+</en-US>
+<cs-CZ>
+Obrázkové úkoly, denní odměny a rodinné souboje.
+Přehlednější přihlášení a propojení rodičů s dětmi.
+Připomínky úkolů, hlasové pokyny a oblečení pro Nooba.
+Vylepšené ukládání pokroku a překlady do čtyř jazyků.
+</cs-CZ>
+<es-ES>
+Misiones visuales, recompensas diarias y combates en familia.
+Inicio de sesión y vinculación familiar más claros.
+Recordatorios, instrucciones de voz y atuendos para Noob.
+Mejoras al guardar el progreso y en las traducciones a cuatro idiomas.
+</es-ES>
+<de-DE>
+Bildhafte Aufgaben, tägliche Belohnungen und Familienkämpfe.
+Übersichtlichere Anmeldung und Verknüpfung von Eltern und Kindern.
+Aufgabenerinnerungen, Sprachanweisungen und Outfits für Noob.
+Verbessertes Speichern des Fortschritts und Übersetzungen in vier Sprachen.
+</de-DE>

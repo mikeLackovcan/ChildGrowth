@@ -1,3 +1,5 @@
+import { journeyResources } from './journey';
+import { pushResources } from './pushMessages';
 // Internationalization (i18n) configuration for EN, CS, ES & DE
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
@@ -5,6 +7,22 @@ import { initReactI18next } from 'react-i18next';
 const resources = {
   en: {
     translation: {
+      auth_welcome_clean: "Welcome back",
+      auth_join_clean: "Join the adventure",
+      auth_field_name: "Name",
+      auth_field_nickname: "Nickname",
+      auth_field_email: "Email",
+      auth_field_password: "Password",
+      auth_intro_clean: "Small quests. Epic adventures.",
+      auth_who_clean: "Who is joining?",
+      auth_role_first_hint: "Choose your adventure",
+      auth_change_role: "Change",
+      auth_google_is_child: "This Google account belongs to a Kid. Choose Kid or another Google account.",
+      auth_google_is_parent: "This Google account belongs to a Parent. Choose Parent or another Google account.",
+      auth_nickname_clean: "Nickname",
+      auth_create_clean: "Create account",
+      auth_child_clean: "Kid",
+      auth_parent_clean: "Parent",
       welcome: "Welcome!",
       who_is_using: "Who is using this device?",
       parent_role: "Parent / Guardian",
@@ -74,7 +92,7 @@ const resources = {
       kid_unlocked_figures_sub: "Roblox figures purchased by your child using earned coins:",
       coins_balance: "Coins Balance:",
       prize_settings: "PRIZE WHEEL REWARDS 🎡",
-      prize_settings_sub: "Set the 6 rewards kids can win when finishing all daily quests:",
+      prize_settings_sub: "Set the 10 rewards kids can win when finishing all daily quests:",
       epic_quest_saved_alert: "Epic Daily Boss Quest updated! ⚔️",
       equipped: "EQUIPPED",
       equip: "EQUIP",
@@ -227,6 +245,22 @@ const resources = {
   },
   cs: {
     translation: {
+      auth_welcome_clean: "Vítej zpátky",
+      auth_join_clean: "Přidej se",
+      auth_field_name: "Jméno",
+      auth_field_nickname: "Přezdívka",
+      auth_field_email: "E-mail",
+      auth_field_password: "Heslo",
+      auth_intro_clean: "Malé úkoly. Velká dobrodružství.",
+      auth_who_clean: "Kdo se přidává?",
+      auth_role_first_hint: "Vyber si dobrodružství",
+      auth_change_role: "Změnit",
+      auth_google_is_child: "Tento účet Google patří dítěti. Zvol Dítě nebo jiný účet Google.",
+      auth_google_is_parent: "Tento účet Google patří rodiči. Zvol Rodič nebo jiný účet Google.",
+      auth_nickname_clean: "Přezdívka",
+      auth_create_clean: "Vytvořit účet",
+      auth_child_clean: "Dítě",
+      auth_parent_clean: "Rodič",
       welcome: "Vítejte!",
       who_is_using: "Kdo používá toto zařízení?",
       parent_role: "Rodič / Dohled",
@@ -296,7 +330,7 @@ const resources = {
       kid_unlocked_figures_sub: "Roblox figurky zakoupené vaším dítětem za vydělané mince:",
       coins_balance: "Zůstatek mincí:",
       prize_settings: "ODMĚNY KOLA ŠTĚSTÍ 🎡",
-      prize_settings_sub: "Nastavte 6 odměn, které mohou děti vyhrát po splnění všech denních úkolů:",
+      prize_settings_sub: "Nastavte 10 odměn, které mohou děti vyhrát po splnění všech denních úkolů:",
       epic_quest_saved_alert: "Hlavní denní úkol byl aktualizován! ⚔️",
       equipped: "NASAZENO",
       equip: "NASADIT",
@@ -449,6 +483,22 @@ const resources = {
   },
   es: {
     translation: {
+      auth_welcome_clean: "Te damos la bienvenida",
+      auth_join_clean: "Únete a la aventura",
+      auth_field_name: "Nombre",
+      auth_field_nickname: "Apodo",
+      auth_field_email: "Correo",
+      auth_field_password: "Contraseña",
+      auth_intro_clean: "Pequeñas misiones. Grandes aventuras.",
+      auth_who_clean: "¿Quién se une?",
+      auth_role_first_hint: "Elige tu aventura",
+      auth_change_role: "Cambiar",
+      auth_google_is_child: "Esta cuenta de Google es de Niño/a. Elige Niño/a u otra cuenta de Google.",
+      auth_google_is_parent: "Esta cuenta de Google es de Madre/padre. Elige Madre/padre u otra cuenta de Google.",
+      auth_nickname_clean: "Apodo",
+      auth_create_clean: "Crear cuenta",
+      auth_child_clean: "Niño/a",
+      auth_parent_clean: "Madre/padre",
       welcome: "¡Bienvenido!",
       who_is_using: "¿Quién está usando este dispositivo?",
       parent_role: "Padre / Tutor",
@@ -518,7 +568,7 @@ const resources = {
       kid_unlocked_figures_sub: "Figuras de Roblox compradas por tu hijo con monedas ganadas:",
       coins_balance: "Saldo de monedas:",
       prize_settings: "PREMIOS DE LA RULETA 🎡",
-      prize_settings_sub: "Configura las 6 recompensas que los niños pueden ganar al completar todas las misiones:",
+      prize_settings_sub: "Configura las 10 recompensas que los niños pueden ganar al completar todas las misiones:",
       epic_quest_saved_alert: "¡Misión épica diaria actualizada! ⚔️",
       equipped: "EQUIPADO",
       equip: "EQUIPAR",
@@ -671,6 +721,22 @@ const resources = {
   },
   de: {
     translation: {
+      auth_welcome_clean: "Willkommen zurück",
+      auth_join_clean: "Sei dabei",
+      auth_field_name: "Name",
+      auth_field_nickname: "Spitzname",
+      auth_field_email: "E-Mail",
+      auth_field_password: "Passwort",
+      auth_intro_clean: "Kleine Aufgaben. Große Abenteuer.",
+      auth_who_clean: "Wer macht mit?",
+      auth_role_first_hint: "Wähle dein Abenteuer",
+      auth_change_role: "Ändern",
+      auth_google_is_child: "Dieses Google-Konto gehört zu einem Kind. Wähle Kind oder ein anderes Google-Konto.",
+      auth_google_is_parent: "Dieses Google-Konto gehört zu einem Elternteil. Wähle Elternteil oder ein anderes Google-Konto.",
+      auth_nickname_clean: "Spitzname",
+      auth_create_clean: "Konto erstellen",
+      auth_child_clean: "Kind",
+      auth_parent_clean: "Elternteil",
       welcome: "Willkommen!",
       who_is_using: "Wer benutzt dieses Gerät?",
       parent_role: "Elternteil / Erziehungsberechtigter",
@@ -740,7 +806,7 @@ const resources = {
       kid_unlocked_figures_sub: "Roblox-Figuren, die dein Kind mit verdienten Münzen gekauft hat:",
       coins_balance: "Münzguthaben:",
       prize_settings: "GLÜCKSRAD-BELOHNUNGEN 🎡",
-      prize_settings_sub: "Lege die 6 Belohnungen fest, die Kinder beim Abschluss aller Quests gewinnen können:",
+      prize_settings_sub: "Lege die 10 Belohnungen fest, die Kinder beim Abschluss aller Quests gewinnen können:",
       epic_quest_saved_alert: "Epic Daily Boss Quest aktualisiert! ⚔️",
       equipped: "AUSGERÜSTET",
       equip: "AUSRÜSTEN",
@@ -764,7 +830,7 @@ const resources = {
       manage_quests_subtitle: "Füge tägliche Gewohnheiten hinzu, plane Tage oder passe Icons an.",
       create_new_quest: "NEUE ROBLOX QUEST ERSTELLEN",
       select_habit_icon: "Wähle das Gewohnheits-Icon:",
-      quest_name_label: "Quest Name:",
+      quest_name_label: "Aufgabenname:",
       repeat_schedule_on: "Wiederholen / Planen am:",
       add_quest_btn: "Quest zum Zeitplan hinzufügen",
       active_quests: "AKTIVE QUESTS",
@@ -892,6 +958,8 @@ const resources = {
     }
   }
 };
+
+for (const lang of ['en', 'cs', 'es', 'de'] as const) Object.assign(resources[lang].translation, journeyResources[lang], pushResources[lang]);
 
 i18n
   .use(initReactI18next)

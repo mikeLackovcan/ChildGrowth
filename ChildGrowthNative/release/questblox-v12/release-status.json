@@ -1,0 +1,23 @@
+{
+  "appVersion": "1.0.0",
+  "androidVersionCode": 12,
+  "artifact": "questblox-1.0.0-v12.aab",
+  "sha256": "da7a0ce5d82592d14fe5004b4253395529a544eb717bfc788336f551401e2934",
+  "runtime": "aae75b492cbe429692d6eacbe52bb5dc1dbfb675",
+  "playTrack": "internal",
+  "playReleaseId": 6,
+  "publishedAt": "2026-10-25T10:59:00+02:00",
+  "status": "available-to-internal-testers",
+  "testerLink": "https://play.google.com/apps/internaltest/4701374113761647208",
+  "storeListing": {
+    "iconDraft": "assets/images/app-icon-v2-512.png",
+    "iconDraftSaved": true,
+    "iconLive": false,
+    "submissionBlockedByDashboardSetup": true
+  },
+  "verification": {
+    "signedArtifact": true,
+    "fourLanguageReleaseNotes": true,
+    "physicalDeviceChecks": "pending"
+  }
+}

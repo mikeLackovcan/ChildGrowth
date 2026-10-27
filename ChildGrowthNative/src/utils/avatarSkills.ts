@@ -16,16 +16,6 @@ export interface AvatarSkillConfig {
 
 export const AVATAR_SKILL_CONFIGS: AvatarSkillConfig[] = [
   {
-    id: 'questblox_hero',
-    name: 'QuestBlox Hero',
-    price: 0,
-    skillName: 'Star Power ⭐',
-    shortBuff: '+15% Coins & XP',
-    xpMultiplier: 1.15,
-    coinMultiplier: 1.15,
-    easyCoinBonusPct: 0.15,
-  },
-  {
     id: 'roblox_noob',
     name: 'Roblox Noob',
     price: 0,
@@ -270,9 +260,9 @@ export function getNextLockedAvatar(
   currentCoins: number
 ): NextAvatarGoal | null {
   const normalizedUnlocked = new Set(
-    unlockedAvatars.map((id) => (id === 'default' ? 'questblox_hero' : id))
+    unlockedAvatars.map((id) => (id === 'default' || id === 'questblox_hero' ? 'roblox_noob' : id))
   );
-  normalizedUnlocked.add('questblox_hero');
+  normalizedUnlocked.add('roblox_noob');
   normalizedUnlocked.add('roblox_noob');
 
   const nextLocked = AVATAR_SKILL_CONFIGS.find(
