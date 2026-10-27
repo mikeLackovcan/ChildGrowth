@@ -2,7 +2,7 @@ import { router, Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StatusBar as NativeStatusBar } from 'react-native';
+import { AppState, StatusBar as NativeStatusBar } from 'react-native';
 import * as SystemUI from 'expo-system-ui';
 import * as SplashScreen from 'expo-splash-screen';
 import { 
@@ -60,13 +60,24 @@ export default function RootLayout() {
         const result = store.completeTask(taskId);
         if (result.completed || result.pendingApproval) router.push({ pathname: '/(tabs)', params: { completedTaskId: taskId } } as never);
       }
-      else if (action === 'LATER' || action === 'NOT_DONE') await snoozeQuestReminder(task);
+      else if (action === 'LATER' || action === 'NOT_DONE') {
+        if (await snoozeQuestReminder(task)) useAppStore.getState().recordPostponedQuest(task.id);
+      }
       else if (action === 'START' && task.focusDurationMinutes) {
         router.push({ pathname: '/focus-session', params: { taskId } } as never);
       } else router.push({ pathname: '/(tabs)', params: { taskId } } as never);
     }).then((cleanup) => { if (disposed) cleanup(); else dispose = cleanup; }).catch(console.warn);
     return () => { disposed = true; dispose(); };
   }, [hydrated, loaded, error]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    void useAppStore.getState().syncToServer();
+    const subscription = AppState.addEventListener('change', next => {
+      if (next === 'active') void useAppStore.getState().syncToServer();
+    });
+    return () => subscription.remove();
+  }, [hydrated]);
 
   if (!loaded && !error) {
     return null;

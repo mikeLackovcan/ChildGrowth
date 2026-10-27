@@ -75,33 +75,34 @@ export default function RoleSelectScreen() {
         </View>
       </View>
 
-      <Modal visible={showGate} transparent animationType="fade">
+      <Modal visible={showGate} transparent animationType="fade" onRequestClose={() => setShowGate(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={{ alignItems: 'center', marginBottom: 12 }}>
               <Lock size={32} color={Colors.amber} />
             </View>
-            <Text style={styles.gateTitle}>Parental Gate</Text>
-            <Text style={styles.gateSubtitle}>Solve this math problem to access parent features:</Text>
-            <Text style={styles.gateQuestion}>What is 7 x 8?</Text>
+            <Text style={styles.gateTitle}>{t('gate_title')}</Text>
+            <Text style={styles.gateSubtitle}>{t('gate_help')}</Text>
+            <Text style={styles.gateQuestion}>{t('gate_question')}</Text>
             
             <TextInput 
               style={[styles.gateInput, mathError && styles.gateInputError]} 
               keyboardType="number-pad"
               value={mathAnswer}
               onChangeText={(text) => { setMathAnswer(text); setMathError(false); }}
-              placeholder="Enter answer"
+              placeholder={t('gate_answer')}
+              accessibilityLabel={t('gate_answer')}
               placeholderTextColor={Colors.textMuted}
               autoFocus
             />
-            {mathError && <Text style={styles.errorText}>Incorrect answer. Try again.</Text>}
+            {mathError && <Text style={styles.errorText}>{t('gate_error')}</Text>}
             
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowGate(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('gate_cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.submitBtn} onPress={handleGateSubmit}>
-                <Text style={styles.submitBtnText}>Submit</Text>
+                <Text style={styles.submitBtnText}>{t('gate_submit')}</Text>
               </TouchableOpacity>
             </View>
           </View>

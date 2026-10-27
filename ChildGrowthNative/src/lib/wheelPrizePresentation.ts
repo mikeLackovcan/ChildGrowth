@@ -19,7 +19,15 @@ const iconForReward = (reward: string) => {
   return '🎁';
 };
 
-export const wheelPrizePresentation = (reward: string): WheelPrizePresentation => {
+/** The wheel reveals a saved prize; it must never invent an alternative reward. */
+export function wheelChoices(configured: string[], savedPrize: string): string[] {
+  const choices = configured.map(prize => prize.trim()).filter(Boolean);
+  const winner = savedPrize.trim();
+  if (winner && !choices.includes(winner)) choices.push(winner);
+  return choices;
+}
+
+export const wheelPrizePresentation = (reward: string, fallback = 'Surprise'): WheelPrizePresentation => {
   const icon = iconForReward(reward);
   const words = reward
     .replace(/\p{Extended_Pictographic}\uFE0F?/gu, ' ')
@@ -33,6 +41,6 @@ export const wheelPrizePresentation = (reward: string): WheelPrizePresentation =
 
   return {
     icon,
-    label: words.join(' ') || 'Surprise',
+    label: words.join(' ') || fallback,
   };
 };

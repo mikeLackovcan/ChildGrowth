@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "814466475791-6mp6r29pfj381qdeh10oqlqmeful7jgs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.questhero.app",
+            "certificate_hash": "b47d6f6e73cf7d0da6c0ce9c4f5753b0a2f22cd4"
+          }
+        },
+        {
           "client_id": "814466475791-8c2su809iv14bs61fuefii18j0864lp8.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

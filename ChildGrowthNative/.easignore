@@ -1,11 +1,16 @@
 node_modules/
+android/
+ios/
 .git/
 .expo/
+.firebase/
 dist/
 web-build/
+artifacts/
 .env
 .env.*
 !.env.example
+firestore-debug.log
 *.apk
 *.aab
 scripts/temp_tripo*
@@ -13,3 +18,4 @@ scripts/bridge/
 scripts/bridge.zip
 src/assets/models/
 assets/branding/*-source.png
+!assets/branding/quest-hero-source.png

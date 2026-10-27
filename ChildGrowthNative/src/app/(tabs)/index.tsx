@@ -3,7 +3,7 @@ import { AppState, Image, Pressable, ScrollView, StyleSheet, Text, View } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Check, ChevronDown, Coins, MoreHorizontal, Pencil, Play, Plus, Settings, Trash2 } from 'lucide-react-native';
+import { Check, ChevronDown, Coins, MoreHorizontal, Pencil, Play, Plus, Settings, ShieldCheck, Trash2, X } from 'lucide-react-native';
 import { Task, useAppStore } from '../../store/useAppStore';
 import { Colors, QUEST_BACKGROUNDS } from '../../constants/theme';
 import SettingsModal from '../../components/SettingsModal';
@@ -16,9 +16,21 @@ import HeroCelebrationModal from '../../components/HeroCelebrationModal';
 import { playSound } from '../../lib/sound';
 import CoinFeedback from '../../components/CoinFeedback';
 import PrizeWheelModal from '../../components/PrizeWheelModal';
+import { useTranslation } from 'react-i18next';
+import { questName } from '../../lib/questTemplates';
+import { useExperienceSettings } from '../../store/useExperienceSettings';
+import { useWorldStore } from '../../store/useWorldStore';
+import { newlyAffordableBuilding, worldPowerBalance, WORLD_BUILDINGS, type WorldBuildingType } from '../../lib/worldEconomy';
 
 export default function TrackerScreen() {
+  const { t } = useTranslation();
+  const simpleView = useExperienceSettings(state => state.simpleView);
   const state = useAppStore();
+  const [buildOpportunity, setBuildOpportunity] = useState<WorldBuildingType | null>(null);
+  const ownerKey = state.userId || state.nickname || 'guest-local';
+  useEffect(() => {
+    if (state.role === 'child') void useWorldStore.getState().hydrate(ownerKey);
+  }, [ownerKey, state.role]);
   const { taskId, completedTaskId } = useLocalSearchParams<{ taskId?: string; completedTaskId?: string }>();
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -35,7 +47,10 @@ export default function TrackerScreen() {
   useEffect(() => {
     if (!state.userEmail) router.replace('/');
     else if (state.role === 'parent') router.replace('/parent-dashboard');
-  }, [state.userEmail, state.role]);
+    else if (state.userId === 'guest-local' && state.fullName === 'Guest Hero' && !state.tasks.length
+      && !state.totalEarned && !state.coins && !state.wonPrizes.length && state.unlockedAvatars.length <= 1)
+      router.replace('../welcome');
+  }, [state.userEmail, state.role, state.userId, state.fullName, state.tasks.length, state.totalEarned, state.coins, state.wonPrizes.length, state.unlockedAvatars.length]);
   useEffect(() => {
     const refresh = () => {
       useAppStore.getState().resetTasksForNewDay();
@@ -53,7 +68,7 @@ export default function TrackerScreen() {
     if (state.userEmail && state.role !== 'parent') {
       void scheduleTaskReminders(state.tasks, state.currentAvatar).catch(console.warn);
     }
-  }, [state.tasks, state.currentAvatar, state.userEmail, state.role]);
+  }, [state.tasks, state.currentAvatar, state.userEmail, state.role, state.language]);
 
   const tasks = state.tasks.filter(task => isQuestDue(task, now));
   const done = tasks.filter(task => task.done);
@@ -61,11 +76,12 @@ export default function TrackerScreen() {
   const later = remaining.filter(task => isQuestLater(task, now));
   const ready = remaining.filter(task => !isQuestLater(task, now));
   const allDone = tasks.length > 0 && remaining.length === 0;
-  const wheelReady = allDone && state.lastSpinDate !== localDateKey();
+  const hasWheelRewards = state.prizes.some(prize => prize.trim());
+  const wheelReady = allDone && hasWheelRewards && state.lastSpinDate !== localDateKey();
   const earned = state.dailyEarnings.date === localDateKey() ? state.dailyEarnings.coins : 0;
   const selected = state.tasks.find(task => task.id === selectedId);
   const menuTask = state.tasks.find(task => task.id === menuId);
-  const firstName = (state.fullName || state.nickname || 'Hero').split(' ')[0];
+  const firstName = (state.fullName || state.nickname || t('hero_fallback')).split(' ')[0];
   const openEditor = (id: string) => { setMenuId(null); setSelectedId(null); router.push({ pathname: '/manage-tasks', params: { taskId: id } }); };
   const openDailyWheel = useCallback(() => {
     const prize = useAppStore.getState().claimDailyWheelPrize();
@@ -79,24 +95,32 @@ export default function TrackerScreen() {
   const showCompletion = useCallback((task: Task) => {
     setSelectedId(null);
     if (task.pendingApproval) {
-      setNotice({ key: Date.now(), text: 'Sent to your parent ✓' });
+      setNotice({ key: Date.now(), text: t('day_sent') });
       return;
     }
     if (!task.done) return;
     const reward = task.rewardedCoins || 0;
+    const world = useWorldStore.getState();
+    const current = useAppStore.getState();
+    if (world.hydrated && world.ownerKey === (current.userId || current.nickname || 'guest-local')) {
+      setBuildOpportunity(newlyAffordableBuilding(
+        worldPowerBalance(current.totalEarned - reward, world.spentPower),
+        worldPowerBalance(current.totalEarned, world.spentPower), world.placements));
+    }
     setCoinFeedback({ amount: reward, sequence: Date.now() });
     setNotice({
-      key: Date.now(), text: `${task.name} ✓  +${reward} coins`,
+      key: Date.now(), text: t('coins_completion', { name: questName(task), count: reward }),
       undo: () => {
+        setBuildOpportunity(null);
         if (!useAppStore.getState().undoTaskCompletion(task.id)) {
-          setNotice({ key: Date.now(), text: 'These coins already support a purchase or claimed reward.' });
+          setNotice({ key: Date.now(), text: t('day_spent') });
         }
       },
     });
     const finishedDay = useAppStore.getState().tasks.filter(item => isQuestDue(item)).every(item => item.done);
     if (finishedDay) setCelebration(reward);
     else playSound('coin');
-  }, []);
+  }, [t]);
   useEffect(() => {
     if (!completedTaskId) return;
     const completed = useAppStore.getState().tasks.find(item => item.id === completedTaskId);
@@ -117,30 +141,30 @@ export default function TrackerScreen() {
     setMenuId(null);
     setSelectedId(null);
     // A stopped timer is not restarted by restoring a deleted quest.
-    setNotice({ key: Date.now(), text: 'Quest removed', undo: () => state.restoreTask({ ...task, activeFocusStartedAt: undefined, focusNotificationId: undefined }) });
+    setNotice({ key: Date.now(), text: t('quest_removed'), undo: () => state.restoreTask({ ...task, activeFocusStartedAt: undefined, focusNotificationId: undefined }) });
   };
 
   const taskRow = (task: Task) => (
     <View key={task.id} style={styles.taskRow}>
-      <Pressable style={styles.taskMain} accessibilityRole="button" accessibilityLabel={`Open ${task.name}`} onPress={() => setSelectedId(task.id)}>
-        <View style={[styles.taskIcon, task.done && styles.taskIconDone]}><Text style={styles.emoji}>{task.done ? '✓' : task.icon || '⭐'}</Text></View>
+      <Pressable style={styles.taskMain} accessibilityRole="button" accessibilityLabel={t('quest_open', { name: questName(task) })} onPress={() => setSelectedId(task.id)}>
+        <View style={[styles.taskIcon, simpleView && { width: 64, height: 64 }, task.done && styles.taskIconDone]}><Text style={[styles.emoji, simpleView && { fontSize: 36 }]}>{task.done ? '✓' : task.icon || '⭐'}</Text></View>
         <View style={styles.taskCopy}>
-          <Text style={styles.taskName}>{task.name}</Text>
+          <Text style={[styles.taskName, simpleView && { fontSize: 21 }]}>{questName(task)}</Text>
           <Text style={styles.taskMeta}>
-            {task.done ? 'Done today' : task.pendingApproval ? 'Waiting for your parent' :
-              [task.reminderEnabled ? task.reminderTime : '', task.focusDurationMinutes ? `${task.focusDurationMinutes} min` : '', `+${calculateQuestReward(task, state.tasks, state.currentAvatar, earned).coins} coins`].filter(Boolean).join(' · ')}
+            {task.done ? t('day_done') : task.pendingApproval ? t('day_waiting') :
+              [task.reminderEnabled ? task.reminderTime : '', task.focusDurationMinutes ? t('duration_minutes', { value: task.focusDurationMinutes }) : '', t('coins_plus', { count: calculateQuestReward(task, state.tasks, state.currentAvatar, earned).coins })].filter(Boolean).join(' · ')}
           </Text>
         </View>
       </Pressable>
       {!task.done && !task.pendingApproval && (
         <Pressable style={styles.taskAction} accessibilityRole="button"
-          accessibilityLabel={`${task.focusDurationMinutes ? 'Start' : 'Complete'} ${task.name}`}
+          accessibilityLabel={t('quest_action', { action: t(task.activeFocusStartedAt ? 'resume' : task.focusDurationMinutes ? 'start' : 'complete'), name: questName(task) })}
           onPress={() => task.focusDurationMinutes ? start(task) : finish(task)}>
           {task.focusDurationMinutes ? <Play size={18} color={Colors.primary} /> : <Check size={20} color={Colors.primary} />}
-          <Text style={styles.actionText}>{task.activeFocusStartedAt ? 'Resume' : task.focusDurationMinutes ? 'Start' : 'Done'}</Text>
+          <Text style={styles.actionText}>{task.activeFocusStartedAt ? t('resume') : task.focusDurationMinutes ? t('start') : t('done')}</Text>
         </Pressable>
       )}
-      <Pressable style={styles.iconButton} accessibilityRole="button" accessibilityLabel={`Options for ${task.name}`} onPress={() => setMenuId(task.id)}>
+      <Pressable style={styles.iconButton} accessibilityRole="button" accessibilityLabel={t('quest_options_for', { name: questName(task) })} onPress={() => setMenuId(task.id)}>
         <MoreHorizontal size={22} color={Colors.textSecondary} />
       </Pressable>
     </View>
@@ -154,49 +178,68 @@ export default function TrackerScreen() {
         <View style={styles.header}>
           <Text style={styles.wordmark}>Quest Champ</Text>
           <View style={styles.headerRight}>
-            <Pressable style={styles.wallet} accessibilityRole="button" accessibilityLabel={`${state.coins} coins to spend`} onPress={() => router.push('/shop')}>
+            <Pressable style={styles.wallet} accessibilityRole="button" accessibilityLabel={t('coins_spend', { count: state.coins })} onPress={() => router.push('/shop')}>
               <Coins size={20} color="#926500" /><Text style={styles.walletText}>{state.coins}</Text>
             </Pressable>
-            <Pressable style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Settings" onPress={() => setSettingsVisible(true)}><Settings size={22} color={Colors.textSecondary} /></Pressable>
+            <Pressable style={styles.iconButton} accessibilityRole="button" accessibilityLabel={t('settings_title')} onPress={() => setSettingsVisible(true)}><Settings size={22} color={Colors.textSecondary} /></Pressable>
           </View>
         </View>
-        <Text style={styles.greeting}>{firstName}’s day</Text>
+        <Text style={styles.greeting}>{t('day_name', { name: firstName })}</Text>
+        {state.approvalStatus === 'pending' && state.parentEmail ? <View style={styles.familyInvite}>
+          <View style={styles.inviteHeading}><ShieldCheck size={24} color={Colors.primary} /><View style={{ flex: 1 }}>
+            <Text style={styles.inviteTitle}>{t('family_invite_title')}</Text>
+            <Text style={styles.inviteSender}>{t('family_invite_sender', { parent: state.parentEmail })}</Text>
+          </View></View>
+          <View style={styles.inviteActions}>
+            <Pressable accessibilityRole="button" style={styles.inviteAccept} onPress={() => state.acceptParentInvite(state.parentEmail || undefined)}>
+              <Check size={19} color="#FFFFFF" /><Text style={styles.inviteAcceptText}>{t('family_invite_accept')}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" style={styles.inviteDecline} onPress={() => state.denyParentInvite(state.parentEmail || undefined)}>
+              <X size={18} color={Colors.textSecondary} /><Text style={styles.inviteDeclineText}>{t('family_invite_decline')}</Text>
+            </Pressable>
+          </View>
+        </View> : null}
         <View style={styles.banner}>
           <View style={styles.bannerCopy}>
-            <Text style={styles.bannerTitle}>{allDone ? 'You did it!' : 'Small steps.\nBig adventures.'}</Text>
-            <Text style={styles.bannerText}>{allDone ? 'All done for today.' : 'One quest at a time.'}</Text>
+            <Text style={styles.bannerTitle}>{allDone ? t('day_you_did_it') : t('app_subtitle')}</Text>
+            <Text style={styles.bannerText}>{allDone ? t('day_finished') : t('day_one')}</Text>
           </View>
-          <Image source={require('../../../assets/branding/quest-hero-source.png')} style={styles.originalHero} accessibilityLabel="Original Quest Champ hero" resizeMode="cover" />
+          <Image source={require('../../../assets/branding/quest-hero-source.png')} style={styles.originalHero} accessibilityLabel={t('hero_original')} resizeMode="cover" />
         </View>
         <View style={styles.progressHeading}>
-          <Text style={styles.sectionTitle}>Today</Text>
-          <Text style={styles.meta}>{done.length} of {tasks.length} done</Text>
+          <Text style={styles.sectionTitle}>{t('world_today')}</Text>
+          <Text style={styles.meta}>{t('day_progress', { done: done.length, total: tasks.length })}</Text>
         </View>
         <View style={styles.progressTrack} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: tasks.length || 1, now: done.length }}>
           <View style={[styles.progressFill, { width: `${tasks.length ? done.length / tasks.length * 100 : 0}%` }]} />
         </View>
+        {allDone && !hasWheelRewards && <Text style={styles.meta}>{t('day_reward_setup')}</Text>}
         {wheelReady && <Pressable style={styles.wheelButton} accessibilityRole="button" onPress={openDailyWheel}>
-          <Text style={styles.wheelIcon}>🎡</Text><View style={{ flex: 1 }}><Text style={styles.taskName}>Spin today’s reward</Text><Text style={styles.meta}>One family reward is waiting.</Text></View><Text style={styles.linkText}>Spin</Text>
+          <Text style={styles.wheelIcon}>🎡</Text><View style={{ flex: 1 }}><Text style={styles.taskName}>{t('day_spin')}</Text><Text style={styles.meta}>{t('day_reward_waiting')}</Text></View><Text style={styles.linkText}>{t('spin')}</Text>
         </Pressable>}
-        {tasks.length === 0 && <View style={styles.empty}><Text style={styles.emptyEmoji}>🌱</Text><Text style={styles.sectionTitle}>{state.tasks.length ? 'A quiet day' : 'Your first small win'}</Text><Text style={styles.meta}>{state.tasks.length ? 'No quests planned for today.' : 'Pick something you want to do.'}</Text></View>}
-        {ready.length > 0 && <>{later.length > 0 && <Text style={styles.groupTitle}>Now</Text>}{ready.map(taskRow)}</>}
-        {later.length > 0 && <><Text style={styles.groupTitle}>Later</Text>{later.map(taskRow)}</>}
+        {tasks.length === 0 && <View style={styles.empty}><Text style={styles.emptyEmoji}>🌱</Text><Text style={styles.sectionTitle}>{state.tasks.length ? t('day_quiet') : t('day_first')}</Text><Text style={styles.meta}>{state.tasks.length ? t('day_no_quests') : t('day_pick')}</Text></View>}
+        {ready.length > 0 && <>{later.length > 0 && <Text style={styles.groupTitle}>{t('now')}</Text>}{ready.map(taskRow)}</>}
+        {later.length > 0 && <><Text style={styles.groupTitle}>{t('later')}</Text>{later.map(taskRow)}</>}
         {done.length > 0 && <>
           <Pressable accessibilityRole="button" accessibilityState={{ expanded: showDone }} style={styles.doneToggle} onPress={() => setShowDone(value => !value)}>
-            <Check size={18} color="#316327" /><Text style={styles.doneText}>Done ({done.length})</Text><ChevronDown size={18} color={Colors.textSecondary} style={{ transform: [{ rotate: showDone ? '180deg' : '0deg' }] }} />
+            <Check size={18} color="#316327" /><Text style={styles.doneText}>{t('day_done_count', { count: done.length })}</Text><ChevronDown size={18} color={Colors.textSecondary} style={{ transform: [{ rotate: showDone ? '180deg' : '0deg' }] }} />
           </Pressable>
           {showDone && done.map(taskRow)}
         </>}
         <View style={styles.footerActions}>
-          <Pressable style={styles.addButton} accessibilityRole="button" accessibilityLabel="Add a quest" onPress={() => router.push('/manage-tasks')}>
+          <Pressable style={styles.addButton} accessibilityRole="button" accessibilityLabel={t('quest_add_accessible')} onPress={() => router.push('/manage-tasks')}>
             <Plus size={26} color="#FFFFFF" />
           </Pressable>
-          <Pressable style={styles.manageLink} accessibilityRole="button" onPress={() => router.push('/quest-list')}><Text style={styles.linkText}>All quests</Text></Pressable>
+          <Pressable style={styles.manageLink} accessibilityRole="button" onPress={() => router.push('/quest-list')}><Text style={styles.linkText}>{t('quest_all')}</Text></Pressable>
         </View>
+        {buildOpportunity && <Pressable style={styles.goalLink} accessibilityRole="button" onPress={() => { setBuildOpportunity(null); router.push('/world'); }}>
+          <Text style={styles.goalIcon}>{WORLD_BUILDINGS[buildOpportunity].icon}</Text>
+          <Text style={[styles.linkText, { flex: 1 }]}>{t('world_ready_to_build', { item: t(WORLD_BUILDINGS[buildOpportunity].nameKey) })}</Text>
+        </Pressable>}
         {state.rewardGoal && !state.rewardGoal.claimed && <Pressable style={styles.goalLink} onPress={() => router.push('/milestones')} accessibilityRole="button">
           <Text style={styles.goalIcon}>🎯</Text>
-          <View style={{ flex: 1 }}><Text style={styles.taskName}>{state.rewardGoal.title}</Text><Text style={styles.meta}>{Math.min(state.rewardGoal.target, Math.max(0, state.totalEarned - state.rewardGoal.startCoins))} / {state.rewardGoal.target} earned</Text></View>
-          <Text style={styles.linkText}>View</Text>
+          <View style={{ flex: 1 }}><Text style={styles.taskName}>{state.rewardGoal.title}</Text><Text style={styles.meta}>{t('goal_progress', { earned: Math.min(state.rewardGoal.target, Math.max(0, state.totalEarned - state.rewardGoal.startCoins)), target: state.rewardGoal.target })}</Text></View>
+          <Text style={styles.linkText}>{t('view')}</Text>
         </Pressable>}
       </ScrollView>
       <CoinFeedback amount={coinFeedback.amount} sequence={coinFeedback.sequence} />
@@ -204,18 +247,18 @@ export default function TrackerScreen() {
       <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
       <HeroCelebrationModal visible={celebration !== null} coins={celebration || 0} heroId={state.currentAvatar} onClose={finishCelebration} />
       <PrizeWheelModal visible={Boolean(wheelPrize)} prizeName={wheelPrize || ''} onClose={() => { setWheelPrize(null); router.push('/milestones'); }} />
-      <ActionSheet visible={Boolean(selected)} title={selected?.name || 'Quest'} onClose={() => setSelectedId(null)}>
+      <ActionSheet visible={Boolean(selected)} title={selected ? questName(selected) : t('quest_generic')} onClose={() => setSelectedId(null)}>
         {selected && <>
           <Text style={styles.detailEmoji}>{selected.icon || '⭐'}</Text>
-          <Text style={styles.detailText}>{selected.done ? 'Done for today. Nice work!' : selected.pendingApproval ? 'Your parent will check this quest.' : selected.focusDurationMinutes ? `${selected.focusDurationMinutes} minutes, one step at a time.` : 'Ready when you are.'}</Text>
-          {!selected.done && !selected.pendingApproval && <Pressable style={styles.primaryButton} accessibilityRole="button" onPress={() => selected.focusDurationMinutes ? start(selected) : finish(selected)}><Text style={styles.primaryText}>{selected.focusDurationMinutes ? selected.activeFocusStartedAt ? 'Resume timer' : 'Start timer' : '✓ Done'}</Text></Pressable>}
-          <Pressable style={styles.sheetRow} accessibilityRole="button" onPress={() => openEditor(selected.id)}><Pencil size={20} color={Colors.primary} /><Text style={styles.linkText}>Edit quest</Text></Pressable>
+          <Text style={styles.detailText}>{selected.done ? t('quest_done_detail') : selected.pendingApproval ? t('quest_parent_detail') : selected.focusDurationMinutes ? t('quest_focus_detail', { minutes: selected.focusDurationMinutes }) : t('quest_ready_detail')}</Text>
+          {!selected.done && !selected.pendingApproval && <Pressable style={styles.primaryButton} accessibilityRole="button" onPress={() => selected.focusDurationMinutes ? start(selected) : finish(selected)}><Text style={styles.primaryText}>{selected.focusDurationMinutes ? selected.activeFocusStartedAt ? t('timer_resume') : t('timer_start') : t('action_done')}</Text></Pressable>}
+          <Pressable style={styles.sheetRow} accessibilityRole="button" onPress={() => openEditor(selected.id)}><Pencil size={20} color={Colors.primary} /><Text style={styles.linkText}>{t('quest_edit')}</Text></Pressable>
         </>}
       </ActionSheet>
-      <ActionSheet visible={Boolean(menuTask)} title={menuTask?.name || 'Quest options'} onClose={() => setMenuId(null)}>
+      <ActionSheet visible={Boolean(menuTask)} title={menuTask ? questName(menuTask) : t('quest_options')} onClose={() => setMenuId(null)}>
         {menuTask && <>
-          <Pressable style={styles.sheetRow} accessibilityRole="button" onPress={() => openEditor(menuTask.id)}><Pencil size={20} color={Colors.primary} /><Text style={styles.linkText}>Edit quest</Text></Pressable>
-          <Pressable style={styles.sheetRow} accessibilityRole="button" onPress={() => remove(menuTask)}><Trash2 size={20} color="#AF332A" /><Text style={[styles.linkText, { color: '#AF332A' }]}>Delete quest</Text></Pressable>
+          <Pressable style={styles.sheetRow} accessibilityRole="button" onPress={() => openEditor(menuTask.id)}><Pencil size={20} color={Colors.primary} /><Text style={styles.linkText}>{t('quest_edit')}</Text></Pressable>
+          <Pressable style={styles.sheetRow} accessibilityRole="button" onPress={() => remove(menuTask)}><Trash2 size={20} color="#AF332A" /><Text style={[styles.linkText, { color: '#AF332A' }]}>{t('quest_delete')}</Text></Pressable>
         </>}
       </ActionSheet>
     </SafeAreaView>
@@ -232,6 +275,15 @@ const styles = StyleSheet.create({
   walletText: { fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 16 },
   iconButton: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   greeting: { fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 30, marginBottom: 14 },
+  familyInvite: { borderBottomWidth: 1, borderBottomColor: Colors.border, paddingBottom: 18, marginBottom: 20 },
+  inviteHeading: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  inviteTitle: { fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 18 },
+  inviteSender: { fontFamily: 'Nunito_600SemiBold', color: Colors.textSecondary, fontSize: 14, lineHeight: 20, marginTop: 2 },
+  inviteActions: { flexDirection: 'row', gap: 10, marginTop: 13 },
+  inviteAccept: { minHeight: 48, flex: 1, borderRadius: 15, backgroundColor: Colors.primary, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
+  inviteAcceptText: { fontFamily: 'Nunito_800ExtraBold', color: '#FFFFFF', fontSize: 15 },
+  inviteDecline: { minHeight: 48, flex: 1, borderRadius: 15, borderWidth: 1, borderColor: Colors.border, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
+  inviteDeclineText: { fontFamily: 'Nunito_800ExtraBold', color: Colors.textSecondary, fontSize: 15 },
   banner: { flexDirection: 'row', alignItems: 'center', borderRadius: 22, backgroundColor: '#EDF3FF', padding: 16, marginBottom: 24, gap: 8 },
   bannerCopy: { flex: 1 },
   bannerTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 23, lineHeight: 27, color: Colors.text },

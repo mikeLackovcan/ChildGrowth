@@ -14,10 +14,12 @@ import {
 } from 'firebase/firestore';
 import { deleteUser } from 'firebase/auth';
 import { auth, db } from './firebase';
+import { deleteManagedFamily, getDeviceLink, listManagedChildren } from './devicePairing';
 
 export type CloudRole = 'parent' | 'child';
 
 export interface CloudProfile {
+  managed?: boolean;
   uid: string;
   nickname: string;
   full_name: string;
@@ -55,6 +57,7 @@ export async function findProfileByNickname(nickname: string): Promise<CloudProf
 }
 
 export async function saveCloudProfile(input: Omit<CloudProfile, 'uid'>): Promise<void> {
+  if (auth.currentUser?.isAnonymous) return;
   const uid = currentUid();
   await setDoc(doc(db, 'profiles', uid), {
     nickname: cleanNickname(input.nickname),
@@ -64,24 +67,33 @@ export async function saveCloudProfile(input: Omit<CloudProfile, 'uid'>): Promis
   }, { merge: true });
 }
 
-export async function saveOwnCloudData(data: Record<string, unknown>): Promise<void> {
+export async function saveOwnCloudData(data: Record<string, unknown>, expectedChildUid?: string): Promise<void> {
   const uid = currentUid();
-  await setDoc(doc(db, 'user_data', uid), {
+  const link = await getDeviceLink();
+  if (auth.currentUser?.uid !== uid) throw new Error('pair_session_changed');
+  if (auth.currentUser?.isAnonymous && !link) throw new Error('pair_not_connected');
+  if (expectedChildUid && link?.child_uid !== expectedChildUid) throw new Error('pair_session_changed');
+  await setDoc(doc(db, link ? 'family_progress' : 'user_data', link?.child_uid || uid), {
     ...data,
-    owner_uid: uid,
+    owner_uid: link?.child_uid || uid,
     updated_at: serverTimestamp(),
   }, { merge: true });
 }
 
-export async function saveLinkedChildData(childUid: string, data: Record<string, unknown>): Promise<void> {
-  await setDoc(doc(db, 'user_data', childUid), {
+export async function saveLinkedChildData(childUid: string, data: Record<string, unknown>, managed = false): Promise<void> {
+  await setDoc(doc(db, managed ? 'family_progress' : 'user_data', childUid), {
     ...data,
     updated_at: serverTimestamp(),
   }, { merge: true });
 }
 
-export async function loadOwnCloudData(): Promise<Record<string, any> | null> {
-  const snapshot = await getDoc(doc(db, 'user_data', currentUid()));
+export async function loadOwnCloudData(expectedChildUid?: string): Promise<Record<string, any> | null> {
+  const uid = currentUid();
+  const link = await getDeviceLink();
+  if (auth.currentUser?.uid !== uid) throw new Error('pair_session_changed');
+  if (auth.currentUser?.isAnonymous && !link) throw new Error('pair_not_connected');
+  if (expectedChildUid && link?.child_uid !== expectedChildUid) throw new Error('pair_session_changed');
+  const snapshot = await getDoc(doc(db, link ? 'family_progress' : 'user_data', link?.child_uid || uid));
   return snapshot.exists() ? snapshot.data() : null;
 }
 
@@ -120,6 +132,7 @@ export async function createFamilyInvite(targetNickname: string, ownRole: CloudR
 }
 
 export async function listFamilyInvites(): Promise<FamilyInvite[]> {
+  if (auth.currentUser?.isAnonymous) return [];
   const uid = currentUid();
   const snapshots = await getDocs(query(collection(db, 'family_invites'), where('participant_uids', 'array-contains', uid)));
   return snapshots.docs.map((snapshot) => ({ id: snapshot.id, ...(snapshot.data() as Omit<FamilyInvite, 'id'>) }));
@@ -181,7 +194,11 @@ export async function loadLinkedChildren(): Promise<Array<{ profile: CloudProfil
       data: dataSnapshot.data(),
     };
   }));
-  return rows.filter((row): row is { profile: CloudProfile; data: Record<string, any> } => Boolean(row));
+  const legacy = rows.filter((row): row is { profile: CloudProfile; data: Record<string, any> } => Boolean(row));
+  const own = await getDoc(doc(db, 'user_data', uid));
+  if (!own.data()?.managed_family_enabled) return legacy;
+  const managed = await listManagedChildren();
+  return [...legacy, ...managed.map(row => ({ ...row, profile: { ...row.profile, managed: true } }))];
 }
 
 /**
@@ -193,6 +210,8 @@ export async function deleteOwnCloudAccount(): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error('Sign in again before deleting this account.');
   const uid = user.uid;
+  const ownData = await getDoc(doc(db, 'user_data', uid));
+  if (ownData.data()?.managed_family_enabled) await deleteManagedFamily();
   const inviteSnapshots = await getDocs(query(
     collection(db, 'family_invites'),
     where('participant_uids', 'array-contains', uid),

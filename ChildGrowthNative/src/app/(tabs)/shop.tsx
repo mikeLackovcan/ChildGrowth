@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Check, Coins, Lock, X } from 'lucide-react-native';
@@ -31,6 +32,9 @@ export const AVAILABLE_AVATARS: QuestAvatar[] = HEROES.map(item => hero(
 ));
 
 export default function ShopScreen() {
+  const { t } = useTranslation();
+  const priceLabel = (price: number) => t('shop_price', { price });
+  const statusLabel = (active: boolean, owned: boolean, price: number) => active ? t('shop_active') : owned ? t('shop_owned') : priceLabel(price);
   const { width } = useWindowDimensions();
   const reduced = useReducedMotion();
   const [section, setSection] = useState<'Heroes' | 'Backgrounds' | 'Colors'>('Heroes');
@@ -88,8 +92,8 @@ export default function ShopScreen() {
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.title}>Hero shop</Text>
-            <Text style={styles.subtitle}>Make it yours.</Text>
+            <Text style={styles.title}>{t('shop_title')}</Text>
+            <Text style={styles.subtitle}>{t('shop_subtitle')}</Text>
           </View>
           <View style={styles.wallet}><Coins size={18} color={Colors.amber} /><Text style={styles.walletText}>{coins}</Text></View>
         </View>
@@ -97,30 +101,30 @@ export default function ShopScreen() {
         <View style={[styles.activeCard, { backgroundColor: '#EDF3FF', borderLeftWidth: 4, borderLeftColor: WORLD_THEMES[activeTheme].accent }]}>
           <AnimatedQuestHero id={current} style={styles.activeHero} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.eyebrow}>YOUR COMPANION</Text>
+            <Text style={styles.eyebrow}>{t('shop_companion')}</Text>
             <Text style={styles.activeName}>{AVAILABLE_AVATARS.find((item) => item.id === current)?.name || 'Quest Champ'}</Text>
-            <Text style={styles.activeText}>Ready for your next small win.</Text>
+            <Text style={styles.activeText}>{t('shop_ready')}</Text>
           </View>
         </View>
 
         <View style={styles.sectionTabs}>
-          {(['Heroes', 'Backgrounds', 'Colors'] as const).map(item => <TouchableOpacity key={item} style={[styles.sectionTab, section === item && styles.sectionTabSelected]} accessibilityRole="button" accessibilityState={{ selected: section === item }} onPress={() => setSection(item)}><Text style={[styles.sectionTabText, section === item && { color: '#FFFFFF' }]}>{item}</Text></TouchableOpacity>)}
+          {(['Heroes', 'Backgrounds', 'Colors'] as const).map(item => <TouchableOpacity key={item} style={[styles.sectionTab, section === item && styles.sectionTabSelected]} accessibilityRole="button" accessibilityState={{ selected: section === item }} onPress={() => setSection(item)}><Text style={[styles.sectionTabText, section === item && { color: '#FFFFFF' }]}>{t(`shop_${item}`)}</Text></TouchableOpacity>)}
         </View>
         {section === 'Heroes' && <>
-        <Text style={styles.sectionSub}>Same rewards. Your favorite character.</Text>
+        <Text style={styles.sectionSub}>{t('shop_equal')}</Text>
         <View style={styles.grid}>
           {AVAILABLE_AVATARS.map((avatar) => {
             const owned = isUnlocked(avatar.id);
             const equipped = current === avatar.id || (current === 'default' && avatar.id === 'quest_champ');
             return (
-              <TouchableOpacity key={avatar.id} accessibilityRole="button" accessibilityLabel={`${avatar.name}, ${equipped ? 'active' : owned ? 'owned' : `${avatar.price} coins`}`} style={[styles.heroCard, { width: width < 500 ? '48%' : '31.5%' }, equipped && styles.heroCardEquipped]} onPress={() => setSelected(avatar)}>
+              <TouchableOpacity key={avatar.id} accessibilityRole="button" accessibilityLabel={t('shop_item', { name: avatar.name, status: statusLabel(equipped, owned, avatar.price) })} style={[styles.heroCard, { width: width < 500 ? '48%' : '31.5%' }, equipped && styles.heroCardEquipped]} onPress={() => setSelected(avatar)}>
                 <QuestHero id={avatar.id} style={styles.heroPortrait} />
                 <Text style={styles.heroName}>{avatar.name}</Text>
-                <Text style={styles.heroSkill}>{avatar.skillName}</Text>
+                <Text style={styles.heroSkill}>{t(`shop_personality_${avatar.id}`)}</Text>
                 {equipped ? (
-                  <View style={styles.equippedPill}><Check size={13} color={Colors.text} /><Text style={styles.equippedText}>Active</Text></View>
+                  <View style={styles.equippedPill}><Check size={13} color={Colors.text} /><Text style={styles.equippedText}>{t('shop_active')}</Text></View>
                 ) : owned ? (
-                  <Text style={styles.ownedText}>Tap to equip</Text>
+                  <Text style={styles.ownedText}>{t('shop_equip')}</Text>
                 ) : (
                   <View style={styles.priceRow}><Lock size={12} color={Colors.textMuted} /><Text style={styles.priceText}>{avatar.price}</Text></View>
                 )}
@@ -131,18 +135,18 @@ export default function ShopScreen() {
         </>}
 
         {section === 'Backgrounds' && <>
-        <Text style={styles.sectionTitle}>Background worlds</Text>
-        <Text style={styles.sectionSub}>50 coins each. White is always free.</Text>
+        <Text style={styles.sectionTitle}>{t('shop_backgrounds')}</Text>
+        <Text style={styles.sectionSub}>{t('shop_background_price')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.themeRow}>
           {(Object.keys(QUEST_BACKGROUNDS) as BackgroundKey[]).map((key) => {
             const item = QUEST_BACKGROUNDS[key];
             const active = activeBackground === key;
             const owned = unlockedBackgrounds.includes(key);
             return (
-              <TouchableOpacity key={key} onPress={() => setSelectedBackground(item)} style={[styles.backgroundCard, { backgroundColor: item.background, borderColor: active ? item.accent : Colors.border }]}>
+              <TouchableOpacity key={key} accessibilityRole="button" accessibilityLabel={t('shop_item', { name: t(`shop_bg_${key}`), status: statusLabel(active, owned, item.price) })} onPress={() => setSelectedBackground(item)} style={[styles.backgroundCard, { backgroundColor: item.background, borderColor: active ? item.accent : Colors.border }]}>
                 <Text style={styles.themeIcon}>{item.icon}</Text>
-                <Text style={styles.backgroundName}>{item.name}</Text>
-                <Text style={[styles.themePrice, { color: Colors.textSecondary }]}>{active ? '✓ Active' : owned ? 'Owned' : `${item.price} coins`}</Text>
+                <Text style={styles.backgroundName}>{t(`shop_bg_${item.id}`)}</Text>
+                <Text style={[styles.themePrice, { color: Colors.textSecondary }]}>{statusLabel(active, owned, item.price)}</Text>
               </TouchableOpacity>
             );
           })}
@@ -150,18 +154,18 @@ export default function ShopScreen() {
         </>}
 
         {section === 'Colors' && <>
-        <Text style={styles.sectionTitle}>Hero colors</Text>
-        <Text style={styles.sectionSub}>A little color around your companion.</Text>
+        <Text style={styles.sectionTitle}>{t('shop_colors')}</Text>
+        <Text style={styles.sectionSub}>{t('shop_color_subtitle')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.themeRow}>
           {(Object.keys(WORLD_THEMES) as ThemeKey[]).map((key) => {
             const theme = WORLD_THEMES[key];
             const active = activeTheme === key;
             const owned = unlockedThemes.includes(key) || theme.price === 0;
             return (
-              <TouchableOpacity key={key} accessibilityRole="button" accessibilityLabel={`${theme.name}, ${owned ? 'owned' : `${theme.price} coins`}`} onPress={() => setSelectedTheme(key)} style={[styles.themeCard, { backgroundColor: theme.background }, active && styles.themeCardActive]}>
+              <TouchableOpacity key={key} accessibilityRole="button" accessibilityLabel={t('shop_item', { name: t(`shop_theme_${key}`), status: statusLabel(active, owned, theme.price) })} onPress={() => setSelectedTheme(key)} style={[styles.themeCard, { backgroundColor: theme.background }, active && styles.themeCardActive]}>
                 <Text style={styles.themeIcon}>{theme.icon}</Text>
-                <Text style={[styles.themeName, { color: theme.text }]}>{theme.name}</Text>
-                <Text style={[styles.themePrice, { color: theme.textSecondary }]}>{active ? 'Active' : owned ? 'Owned' : `${theme.price} coins`}</Text>
+                <Text style={[styles.themeName, { color: theme.text }]}>{t(`shop_theme_${key}`)}</Text>
+                <Text style={[styles.themePrice, { color: theme.textSecondary }]}>{statusLabel(active, owned, theme.price)}</Text>
               </TouchableOpacity>
             );
           })}
@@ -173,14 +177,14 @@ export default function ShopScreen() {
         <View style={styles.overlay}>
           {selected && (
             <View style={styles.modalCard}>
-              <TouchableOpacity style={styles.close} accessibilityLabel="Close hero preview" onPress={() => setSelected(null)}><X size={20} color={Colors.textSecondary} /></TouchableOpacity>
+              <TouchableOpacity style={styles.close} accessibilityRole="button" accessibilityLabel={t('shop_close_hero')} onPress={() => setSelected(null)}><X size={20} color={Colors.textSecondary} /></TouchableOpacity>
               <AnimatedQuestHero id={selected.id} style={styles.modalHero} motion="celebrate" />
               <Text style={styles.modalName}>{selected.name}</Text>
-              <Text style={styles.modalSkill}>{selected.skillName}</Text>
-              <Text style={styles.modalDescription}>{selected.skillDesc}</Text>
-              {!isUnlocked(selected.id) && coins < selected.price && <Text style={styles.modalDescription}>{selected.price - coins} more coins to go</Text>}
-              <TouchableOpacity disabled={!isUnlocked(selected.id) && coins < selected.price} style={[styles.primaryButton, !isUnlocked(selected.id) && coins < selected.price && { opacity: 0.45 }]} onPress={chooseHero}>
-                <Text style={styles.primaryButtonText}>{isUnlocked(selected.id) ? 'Use this hero' : `Unlock for ${selected.price} coins`}</Text>
+              <Text style={styles.modalSkill}>{t(`shop_personality_${selected.id}`)}</Text>
+              <Text style={styles.modalDescription}>{t('shop_description')}</Text>
+              {!isUnlocked(selected.id) && coins < selected.price && <Text style={styles.modalDescription}>{t('shop_remaining', { amount: selected.price - coins })}</Text>}
+              <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: !isUnlocked(selected.id) && coins < selected.price }} disabled={!isUnlocked(selected.id) && coins < selected.price} style={[styles.primaryButton, !isUnlocked(selected.id) && coins < selected.price && { opacity: 0.45 }]} onPress={chooseHero}>
+                <Text style={styles.primaryButtonText}>{isUnlocked(selected.id) ? t('shop_use_hero') : t('shop_unlock', { price: selected.price })}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -191,34 +195,34 @@ export default function ShopScreen() {
         <View style={styles.overlay}>
           {selectedBackground && (
             <View style={styles.modalCard}>
-              <TouchableOpacity style={styles.close} onPress={() => setSelectedBackground(null)}><X size={20} color={Colors.textSecondary} /></TouchableOpacity>
+              <TouchableOpacity style={styles.close} accessibilityRole="button" accessibilityLabel={t('shop_close_background')} onPress={() => setSelectedBackground(null)}><X size={20} color={Colors.textSecondary} /></TouchableOpacity>
               <View style={[styles.backgroundPreview, { backgroundColor: selectedBackground.background, borderColor: selectedBackground.accent }]}>
                 <Text style={styles.backgroundPreviewIcon}>{selectedBackground.icon}</Text>
               </View>
-              <Text style={styles.modalName}>{selectedBackground.name}</Text>
-              <Text style={styles.modalDescription}>A calm background for your main quest tabs.</Text>
-              <TouchableOpacity
+              <Text style={styles.modalName}>{t(`shop_bg_${selectedBackground.id}`)}</Text>
+              <Text style={styles.modalDescription}>{t('shop_background_description')}</Text>
+              <TouchableOpacity accessibilityRole="button"
                 disabled={!unlockedBackgrounds.includes(selectedBackground.id) && coins < selectedBackground.price}
                 style={[styles.primaryButton, !unlockedBackgrounds.includes(selectedBackground.id) && coins < selectedBackground.price && { opacity: 0.45 }]}
                 onPress={chooseBackground}
               >
-                <Text style={styles.primaryButtonText}>{unlockedBackgrounds.includes(selectedBackground.id) ? 'Use this background' : `Unlock for ${selectedBackground.price} coins`}</Text>
+                <Text style={styles.primaryButtonText}>{unlockedBackgrounds.includes(selectedBackground.id) ? t('shop_use_background') : t('shop_unlock', { price: selectedBackground.price })}</Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
       </Modal>
-      <ActionSheet visible={Boolean(selectedTheme)} title={selectedTheme ? WORLD_THEMES[selectedTheme].name : 'Hero color'} onClose={() => setSelectedTheme(null)}>
+      <ActionSheet visible={Boolean(selectedTheme)} title={selectedTheme ? t(`shop_theme_${selectedTheme}`) : t('shop_color')} onClose={() => setSelectedTheme(null)}>
         {selectedTheme && <>
           <View style={[styles.backgroundPreview, { alignSelf: 'center', backgroundColor: WORLD_THEMES[selectedTheme].background, borderColor: WORLD_THEMES[selectedTheme].accent }]}>
             <QuestHero id={current} style={{ width: 108, height: 108 }} />
           </View>
-          <Text style={styles.modalDescription}>Your companion’s accent color. Quest screens stay calm and easy to read.</Text>
+          <Text style={styles.modalDescription}>{t('shop_color_description')}</Text>
           <TouchableOpacity accessibilityRole="button"
             disabled={!unlockedThemes.includes(selectedTheme) && coins < WORLD_THEMES[selectedTheme].price}
             style={[styles.primaryButton, !unlockedThemes.includes(selectedTheme) && coins < WORLD_THEMES[selectedTheme].price && { opacity: 0.45 }]}
             onPress={() => chooseTheme(selectedTheme)}>
-            <Text style={styles.primaryButtonText}>{unlockedThemes.includes(selectedTheme) ? 'Use this color' : `Unlock for ${WORLD_THEMES[selectedTheme].price} coins`}</Text>
+            <Text style={styles.primaryButtonText}>{unlockedThemes.includes(selectedTheme) ? t('shop_use_color') : t('shop_unlock', { price: WORLD_THEMES[selectedTheme].price })}</Text>
           </TouchableOpacity>
         </>}
       </ActionSheet>

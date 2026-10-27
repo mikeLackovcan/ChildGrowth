@@ -3,6 +3,13 @@ import { isQuestDue, localDateKey } from './questSchedule';
 
 export const STARTER_BUILD_POWER = 5_000;
 export const DAILY_BUILD_POWER = 10_000;
+export const WORLD_PLOTS = [
+  { id: 'home', x: 105, y: 134 }, { id: 'north', x: 199, y: 72 },
+  { id: 'north-east', x: 261, y: 162 }, { id: 'west', x: 81, y: 260 },
+  { id: 'mid-west', x: 150, y: 163 }, { id: 'mid-east', x: 204, y: 325 },
+  { id: 'east', x: 321, y: 268 }, { id: 'south-west', x: 123, y: 374 },
+  { id: 'south', x: 202, y: 404 }, { id: 'south-east', x: 286, y: 371 },
+] as const;
 
 export type WorldBuildingType =
   | 'home'
@@ -64,4 +71,13 @@ export function canPlaceBuilding(
 ): boolean {
   return !placements.some(item => item.plotId === plotId)
     && availablePower >= WORLD_BUILDINGS[type].cost;
+}
+
+/** A concrete, newly affordable item, not another currency tally. */
+export function newlyAffordableBuilding(before: number, after: number, placements: WorldPlacement[]): WorldBuildingType | null {
+  if (!WORLD_PLOTS.some(plot => !placements.some(item => item.plotId === plot.id))) return null;
+  return (Object.keys(WORLD_BUILDINGS) as WorldBuildingType[])
+    .filter(type => WORLD_BUILDINGS[type].cost > before && WORLD_BUILDINGS[type].cost <= after
+      && !placements.some(item => item.type === type))
+    .sort((a, b) => WORLD_BUILDINGS[b].cost - WORLD_BUILDINGS[a].cost)[0] || null;
 }

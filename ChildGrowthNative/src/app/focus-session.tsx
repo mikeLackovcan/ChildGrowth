@@ -1,3 +1,5 @@
+import { questName } from '../lib/questTemplates';
+import { useTranslation } from 'react-i18next';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -16,6 +18,7 @@ const secondsLeft = (startedAt: string, durationMinutes: number) => {
 };
 
 export default function FocusSessionScreen() {
+  const { t } = useTranslation();
   const { taskId } = useLocalSearchParams<{ taskId: string }>();
   const tasks = useAppStore((state) => state.tasks);
   const currentAvatar = useAppStore((state) => state.currentAvatar);
@@ -81,8 +84,8 @@ export default function FocusSessionScreen() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.center}>
-          <Text style={styles.title}>{task ? 'All set!' : 'Quest not found'}</Text>
-          <TouchableOpacity style={styles.quietButton} onPress={leave}><Text style={styles.quietText}>Back to quests</Text></TouchableOpacity>
+          <Text style={styles.title}>{task ? t('timer_all_set') : t('timer_not_found')}</Text>
+          <TouchableOpacity accessibilityRole="button" style={styles.quietButton} onPress={leave}><Text style={styles.quietText}>{t('timer_back')}</Text></TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -105,15 +108,15 @@ export default function FocusSessionScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.container}>
-        <TouchableOpacity style={styles.close} onPress={leave} accessibilityLabel="Back to quests; timer keeps running">
+        <TouchableOpacity accessibilityRole="button" style={styles.close} onPress={leave} accessibilityLabel={t('timer_back_running')}>
           <X size={22} color={Colors.textSecondary} />
         </TouchableOpacity>
 
-        <Text style={styles.eyebrow}>{finished ? 'TIME IS UP' : 'FOCUS TIME'}</Text>
-        <Text style={styles.title}>{task.name}</Text>
+        <Text style={styles.eyebrow}>{finished ? t('timer_up') : t('timer_focus')}</Text>
+        <Text style={styles.title}>{questName(task)}</Text>
         <AnimatedQuestHero id={currentAvatar} style={styles.hero} motion={finished ? 'celebrate' : 'focus'} />
 
-        <View style={styles.timerRing} accessibilityLabel={`${Math.ceil(remaining / 60)} minutes remaining`}>
+        <View style={styles.timerRing} accessibilityLabel={t('timer_remaining', { minutes: Math.ceil(remaining / 60) })}>
           <Svg width={190} height={190} style={StyleSheet.absoluteFill} viewBox="0 0 190 190">
             <Circle cx={95} cy={95} r={83} fill="none" stroke="#E8EEF8" strokeWidth={12} />
             <Circle cx={95} cy={95} r={83} fill="none" stroke={finished ? '#548014' : Colors.primary}
@@ -123,21 +126,21 @@ export default function FocusSessionScreen() {
           </Svg>
           <Text style={styles.timer}>{timeText}</Text>
         </View>
-        <Text style={styles.message}>{finished ? 'Nice focus. Is your quest done?' : 'One small step at a time.'}</Text>
-        {!finished && (Platform.OS === 'web' || backgroundAlert === false) && <Text style={styles.message}>{Platform.OS === 'web' ? 'Preview: keep this page open to hear the finish sound.' : 'Phone alerts are off. Keep the app open, or allow notifications in Settings.'}</Text>}
+        <Text style={styles.message}>{finished ? t('timer_check') : t('timer_step')}</Text>
+        {!finished && (Platform.OS === 'web' || backgroundAlert === false) && <Text style={styles.message}>{Platform.OS === 'web' ? t('timer_web') : t('timer_alerts_off')}</Text>}
 
         {finished ? (
-          <TouchableOpacity style={styles.finishButton} onPress={finishQuest}>
+          <TouchableOpacity accessibilityRole="button" style={styles.finishButton} onPress={finishQuest}>
             <Check size={22} color={Colors.text} strokeWidth={3} />
-            <Text style={styles.finishText}>{task.requiresApproval && useAppStore.getState().linkedParents.length > 0 ? 'Send to parent' : 'Done'}</Text>
+            <Text style={styles.finishText}>{task.requiresApproval && useAppStore.getState().linkedParents.length > 0 ? t('timer_send') : t('done')}</Text>
           </TouchableOpacity>
         ) : (
           <>
-            <TouchableOpacity style={styles.finishButton} onPress={leave}>
-              <Text style={styles.finishText}>Keep timer running</Text>
+            <TouchableOpacity accessibilityRole="button" style={styles.finishButton} onPress={leave}>
+              <Text style={styles.finishText}>{t('timer_keep')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.quietButton} onPress={stopSession}>
-              <Text style={styles.quietText}>Stop for now</Text>
+            <TouchableOpacity accessibilityRole="button" style={styles.quietButton} onPress={stopSession}>
+              <Text style={styles.quietText}>{t('timer_stop')}</Text>
             </TouchableOpacity>
           </>
         )}

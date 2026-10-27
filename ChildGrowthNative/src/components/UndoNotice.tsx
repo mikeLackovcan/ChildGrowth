@@ -1,10 +1,12 @@
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colors } from '../constants/theme';
 
 export type Notice = { key: number; text: string; undo?: () => void };
 
 export default function UndoNotice({ notice, onDismiss }: { notice: Notice | null; onDismiss: () => void }) {
+  const { t } = useTranslation();
   useEffect(() => {
     if (!notice) return;
     const timeout = setTimeout(onDismiss, 8000);
@@ -15,7 +17,7 @@ export default function UndoNotice({ notice, onDismiss }: { notice: Notice | nul
     <View style={styles.notice} accessibilityLiveRegion="polite">
       <Text style={styles.text}>{notice.text}</Text>
       <Pressable accessibilityRole="button" style={styles.action} onPress={() => { onDismiss(); notice.undo?.(); }}>
-        <Text style={styles.actionText}>{notice.undo ? 'Undo' : 'OK'}</Text>
+        <Text style={styles.actionText}>{t(notice.undo ? 'undo' : 'ok')}</Text>
       </Pressable>
     </View>
   );

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import projectStorage from '../lib/projectStorage';
 import { auth } from '../lib/firebase';
 import { loadOwnCloudData, saveOwnCloudData } from '../lib/familyCloud';
+import { useAppStore } from './useAppStore';
 import {
   canPlaceBuilding,
   WORLD_BUILDINGS,
@@ -37,6 +38,7 @@ const validWorld = (value: any): value is SavedWorld => Boolean(
 );
 
 export const useWorldStore = create<WorldStore>((set, get) => {
+  let hydrationVersion = 0;
   const persist = async (ownerKey: string) => {
     const snapshot: SavedWorld = {
       spentPower: get().spentPower,
@@ -45,8 +47,8 @@ export const useWorldStore = create<WorldStore>((set, get) => {
     };
     set({ updatedAt: snapshot.updatedAt });
     await projectStorage.setItem(`world_${ownerKey}`, JSON.stringify(snapshot));
-    if (auth.currentUser && ownerKey !== 'guest-local') {
-      await saveOwnCloudData({ world: snapshot });
+    if (auth.currentUser && ownerKey !== 'guest-local' && useAppStore.getState().deviceConnection !== 'local') {
+      await saveOwnCloudData({ world: snapshot }, auth.currentUser.isAnonymous ? ownerKey : undefined);
     }
   };
 
@@ -56,20 +58,21 @@ export const useWorldStore = create<WorldStore>((set, get) => {
     hydrated: false,
     hydrate: async (ownerKey) => {
       if (get().ownerKey === ownerKey && get().hydrated) return;
+      const version = ++hydrationVersion;
       set({ ...starterWorld(), ownerKey, hydrated: false });
       let best = starterWorld();
       try {
         const localRaw = await projectStorage.getItem(`world_${ownerKey}`);
         const local = localRaw ? JSON.parse(localRaw) : null;
         if (validWorld(local)) best = local;
-        if (auth.currentUser && ownerKey !== 'guest-local') {
-          const cloud = (await loadOwnCloudData())?.world;
+        if (auth.currentUser && ownerKey !== 'guest-local' && useAppStore.getState().deviceConnection !== 'local') {
+          const cloud = (await loadOwnCloudData(auth.currentUser.isAnonymous ? ownerKey : undefined))?.world;
           if (validWorld(cloud) && (cloud.updatedAt || 0) > (best.updatedAt || 0)) best = cloud;
         }
       } catch (_) {
         // The starter world remains a complete offline fallback.
       }
-      set({ ...best, ownerKey, hydrated: true });
+      if (version === hydrationVersion) set({ ...best, ownerKey, hydrated: true });
     },
     placeBuilding: (plotId, type, availablePower) => {
       if (!canPlaceBuilding(get().placements, plotId, type, availablePower)) return false;

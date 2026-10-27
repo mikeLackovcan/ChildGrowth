@@ -1,0 +1,27 @@
+# EAS resolves these patterns from the Expo project directory even though its
+# archive also contains the repository root.
+node_modules/
+node_modules 2/
+android/
+ios/
+.expo/
+.firebase/
+dist/
+web-build/
+artifacts/
+release-package/
+www/
+.env
+.env.*
+!.env.example
+firestore-debug.log
+*.apk
+*.aab
+*.html
+temp*.js
+scripts/temp_tripo*
+scripts/bridge/
+scripts/bridge.zip
+src/assets/models/
+assets/branding/*-source.png
+!assets/branding/quest-hero-source.png

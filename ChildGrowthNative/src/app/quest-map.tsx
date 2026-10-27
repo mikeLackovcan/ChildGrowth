@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
 import { BellRing, ChevronLeft, Clock3, Network, Sparkles } from 'lucide-react-native';
 import { Colors } from '../constants/theme';
@@ -10,9 +11,9 @@ import { Task, useAppStore } from '../store/useAppStore';
 type MapStep = { name: string; time: string };
 
 const REPEATS: Array<{ id: Task['freq']; label: string }> = [
-  { id: 'daily', label: 'Every day' },
-  { id: 'weekdays', label: 'Weekdays' },
-  { id: 'weekends', label: 'Weekends' },
+  { id: 'daily', label: 'map_daily' },
+  { id: 'weekdays', label: 'map_weekdays' },
+  { id: 'weekends', label: 'map_weekends' },
 ];
 
 function normalizeOptionalTime(value: string): string | undefined {
@@ -24,7 +25,9 @@ function normalizeOptionalTime(value: string): string | undefined {
 }
 
 export default function QuestMapScreen() {
+  const { t } = useTranslation();
   const addTask = useAppStore((state) => state.addTask);
+  const familyChild = useAppStore((state) => state.role === 'child' && state.linkedParents.length > 0);
   const [goal, setGoal] = useState('');
   const [frequency, setFrequency] = useState<Task['freq']>('daily');
   const [steps, setSteps] = useState<MapStep[]>([
@@ -55,7 +58,7 @@ export default function QuestMapScreen() {
         questMapGoal: goal.trim(),
         reminderEnabled: Boolean(reminderTime && notificationsGranted),
         reminderTime,
-        requiresApproval: false,
+        requiresApproval: familyChild,
       });
     });
     router.replace('/(tabs)');
@@ -64,37 +67,37 @@ export default function QuestMapScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.back} onPress={() => router.back()} accessibilityLabel="Back">
+        <TouchableOpacity style={styles.back} onPress={() => router.back()} accessibilityLabel={t('onboard_back')}>
           <ChevronLeft size={24} color={Colors.text} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Quest Map</Text>
-          <Text style={styles.subtitle}>Turn one big goal into small wins.</Text>
+          <Text style={styles.title}>{t('map_title')}</Text>
+          <Text style={styles.subtitle}>{t('map_subtitle')}</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.intro}>
           <Network size={20} color={Colors.primary} />
-          <Text style={styles.introText}>Start with what you want to achieve. Then add up to three steps you can actually do.</Text>
+          <Text style={styles.introText}>{t('map_intro')}</Text>
         </View>
 
-        <Text style={styles.eyebrow}>MY BIG GOAL</Text>
+        <Text style={styles.eyebrow}>{t('map_goal')}</Text>
         <View style={styles.goalNode}>
           <Sparkles size={21} color={Colors.amber} />
           <TextInput
             style={styles.goalInput}
             value={goal}
             onChangeText={setGoal}
-            placeholder="E.g. Keep my room tidy"
+            placeholder={t('map_example')}
             placeholderTextColor="#AFC1E8"
             maxLength={80}
-            accessibilityLabel="Big goal"
+            accessibilityLabel={t('map_goal')}
           />
         </View>
 
         <View style={styles.connector} />
-        <Text style={styles.eyebrow}>SMALL STEPS</Text>
+        <Text style={styles.eyebrow}>{t('map_steps')}</Text>
         <View style={styles.steps}>
           {steps.map((step, index) => (
             <View key={index} style={styles.stepRow}>
@@ -107,10 +110,10 @@ export default function QuestMapScreen() {
                   style={styles.stepInput}
                   value={step.name}
                   onChangeText={(name) => updateStep(index, { name })}
-                  placeholder={index === 0 ? 'First small action' : 'Another small action (optional)'}
+                  placeholder={t(index === 0 ? 'map_first' : 'map_another')}
                   placeholderTextColor={Colors.textMuted}
                   maxLength={80}
-                  accessibilityLabel={`Step ${index + 1}`}
+                  accessibilityLabel={t('map_step', { number: index + 1 })}
                 />
                 <View style={styles.timeRow}>
                   <Clock3 size={15} color={step.time ? Colors.primary : Colors.textMuted} />
@@ -119,11 +122,11 @@ export default function QuestMapScreen() {
                     value={step.time}
                     onChangeText={(time) => updateStep(index, { time })}
                     onBlur={() => updateStep(index, { time: normalizeOptionalTime(step.time) || '' })}
-                    placeholder="Optional time, e.g. 18:00"
+                    placeholder={t('map_time')}
                     placeholderTextColor={Colors.textMuted}
                     keyboardType="numbers-and-punctuation"
                     maxLength={5}
-                    accessibilityLabel={`Reminder time for step ${index + 1}`}
+                    accessibilityLabel={t('map_step_time', { number: index + 1 })}
                   />
                   {step.time ? <BellRing size={15} color={Colors.primary} /> : null}
                 </View>
@@ -132,24 +135,24 @@ export default function QuestMapScreen() {
           ))}
         </View>
 
-        <Text style={styles.eyebrow}>REPEAT</Text>
+        <Text style={styles.eyebrow}>{t('map_repeat')}</Text>
         <View style={styles.repeatRow}>
           {REPEATS.map((item) => {
             const selected = frequency === item.id;
             return (
               <TouchableOpacity key={item.id} style={[styles.repeatChip, selected && styles.repeatChipSelected]} onPress={() => setFrequency(item.id)}>
-                <Text style={[styles.repeatText, selected && styles.repeatTextSelected]}>{item.label}</Text>
+                <Text style={[styles.repeatText, selected && styles.repeatTextSelected]}>{t(item.label)}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
-        <Text style={styles.note}>Times are optional. If you add one, Quest Champ will ask permission and schedule a notification with sound.</Text>
+        <Text style={styles.note}>{t('map_note')}</Text>
       </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity style={[styles.createButton, !goal.trim() && styles.createButtonDisabled]} disabled={!goal.trim()} onPress={createQuestMap}>
           <Network size={20} color="#FFFFFF" />
-          <Text style={styles.createButtonText}>Create quest map</Text>
+          <Text style={styles.createButtonText}>{t('map_create')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

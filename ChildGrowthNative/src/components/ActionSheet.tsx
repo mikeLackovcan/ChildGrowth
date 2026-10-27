@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../constants/theme';
@@ -9,19 +10,20 @@ export default function ActionSheet({ visible, title, onClose, children }: React
   visible: boolean; title: string; onClose: () => void;
 }>) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const reduced = useReducedMotion();
   return (
     <Modal visible={visible} transparent animationType={reduced ? 'none' : 'slide'} onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
+      <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel={t('close')} />
         <View style={[styles.sheet, { paddingBottom: Math.max(20, insets.bottom) }]} accessibilityViewIsModal>
           <View style={styles.header}>
             <Text style={styles.title} accessibilityRole="header">{title}</Text>
-            <Pressable style={styles.close} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close"><X color={Colors.text} size={22} /></Pressable>
+            <Pressable style={styles.close} onPress={onClose} accessibilityRole="button" accessibilityLabel={t('close')}><X color={Colors.text} size={22} /></Pressable>
           </View>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>{children}</ScrollView>
+          <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.content}>{children}</ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

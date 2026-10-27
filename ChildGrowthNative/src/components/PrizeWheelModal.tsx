@@ -7,6 +7,7 @@ import Animated, {
   Easing, 
   withSequence, 
   withSpring,
+  cancelAnimation,
   runOnJS 
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -15,7 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react-native';
 import Svg, { Path, G, Text as SvgText, Circle, Polygon } from 'react-native-svg';
 import useReducedMotion from '../hooks/useReducedMotion';
-import { wheelPrizePresentation } from '../lib/wheelPrizePresentation';
+import { wheelChoices, wheelPrizePresentation } from '../lib/wheelPrizePresentation';
 
 interface PrizeWheelModalProps {
   visible: boolean;
@@ -37,14 +38,6 @@ const SLICE_COLORS = [
   '#9C27B0', // Purple (Skip a Chore 🛑)
 ];
 
-const DEFAULT_PRIZES = [
-  'Family surprise 🎁',
-  'Ice Cream 🍦',
-  'Movie Night 🍿',
-  'Try Again 🍀',
-  'Extra TV Time 📺',
-  'Skip a Chore 🛑',
-];
 
 export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWheelModalProps) {
   const { t } = useTranslation();
@@ -60,27 +53,28 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
   const [displayedPrize, setDisplayedPrize] = useState('');
 
   // Slices data combined with store prizes
-  const prizesList = (storePrizes && storePrizes.length >= 6) ? storePrizes.slice(0, 6) : DEFAULT_PRIZES;
+  const prizesList = wheelChoices(storePrizes || [], prizeName);
+  const sliceAngle = 360 / Math.max(1, prizesList.length);
   const wheelSlices = prizesList.map((prize, idx) => ({
     prize,
     color: SLICE_COLORS[idx % SLICE_COLORS.length],
-    presentation: wheelPrizePresentation(prize),
+    presentation: wheelPrizePresentation(prize, t('wheel_surprise')),
   }));
-  const winner = wheelPrizePresentation(displayedPrize || prizeName);
+  const winner = wheelPrizePresentation(displayedPrize || prizeName, t('wheel_surprise'));
 
   const triggerFinishHaptic = () => {
     try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     } catch (_) {}
   };
 
   const handleStartSpin = () => {
-    if (isSpinning) return;
+    if (isSpinning || hasSpun || !prizeName.trim()) return;
     if (reducedMotion) {
-      const selectedPrize = prizeName || wheelSlices[0].prize;
+      const selectedPrize = prizeName.trim();
       const selectedIndex = Math.max(0, wheelSlices.findIndex(slice => slice.prize === selectedPrize));
       setDisplayedPrize(selectedPrize);
-      rotation.value = 360 - (selectedIndex * 60 + 30);
+      rotation.value = 360 - (selectedIndex * sliceAngle + sliceAngle / 2);
       setHasSpun(true);
       triggerFinishHaptic();
       return;
@@ -89,16 +83,15 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
     setHasSpun(false);
 
     // Target prize selection
-    const selectedPrize = prizeName || wheelSlices[Math.floor(Math.random() * wheelSlices.length)].prize;
+    const selectedPrize = prizeName.trim();
     setDisplayedPrize(selectedPrize);
 
     // Match prize to slice index
-    const foundIdx = wheelSlices.findIndex(s => s.prize.toLowerCase().includes(selectedPrize.toLowerCase()));
+    const foundIdx = wheelSlices.findIndex(s => s.prize === selectedPrize);
     const targetSlice = foundIdx >= 0 ? foundIdx : 0;
     
     // Target angle calculation (5 full rotations + slice alignment)
-    const sliceAngle = 60;
-    const targetAngle = 360 * 5 + (360 - (targetSlice * sliceAngle + 30));
+    const targetAngle = 360 * 5 + (360 - (targetSlice * sliceAngle + sliceAngle / 2));
 
     // Pointer needle wiggle animation
     pointerWobble.value = withRepeatTimingWobble();
@@ -132,7 +125,8 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
 
   useEffect(() => {
     if (visible) {
-      scale.value = withSpring(1, { damping: 12, stiffness: 130 });
+      scale.value = reducedMotion ? 1 : withSpring(1, { damping: 12, stiffness: 130 });
+      setDisplayedPrize('');
       rotation.value = 0;
       setHasSpun(false);
       setIsSpinning(false);
@@ -142,7 +136,8 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
       setIsSpinning(false);
       setHasSpun(false);
     }
-  }, [visible]);
+    return () => { cancelAnimation(rotation); cancelAnimation(pointerWobble); cancelAnimation(scale); };
+  }, [visible, prizeName, reducedMotion]);
 
   const wheelAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
@@ -159,9 +154,9 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
   // Render SVG Slices matching initial app style
   const renderSlices = () => {
     return wheelSlices.map((slice, i) => {
-      const angleStart = i * 60 - 90;
-      const angleEnd = (i + 1) * 60 - 90;
-      const angleMid = (i + 0.5) * 60 - 90;
+      const angleStart = i * sliceAngle - 90;
+      const angleEnd = (i + 1) * sliceAngle - 90;
+      const angleMid = (i + 0.5) * sliceAngle - 90;
 
       const radStart = (angleStart * Math.PI) / 180;
       const radEnd = (angleEnd * Math.PI) / 180;
@@ -172,7 +167,7 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
       const x2 = CENTER + RADIUS * Math.cos(radEnd);
       const y2 = CENTER + RADIUS * Math.sin(radEnd);
 
-      const pathData = `M ${CENTER} ${CENTER} L ${x1} ${y1} A ${RADIUS} ${RADIUS} 0 0 1 ${x2} ${y2} Z`;
+      const pathData = `M ${CENTER} ${CENTER} L ${x1} ${y1} A ${RADIUS} ${RADIUS} 0 ${sliceAngle > 180 ? 1 : 0} 1 ${x2} ${y2} Z`;
 
       // Text position along middle of slice
       const textRadius = RADIUS * 0.60;
@@ -186,7 +181,9 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
 
       return (
         <G key={i}>
-          <Path d={pathData} fill={slice.color} stroke="#FFFFFF" strokeWidth="2.5" />
+          {wheelSlices.length === 1
+            ? <Circle cx={CENTER} cy={CENTER} r={RADIUS} fill={slice.color} stroke="#FFFFFF" strokeWidth="2.5" />
+            : <Path d={pathData} fill={slice.color} stroke="#FFFFFF" strokeWidth="2.5" />}
           
           {/* One dominant picture and a maximum two-word child-facing label. */}
           <G transform={`translate(${tx}, ${ty}) rotate(${textRotate})`}>
@@ -232,13 +229,13 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
     <Modal visible={visible} transparent animationType={reducedMotion ? 'none' : 'fade'} onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Animated.View style={[styles.modalCard, cardAnimatedStyle]}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close reward wheel">
+          <TouchableOpacity style={styles.closeButton} onPress={onClose} accessibilityRole="button" accessibilityLabel={t('wheel_close')}>
             <X size={20} color="#53657D" />
           </TouchableOpacity>
 
           {/* Header Title & Subtitle matching original screenshot */}
-          <Text style={styles.titleText}>Daily quests complete!</Text>
-          <Text style={styles.subText}>Your reward is safe. Spin to reveal it!</Text>
+          <Text style={styles.titleText}>{t('wheel_complete')}</Text>
+          <Text style={styles.subText}>{t('wheel_reveal_hint')}</Text>
 
           {/* Interactive Wheel Stage */}
           <View style={styles.wheelStage}>
@@ -270,20 +267,20 @@ export default function PrizeWheelModal({ visible, onClose, prizeName }: PrizeWh
               <Text style={styles.prizeNameText}>{winner.label}</Text>
               
               <View style={styles.dayBadgeRow}>
-                <Text style={styles.dayBadgeText}>Saved to your reward shelf ✓</Text>
+                <Text style={styles.dayBadgeText}>{t('wheel_saved')}</Text>
               </View>
 
               <TouchableOpacity style={styles.spinButton} onPress={onClose} accessibilityRole="button">
-                <Text style={styles.spinButtonText}>SEE MY REWARDS</Text>
+                <Text style={styles.spinButtonText}>{t('wheel_shelf')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <TouchableOpacity 
               style={[styles.spinButton, isSpinning && styles.spinButtonDisabled]} 
               onPress={handleStartSpin}
-              disabled={isSpinning}
+              disabled={isSpinning || !prizeName.trim()}
               accessibilityRole="button"
-              accessibilityLabel="Spin reward wheel"
+              accessibilityLabel={t('wheel_spin')}
             >
               <Text style={styles.spinButtonText}>
                 {isSpinning ? t('spinning_status', 'SPINNING...') : t('spin_wheel_btn', 'SPIN WHEEL 🎡')}

@@ -4,6 +4,28 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function owns(uid) { return signedIn() && request.auth.uid == uid; }
+    function accountAuth() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+    function parentAccount() {
+      return accountAuth()
+        && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'parent';
+    }
+    function managedParent(childUid) {
+      return parentAccount()
+        && get(/databases/$(database)/documents/family_children/$(childUid)).data.parent_uid == request.auth.uid;
+    }
+    function managedParentAfter(childUid) {
+      return parentAccount()
+        && getAfter(/databases/$(database)/documents/family_children/$(childUid)).data.parent_uid == request.auth.uid;
+    }
+    function boundDevice(childUid) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/family_devices/$(request.auth.uid))
+        && get(/databases/$(database)/documents/family_devices/$(request.auth.uid)).data.child_uid == childUid
+        && get(/databases/$(database)/documents/family_devices/$(request.auth.uid)).data.parent_uid
+          == get(/databases/$(database)/documents/family_children/$(childUid)).data.parent_uid;
+    }
     function approvedInvite(childUid, parentUid) {
       return exists(/databases/$(database)/documents/family_invites/$(childUid + '_' + parentUid))
         && get(/databases/$(database)/documents/family_invites/$(childUid + '_' + parentUid)).data.status == 'approved';
@@ -13,11 +35,73 @@ service cloud.firestore {
     }
 
     match /profiles/{uid} {
-      allow read: if signedIn();
-      allow create, update: if owns(uid)
+      allow read: if accountAuth();
+      allow create, update: if owns(uid) && accountAuth()
         && request.resource.data.keys().hasOnly(['nickname', 'full_name', 'role', 'updated_at'])
         && request.resource.data.role in ['parent', 'child'];
       allow delete: if owns(uid);
+    }
+
+    match /family_children/{childUid} {
+      allow create: if parentAccount()
+        && request.resource.data.keys().hasOnly(['uid', 'parent_uid', 'nickname', 'full_name', 'role'])
+        && request.resource.data.uid == childUid
+        && request.resource.data.parent_uid == request.auth.uid
+        && request.resource.data.role == 'child'
+        && request.resource.data.full_name is string
+        && request.resource.data.full_name.size() > 0
+        && request.resource.data.full_name.size() <= 30;
+      allow get: if (parentAccount() && resource.data.parent_uid == request.auth.uid) || boundDevice(childUid);
+      allow list: if parentAccount() && resource.data.parent_uid == request.auth.uid;
+      allow update: if managedParent(childUid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['full_name'])
+        && request.resource.data.full_name is string
+        && request.resource.data.full_name.size() > 0
+        && request.resource.data.full_name.size() <= 30;
+      allow delete: if managedParent(childUid);
+    }
+
+    match /family_progress/{childUid} {
+      allow get: if managedParent(childUid) || boundDevice(childUid);
+      allow create: if managedParentAfter(childUid) || boundDevice(childUid);
+      allow update: if managedParent(childUid) || boundDevice(childUid);
+      allow delete: if managedParent(childUid);
+    }
+
+    match /family_codes/{code} {
+      allow create: if code.matches('^[A-HJ-NP-Z2-9]{12}$')
+        && request.resource.data.keys().hasOnly(['child_uid', 'parent_uid', 'expires_at', 'claimed_by'])
+        && managedParent(request.resource.data.child_uid)
+        && request.resource.data.parent_uid == request.auth.uid
+        && request.resource.data.claimed_by == ''
+        && request.resource.data.expires_at is timestamp
+        && request.resource.data.expires_at > request.time
+        && request.resource.data.expires_at <= request.time + duration.value(16, 'm');
+      // Codes cannot be listed by devices. Possession of a high-entropy code is required.
+      allow get: if signedIn() && (request.auth.token.firebase.sign_in_provider == 'anonymous'
+        || (parentAccount() && resource.data.parent_uid == request.auth.uid));
+      allow list, delete: if parentAccount() && resource.data.parent_uid == request.auth.uid;
+      allow update: if signedIn() && request.auth.token.firebase.sign_in_provider == 'anonymous'
+        && resource.data.claimed_by == ''
+        && resource.data.expires_at > request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimed_by'])
+        && request.resource.data.claimed_by == request.auth.uid
+        && getAfter(/databases/$(database)/documents/family_devices/$(request.auth.uid)).data.code == code
+        && getAfter(/databases/$(database)/documents/family_devices/$(request.auth.uid)).data.child_uid == resource.data.child_uid;
+    }
+
+    match /family_devices/{deviceUid} {
+      allow get: if owns(deviceUid) || (parentAccount() && resource.data.parent_uid == request.auth.uid);
+      allow list: if parentAccount() && resource.data.parent_uid == request.auth.uid;
+      allow create: if owns(deviceUid) && request.auth.token.firebase.sign_in_provider == 'anonymous'
+        && request.resource.data.keys().hasOnly(['parent_uid', 'child_uid', 'code'])
+        && get(/databases/$(database)/documents/family_codes/$(request.resource.data.code)).data.claimed_by == ''
+        && get(/databases/$(database)/documents/family_codes/$(request.resource.data.code)).data.expires_at > request.time
+        && getAfter(/databases/$(database)/documents/family_codes/$(request.resource.data.code)).data.claimed_by == deviceUid
+        && getAfter(/databases/$(database)/documents/family_codes/$(request.resource.data.code)).data.child_uid == request.resource.data.child_uid
+        && getAfter(/databases/$(database)/documents/family_codes/$(request.resource.data.code)).data.parent_uid == request.resource.data.parent_uid
+        && get(/databases/$(database)/documents/family_children/$(request.resource.data.child_uid)).data.parent_uid == request.resource.data.parent_uid;
+      allow delete: if owns(deviceUid) || (parentAccount() && resource.data.parent_uid == request.auth.uid);
     }
 
     match /family_invites/{inviteId} {

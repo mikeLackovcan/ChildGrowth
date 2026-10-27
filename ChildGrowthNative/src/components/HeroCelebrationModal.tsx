@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Coins, Sparkles } from 'lucide-react-native';
 import { Colors } from '../constants/theme';
@@ -18,6 +19,7 @@ export default function HeroCelebrationModal({
   coins: number;
 }) {
   const reduced = useReducedMotion();
+  const { t } = useTranslation();
   useEffect(() => {
     if (!visible) return;
     playSound('complete');
@@ -27,18 +29,18 @@ export default function HeroCelebrationModal({
 
   return (
     <Modal visible={visible} transparent animationType={reduced ? 'none' : 'fade'} onRequestClose={onClose}>
-      <TouchableOpacity activeOpacity={1} style={styles.backdrop} onPress={onClose} accessibilityLabel="Close celebration">
+      <TouchableOpacity activeOpacity={1} style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel={t('celebration_close')}>
         <View style={styles.burstOne} />
         <View style={styles.burstTwo} />
         <View style={styles.card}>
           <Sparkles size={30} color={Colors.amber} />
           <AnimatedQuestHero id={heroId} style={styles.hero} motion="celebrate" />
-          <Text style={styles.title}>All done for today!</Text>
+          <Text style={styles.title}>{t('celebration_complete')}</Text>
           <View style={styles.reward}>
             <Coins size={20} color={Colors.amber} />
             <Text style={styles.rewardText}>+{coins}</Text>
           </View>
-          <Text style={styles.message}>You did it. Enjoy the rest of your day.</Text>
+          <Text style={styles.message}>{t('celebration_message')}</Text>
         </View>
       </TouchableOpacity>
     </Modal>

@@ -4,6 +4,12 @@
     "slug": "quest-hero",
     "description": "A playful kids habit and chore companion with quests, focus timers, reminders, rewards, and parent controls.",
     "version": "1.0.0",
+    "runtimeVersion": { "policy": "fingerprint" },
+    "updates": {
+      "url": "https://u.expo.dev/daed5f3a-fd4f-44a8-9b72-be86f5b6f2a2",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "orientation": "portrait",
     "icon": "./assets/branding/quest-hero-icon-1024.png",
     "scheme": "questhero",
@@ -12,7 +18,7 @@
       "icon": "./assets/branding/quest-hero-icon-1024.png"
     },
     "android": {
-      "versionCode": 1,
+      "softwareKeyboardLayoutMode": "resize",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#081A4B",
@@ -21,6 +27,11 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.questhero.app"
+    },
+    "androidStatusBar": {
+      "backgroundColor": "#FFFFFF",
+      "barStyle": "dark-content",
+      "translucent": false
     },
     "web": {
       "output": "static",
@@ -47,6 +58,13 @@
             "./assets/audio/habi_alarm.wav",
             "./assets/audio/habi_complete.wav"
           ]
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
         }
       ],
       [

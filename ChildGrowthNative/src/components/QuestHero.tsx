@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { companionIds, normalizeAvatarId } from '../lib/brandMigration';
 import QuestChampSprite from './QuestChampSprite';
@@ -6,6 +7,7 @@ import { heroFor } from '../lib/heroCatalog';
 
 /** Full-body 2D heroes from the shared Quest Champ character collection. */
 export default function QuestHero({ id = 'default', style }: { id?: string; style?: StyleProp<ViewStyle> }) {
+  const { t } = useTranslation();
   const normalizedId = id === 'default' ? 'quest_champ' : normalizeAvatarId(id);
 
   if (normalizedId === 'quest_champ') {
@@ -18,7 +20,7 @@ export default function QuestHero({ id = 'default', style }: { id?: string; styl
   const name = heroFor(normalizedId).name;
 
   return (
-    <View style={[styles.frame, style]} accessible accessibilityLabel={`${name} Quest Champ hero`}>
+    <View style={[styles.frame, style]} accessible accessibilityLabel={t('hero_character_label', { name })}>
       <Image
         source={require('../../assets/branding/quest-heroes-atlas-v2.png')}
         resizeMode="stretch"

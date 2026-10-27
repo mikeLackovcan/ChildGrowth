@@ -1,4 +1,8 @@
+import { loadAccountRole } from '../lib/accountRole';
+import { authErrorKey } from '../lib/authMessages';
 import { normalizeBrandState, normalizeAvatarId } from '../lib/brandMigration';
+import { starterTasks, STARTER_HERO_IDS } from '../lib/questTemplates';
+import { normalizeActivity, recordQuestActivity, type QuestActivity } from '../lib/weeklyProgress';
 // App global state store
 import { create } from 'zustand';
 import { auth, db } from '../lib/firebase';
@@ -36,6 +40,7 @@ export type AppLanguage = 'en' | 'cs' | 'es' | 'de';
 export interface Task {
   id: string;
   name: string;
+  templateKey?: string;
   diff: 'easy' | 'med' | 'hard';
   freq: 'daily' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday' | 'weekdays' | 'weekends';
   mystery: boolean;
@@ -79,6 +84,7 @@ function rewardState(data: any, cloud = false) {
     .filter((task: Task) => task.done && task.date === localDateKey())
     .reduce((sum: number, task: Task) => sum + (task.rewardedCoins || 0), 0);
   return {
+    activityHistory: normalizeActivity(cloud ? data.activity_history : data.activityHistory),
     // Historical spending was not tracked. Preserve the confirmed wallet baseline.
     totalEarned: Number.isFinite(totalEarned) ? totalEarned : Math.max(0, data.coins || 0),
     dailyEarnings: ledger?.date === localDateKey() && Number.isFinite(ledger.coins)
@@ -88,6 +94,14 @@ function rewardState(data: any, cloud = false) {
 }
 
 export interface ChildProfile {
+  managed?: boolean;
+  prizes?: string[];
+  lastSpinDate?: string | null;
+  activeTheme?: ThemeKey;
+  unlockedThemes?: ThemeKey[];
+  activeBackground?: BackgroundKey;
+  unlockedBackgrounds?: BackgroundKey[];
+  activityHistory?: QuestActivity[];
   id: string;
   name: string;
   nickname: string;
@@ -109,6 +123,11 @@ export interface ChildProfile {
 }
 
 interface AppState {
+  deviceConnection: 'linked' | 'local' | null;
+  familyOperationEpoch: number;
+  familyOperationBusy: boolean;
+  activityHistory: QuestActivity[];
+  recordPostponedQuest: (taskId: string) => void;
   userEmail: string | null;
   userId: string | null;
   fullName: string | null;
@@ -149,6 +168,7 @@ interface AppState {
   logout: () => Promise<void>;
   setUser: (email: string | null, role: UserRole, fullName?: string, nickname?: string, id?: string) => void;
   continueAsGuest: () => Promise<void>;
+  finishGuestOnboarding: (name: string, hero: string, templates: string[]) => Promise<boolean>;
   setSick: (sick: boolean) => void;
   addXP: (amount: number) => void;
   addTask: (task: Omit<Task, 'id' | 'done' | 'date'>) => void;
@@ -204,7 +224,43 @@ interface AppState {
   deleteAccount: () => Promise<{ success: boolean; message?: string }>;
 }
 
+function childAppearance(child: ChildProfile) {
+  return {
+    prizes: child.prizes || [],
+    lastSpinDate: child.lastSpinDate || null,
+    activeTheme: child.activeTheme || 'classic' as ThemeKey,
+    unlockedThemes: child.unlockedThemes || ['classic'] as ThemeKey[],
+    activeBackground: child.activeBackground || 'clean' as BackgroundKey,
+    unlockedBackgrounds: child.unlockedBackgrounds || ['clean'] as BackgroundKey[],
+  };
+}
+
+/** Persist the selected child's complete state before saving or switching siblings. */
+function snapshotSelectedChild(state: AppState): ChildProfile[] {
+  if (state.role !== 'parent' || !state.selectedChildId) return state.children;
+  return state.children.map(child => child.id !== state.selectedChildId ? child : {
+    ...child, tasks: state.tasks, coins: state.coins, xp: state.xp, level: state.level,
+    wonPrizes: state.wonPrizes, prizes: state.prizes, lastSpinDate: state.lastSpinDate,
+    currentAvatar: state.currentAvatar, unlockedAvatars: state.unlockedAvatars,
+    activeTheme: state.activeTheme, unlockedThemes: state.unlockedThemes,
+    activeBackground: state.activeBackground, unlockedBackgrounds: state.unlockedBackgrounds,
+    ...rewardState(state), epicBossTask: state.epicBossTask, epicBossXP: state.epicBossXP,
+  });
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
+  deviceConnection: null,
+  familyOperationEpoch: 0,
+  familyOperationBusy: false,
+  activityHistory: [],
+  recordPostponedQuest: (taskId) => {
+    const task = get().tasks.find(item => item.id === taskId);
+    if (!task || task.done || task.pendingApproval) return;
+    const activityHistory = recordQuestActivity(get().activityHistory, task, 'postpone');
+    set(state => ({ activityHistory, children: state.children.map(child =>
+      child.id === state.selectedChildId ? { ...child, activityHistory } : child) }));
+    void get().saveMockState();
+  },
   userEmail: null,
   userId: null,
   fullName: null,
@@ -278,6 +334,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (goal?.claimed && get().totalEarned - (task.rewardedCoins || 0) - goal.startCoins < goal.target) return false;
     const totalXp = Math.max(0, (get().level - 1) * 100 + get().xp - (task.rewardedXP || 0));
     const change = {
+      activityHistory: recordQuestActivity(get().activityHistory, task, 'undo'),
       tasks: get().tasks.map(item => item.id === id ? { ...item, done: false, rewardedXP: 0, rewardedCoins: 0 } : item),
       coins: get().coins - (task.rewardedCoins || 0),
       totalEarned: Math.max(0, get().totalEarned - (task.rewardedCoins || 0)),
@@ -294,17 +351,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   logout: async () => {
+    if (get().deviceConnection === 'linked') {
+      const { disconnectManagedDevice } = await import('../lib/disconnectManagedDevice');
+      await disconnectManagedDevice();
+    }
     try {
       const userTag = (get().nickname || get().userEmail?.split('@')[0] || '').toLowerCase().replace(/^@/, '');
       if (userTag) {
         const { isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, activeBackground, unlockedBackgrounds, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role } = get();
-        const stateObj = { ...rewardState(get()), isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, activeBackground, unlockedBackgrounds, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role };
+        const stateObj = { deviceConnection: get().deviceConnection, ...rewardState(get()), lastSpinDate: get().lastSpinDate, isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, activeBackground, unlockedBackgrounds, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role };
         await AsyncStorage.setItem(`mockState_${userTag}`, JSON.stringify(stateObj));
       }
     } catch (e) {}
 
     try {
       await signOut(auth);
+    } catch (e) {}
+    try {
+      const { signOutGoogleSession } = await import('../lib/googleLogin');
+      await signOutGoogleSession();
     } catch (e) {}
 
     try {
@@ -314,6 +379,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const todayStr = localDateKey();
     set({
+      lastSpinDate: null,
+      deviceConnection: null,
+      activityHistory: [],
       userEmail: null,
       userId: null,
       fullName: null,
@@ -363,6 +431,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveMockState();
   },
   continueAsGuest: async () => {
+    // Hydrate the saved guest before assigning identity: loadMockState only reads
+    // local progress when there is no in-memory user.
+    await get().logout();
+    await AsyncStorage.setItem('active_user_tag', 'guest');
+    await get().loadMockState();
+    if (get().userId === 'guest-local') return;
     set({
       userEmail: 'guest@questhero.local',
       userId: 'guest-local',
@@ -370,9 +444,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       nickname: 'guest',
       role: 'child',
     });
-    await AsyncStorage.setItem('active_user_tag', 'guest');
-    await get().loadMockState();
     await get().saveMockState();
+  },
+  finishGuestOnboarding: async (name, hero, templates) => {
+    const state = get();
+    const tasks = starterTasks(templates, localDateKey());
+    if (state.userId !== 'guest-local' || state.tasks.length || state.totalEarned > 0
+      || !name.trim() || !STARTER_HERO_IDS.includes(hero) || tasks.length !== 3) return false;
+    // Keep the internal guest storage identity stable; only the display name changes.
+    set({ fullName: name.trim().slice(0, 30), currentAvatar: hero,
+      unlockedAvatars: [...new Set([...state.unlockedAvatars, hero])], tasks });
+    await get().saveMockState();
+    return true;
   },
   setSick: (sick) => {
     set({ isSick: sick });
@@ -477,6 +560,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       rewardedCoins: reward.coins,
     } : item);
     set({ tasks: updatedTasks, coins: get().coins + reward.coins,
+      activityHistory: recordQuestActivity(get().activityHistory, task, 'complete'),
       totalEarned: get().totalEarned + reward.coins,
       dailyEarnings: { date: localDateKey(), coins: earnedToday + reward.coins } });
     get().addXP(reward.xp);
@@ -486,6 +570,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         children: children.map((child) => child.id === selectedChildId ? {
           ...child,
           tasks: updatedTasks,
+          activityHistory: get().activityHistory,
           coins: get().coins,
           xp: get().xp,
           level: get().level,
@@ -530,7 +615,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveMockState();
   },
   setPrizes: (prizes) => {
-    set({ prizes });
+    set(state => ({
+      prizes,
+      children: state.children.map(child => child.id === state.selectedChildId ? { ...child, prizes } : child),
+    }));
     get().saveMockState();
   },
   addWonPrize: (prize) => {
@@ -654,13 +742,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     const due = get().tasks.filter(task => isQuestDue(task));
     if (!due.length || due.some(task => !task.done) || get().lastSpinDate === todayStr) return null;
     const choices = get().prizes.map(prize => prize.trim()).filter(Boolean);
-    const prize = (choices.length ? choices : ['Family surprise 🎁'])[Math.floor(Math.random() * Math.max(1, choices.length))];
+    if (!choices.length) return null;
+    const prize = choices[Math.floor(Math.random() * choices.length)];
     const won: WonPrize = { id: `wheel_${Date.now()}`, prize, date: new Date().toISOString(), redeemed: false };
     const wonPrizes = [won, ...get().wonPrizes];
     set(state => ({
       lastSpinDate: todayStr,
       wonPrizes,
-      children: state.children.map(child => child.id === state.selectedChildId ? { ...child, wonPrizes } : child),
+      children: state.children.map(child => child.id === state.selectedChildId ? { ...child, wonPrizes, lastSpinDate: todayStr } : child),
     }));
     playSound('spin');
     get().saveMockState();
@@ -716,6 +805,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         const totalChildXp = Math.max(0, ((c.level - 1) * 100) + c.xp + bonusXP);
         return {
           ...c,
+          activityHistory: approved ? recordQuestActivity(c.activityHistory || [], targetTask, 'complete') : c.activityHistory || [],
           tasks: updatedTasks,
           xp: totalChildXp % 100,
           coins: Math.max(0, c.coins + bonusCoins),
@@ -1237,10 +1327,19 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   removeChild: (childId: string) => {
     const childToRemove = get().children.find(c => c.id === childId);
-    const filtered = get().children.filter(c => c.id !== childId);
-    const newSelected = filtered.length > 0 ? filtered[0].id : null;
-    const newTasks = filtered.length > 0 ? filtered[0].tasks : [];
-    set({ children: filtered, selectedChildId: newSelected, tasks: newTasks });
+    // Managed profiles require authenticated cloud deletion, never legacy unlinking.
+    if (!childToRemove || childToRemove.managed) return;
+    const filtered = snapshotSelectedChild(get()).filter(c => c.id !== childId);
+    const nextChild = filtered.find(child => child.id === get().selectedChildId) || filtered[0];
+    set({ children: filtered, selectedChildId: null });
+    if (nextChild) get().selectChild(nextChild.id);
+    else set({
+      tasks: [], wonPrizes: [], prizes: [], coins: 0, xp: 0, level: 1,
+      totalEarned: 0, dailyEarnings: { date: localDateKey(), coins: 0 }, rewardGoal: null,
+      activityHistory: [], lastSpinDate: null, currentAvatar: 'default', unlockedAvatars: ['default'],
+      activeTheme: 'classic', unlockedThemes: ['classic'], activeBackground: 'clean', unlockedBackgrounds: ['clean'],
+      epicBossTask: '', epicBossXP: 35,
+    });
     get().saveMockState();
     
     const parentTag = (get().nickname || get().userEmail?.split('@')[0] || 'parent_boss').toLowerCase().replace(/^@/, '');
@@ -1342,10 +1441,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   selectChild: (childId: string) => {
-    const child = get().children.find(c => c.id === childId);
+    if (!get().children.some(child => child.id === childId)) return;
+    const children = snapshotSelectedChild(get());
+    const child = children.find(c => c.id === childId);
     if (child) {
       set({
         selectedChildId: childId,
+        children,
+        ...childAppearance(child),
         tasks: child.tasks || [],
         wonPrizes: child.wonPrizes || [],
         coins: child.coins || 0,
@@ -1354,8 +1457,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         xp: child.xp || 0,
         currentAvatar: child.currentAvatar || 'default',
         unlockedAvatars: child.unlockedAvatars || ['default'],
-        epicBossTask: child.epicBossTask || get().epicBossTask || '30-min deep focus block 🧠',
-        epicBossXP: child.epicBossXP || get().epicBossXP || 35,
+        epicBossTask: child.epicBossTask || '',
+        epicBossXP: child.epicBossXP ?? 35,
       });
     }
   },
@@ -1421,7 +1524,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       firebaseUid = userCredential.user.uid;
     } catch (firebaseAuthErr: any) {
       console.warn('Firebase Auth registration failed:', firebaseAuthErr?.message || firebaseAuthErr);
-      return { success: false, message: firebaseAuthErr?.message || 'Registration failed. Please try again.' };
+      return { success: false, message: i18n.t(authErrorKey(firebaseAuthErr)) };
     }
 
     const chosenRole = role || 'child';
@@ -1458,7 +1561,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     await get().saveMockState();
-    return { success: true, message: 'Registration successful! Welcome to Quest Champ!' };
+    return { success: true, message: i18n.t('auth_created') };
   },
 
   loginWithEmail: async (email, password) => {
@@ -1476,14 +1579,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const user = userCredential.user;
 
       const meta = user.displayName ? { full_name: user.displayName, nickname: user.displayName } : {};
-      let restoredRole: UserRole = get().role || 'child';
-      
-      try {
-        const savedRole = await AsyncStorage.getItem(`user_role_${userTag}`);
-        if (savedRole === 'parent' || savedRole === 'child') {
-          restoredRole = savedRole as UserRole;
-        }
-      } catch (e) {}
+      const restoredRole = await loadAccountRole(user.uid);
 
       set({
         userEmail: user.email || cleanEmail,
@@ -1495,16 +1591,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       await AsyncStorage.setItem('active_user_tag', userTag);
       await get().loadMockState();
-      return { success: true, message: 'Signed in. Your progress can now sync securely across devices.' };
+      return { success: true, message: i18n.t('auth_signed_in') };
     } catch (err: any) {
       console.warn('Firebase Auth login failed:', err?.message || err);
-      return { success: false, message: err?.message || 'Login failed. Please check your credentials.' };
+      return { success: false, message: i18n.t(authErrorKey(err)) };
     }
   },
 
   signInWithGoogle: async (idToken, accessToken, role) => {
     if (!idToken) {
-      return { success: false, message: 'Google did not return an ID token.' };
+      return { success: false, message: i18n.t('auth_google_unavailable') };
     }
 
     try {
@@ -1513,7 +1609,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const user = userCredential.user;
       const email = user.email || '';
       const fallbackNickname = (email.split('@')[0] || 'hero').toLowerCase().replace(/[^a-z0-9_-]/g, '');
-      const chosenRole: UserRole = role || 'child';
+      const chosenRole = await loadAccountRole(user.uid);
 
       set({
         userEmail: email,
@@ -1534,10 +1630,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         await saveOwnCloudData({});
       }
       await get().saveMockState();
-      return { success: true, message: 'Signed in. Your progress can now sync securely across devices.' };
+      return { success: true, message: i18n.t('auth_signed_in') };
     } catch (err: any) {
       console.warn('Firebase Google sign-in failed:', err?.message || err);
-      return { success: false, message: err?.message || 'Google sign-in failed.' };
+      return { success: false, message: i18n.t(authErrorKey(err)) };
     }
   },
 
@@ -1548,30 +1644,34 @@ export const useAppStore = create<AppState>((set, get) => ({
         url: redirectUrl,
         handleCodeInApp: true
       });
-      return { success: true, message: `Magic link sent to ${email}! Check your inbox.` };
+      return { success: true, message: i18n.t('auth_link_sent') };
     } catch (err: any) {
-      return { success: false, message: err?.message || 'Could not send the magic link.' };
+      return { success: false, message: i18n.t(authErrorKey(err)) };
     }
   },
 
   sendPasswordReset: async (email) => {
     try {
       await sendPasswordResetEmail(auth, email.trim());
-      return { success: true, message: `Password reset instructions sent to ${email}!` };
+      return { success: true, message: i18n.t('auth_reset_sent') };
     } catch (err: any) {
-      return { success: false, message: err?.message || 'Could not send the password reset email.' };
+      return { success: false, message: i18n.t(authErrorKey(err)) };
     }
   },
 
   syncToServer: async () => {
     if (!CLOUD_SYNC_ENABLED) return;
+    if (get().deviceConnection === 'local') return;
     try {
       const isOnline = typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' ? navigator.onLine : true;
       const { userEmail, fullName, nickname, role, coins, xp, level, currentAvatar, tasks, prizes, wonPrizes, unlockedAvatars, userId, children, linkedParents, epicBossTask, epicBossXP } = get();
       if (!userEmail || userId === 'guest-local') return;
+      const pendingSyncKey = `pending_cloud_sync_${userId || userEmail}`;
 
       const profileData = { userEmail, fullName, nickname, role, coins, xp, level, currentAvatar, tasks, prizes, wonPrizes, unlockedAvatars, userId, children, linkedParents, epicBossTask, epicBossXP };
       await AsyncStorage.setItem(`user_profile_${userEmail}`, JSON.stringify(profileData));
+      // A durable marker survives process death. The newest local snapshot is retried on launch/foreground.
+      await AsyncStorage.setItem(pendingSyncKey, JSON.stringify({ owner: userId || userEmail, queuedAt: Date.now() }));
 
       if (isOnline) {
         const userTag = (nickname || userEmail.split('@')[0] || '').toLowerCase().replace(/^@/, '');
@@ -1597,10 +1697,11 @@ export const useAppStore = create<AppState>((set, get) => ({
           last_spin_date: get().lastSpinDate,
           total_earned: get().totalEarned,
           daily_earnings: get().dailyEarnings,
+          activity_history: get().activityHistory,
           reward_goal: get().rewardGoal,
           last_active_date: get().lastActiveDate,
           approval_status: get().approvalStatus,
-        });
+        }, get().deviceConnection === 'linked' ? get().userId || undefined : undefined);
         if (role === 'parent' && get().selectedChildId) {
           const selectedChild = children.find((child) => child.id === get().selectedChildId);
           if (selectedChild && !selectedChild.id.startsWith('usr_')) {
@@ -1611,14 +1712,23 @@ export const useAppStore = create<AppState>((set, get) => ({
               xp: selectedChild.xp,
               level: selectedChild.level,
               current_avatar: selectedChild.currentAvatar,
+              unlocked_avatars: selectedChild.unlockedAvatars,
+              prizes: selectedChild.prizes || [],
+              last_spin_date: selectedChild.lastSpinDate || null,
+              active_theme: selectedChild.activeTheme || 'classic',
+              unlocked_themes: selectedChild.unlockedThemes || ['classic'],
+              active_background: selectedChild.activeBackground || 'clean',
+              unlocked_backgrounds: selectedChild.unlockedBackgrounds || ['clean'],
               epicBossTask: selectedChild.epicBossTask,
               epicBossXP: selectedChild.epicBossXP,
               total_earned: rewardState(selectedChild).totalEarned,
               daily_earnings: rewardState(selectedChild).dailyEarnings,
+              activity_history: selectedChild.activityHistory || [],
               reward_goal: selectedChild.rewardGoal || null,
-            });
+            }, selectedChild.managed === true);
           }
         }
+        if (get().userId === userId && get().userEmail === userEmail) await AsyncStorage.removeItem(pendingSyncKey);
       }
     } catch (err) {
       console.warn('Offline mode active - server sync deferred until online:', err);
@@ -1626,7 +1736,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   loadMockState: async () => {
+    if (get().familyOperationBusy) return;
+    const familyEpoch = get().familyOperationEpoch;
     try {
+      await auth.authStateReady?.();
       const savedLang = await AsyncStorage.getItem('user_language');
       const activeTag = await AsyncStorage.getItem('active_user_tag');
       const currentNick = (get().nickname || get().userEmail?.split('@')[0] || activeTag || '').toLowerCase().replace(/^@/, '');
@@ -1690,7 +1803,10 @@ export const useAppStore = create<AppState>((set, get) => ({
             let restoredRole: UserRole = parsed.role || null;
             if (userTag) {
               try {
-                const savedRole = await AsyncStorage.getItem(`user_role_${userTag}`);
+                const uidRole = parsed.userId && !parsed.deviceConnection && parsed.userId !== 'guest-local'
+                  ? await AsyncStorage.getItem(`account_role_${parsed.userId}`) : null;
+                const savedRole = uidRole === 'parent' || uidRole === 'child'
+                  ? uidRole : await AsyncStorage.getItem(`user_role_${userTag}`);
                 if (savedRole === 'parent' || savedRole === 'child') {
                   restoredRole = savedRole as UserRole;
                 }
@@ -1704,6 +1820,8 @@ export const useAppStore = create<AppState>((set, get) => ({
               userId: parsed.userId || null,
               userEmail: parsed.userEmail || null,
               role: restoredRole,
+              deviceConnection: parsed.deviceConnection === 'local' ? 'local'
+                : parsed.deviceConnection === 'linked' ? (auth.currentUser?.isAnonymous ? 'linked' : 'local') : null,
               isSick: Boolean(parsed.isSick),
               xp: typeof parsed.xp === 'number' ? parsed.xp : 0,
               level: typeof parsed.level === 'number' ? parsed.level : 1,
@@ -1713,7 +1831,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               linkedParents: Array.isArray(parsed.linkedParents) ? parsed.linkedParents : [],
               approvalStatus: parsed.approvalStatus || null,
               lastActiveDate: todayStr,
-              prizes: Array.isArray(parsed.prizes) && parsed.prizes.length > 0 ? parsed.prizes : ['Family surprise 🎁', '1 Day Screen Time 🎮', 'Ice Cream 🍦', '1 Day Late Bedtime 🌙', '1 Day Pick Dinner 🍕', '1 Day Skip a Chore 🛑'],
+              prizes: Array.isArray(parsed.prizes) ? parsed.prizes : [],
               wonPrizes: normalizedWonPrizes,
               coins: typeof parsed.coins === 'number' ? parsed.coins : 0,
               ...rewardState(parsed),
@@ -1742,17 +1860,24 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       // Cross-device Firestore refresh. Local state remains the offline fallback.
       const effectiveTag = (get().nickname || get().userEmail?.split('@')[0] || currentNick || activeTag || '').toLowerCase().replace(/^@/, '');
-      if (CLOUD_SYNC_ENABLED && effectiveTag && auth.currentUser) {
+      if (CLOUD_SYNC_ENABLED && effectiveTag && auth.currentUser && get().userId !== 'guest-local' && get().deviceConnection !== 'local') {
+        const refreshOwnerId = get().userId;
+        const refreshAuthUid = auth.currentUser.uid;
+        const refreshStillCurrent = () => get().userId === refreshOwnerId && auth.currentUser?.uid === refreshAuthUid
+          && !get().familyOperationBusy && get().familyOperationEpoch === familyEpoch;
         try {
-          const cloudRaw = await loadOwnCloudData();
+          const cloudRaw = await loadOwnCloudData(get().deviceConnection === 'linked' ? get().userId || undefined : undefined);
+          if (!refreshStillCurrent()) return;
           if (cloudRaw) {
             const cloudData = normalizeBrandState(cloudRaw);
             const currentRole = get().role;
 
             if (currentRole === 'parent') {
               const [linkedRows, invites] = await Promise.all([loadLinkedChildren(), listFamilyInvites()]);
+              if (!refreshStillCurrent()) return;
               const cloudChildren: ChildProfile[] = linkedRows.map(({ profile, data }) => ({
                 id: profile.uid,
+                managed: profile.managed === true,
                 name: profile.full_name || profile.nickname,
                 nickname: profile.nickname,
                 level: typeof data.level === 'number' ? data.level : 1,
@@ -1763,6 +1888,12 @@ export const useAppStore = create<AppState>((set, get) => ({
                 wonPrizes: Array.isArray(data.won_prizes) ? data.won_prizes : [],
                 unlockedAvatars: Array.isArray(data.unlocked_avatars) ? data.unlocked_avatars : ['default'],
                 currentAvatar: data.current_avatar || 'default',
+                prizes: Array.isArray(data.prizes) ? data.prizes : [],
+                lastSpinDate: data.last_spin_date || null,
+                activeTheme: data.active_theme || 'classic',
+                unlockedThemes: data.unlocked_themes || ['classic'],
+                activeBackground: data.active_background || 'clean',
+                unlockedBackgrounds: data.unlocked_backgrounds || ['clean'],
                 linkedParents: Array.isArray(data.linked_parent_nicknames) ? data.linked_parent_nicknames : [effectiveTag],
                 isApproved: true,
                 epicBossTask: data.epicBossTask,
@@ -1794,6 +1925,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 set({
                   children: cloudChildren,
                   selectedChildId: activeChild.id,
+                  ...childAppearance(activeChild),
                   tasks: activeChild?.tasks || get().tasks,
                   coins: activeChild.coins,
                   xp: activeChild.xp,
@@ -1802,12 +1934,27 @@ export const useAppStore = create<AppState>((set, get) => ({
                   currentAvatar: activeChild.currentAvatar,
                   unlockedAvatars: activeChild.unlockedAvatars,
                   ...rewardState(activeChild),
-                  epicBossTask: activeChild?.epicBossTask || cloudData.epicBossTask || get().epicBossTask,
-                  epicBossXP: typeof activeChild?.epicBossXP === 'number' ? activeChild.epicBossXP : (typeof cloudData.epicBossXP === 'number' ? cloudData.epicBossXP : get().epicBossXP)
+                  epicBossTask: activeChild.epicBossTask || '',
+                  epicBossXP: activeChild.epicBossXP ?? 35,
                 });
 
                 const stateObj = { ...get(), children: cloudChildren };
                 AsyncStorage.setItem(`mockState_${effectiveTag}`, JSON.stringify(stateObj)).catch(() => {});
+              } else if (cloudData.managed_family_enabled === true && get().children.length > 0
+                && get().children.every(child => child.managed === true)) {
+                // A confirmed empty managed family is authoritative, unlike a failed/offline lookup.
+                // Preserve a recovery snapshot before clearing stale child-specific presentation.
+                await AsyncStorage.setItem(`family_refresh_backup_${refreshOwnerId}`, JSON.stringify(get()));
+                if (!refreshStillCurrent()) return;
+                set({
+                  children: [], selectedChildId: null, tasks: [], wonPrizes: [], prizes: [],
+                  coins: 0, xp: 0, level: 1, totalEarned: 0, rewardGoal: null, activityHistory: [],
+                  dailyEarnings: { date: localDateKey(), coins: 0 }, lastSpinDate: null,
+                  currentAvatar: 'default', unlockedAvatars: ['default'], activeBackground: 'clean',
+                  unlockedBackgrounds: ['clean'], activeTheme: 'classic', unlockedThemes: ['classic'],
+                  epicBossTask: '', epicBossXP: 35,
+                });
+                await AsyncStorage.setItem(`mockState_${effectiveTag}`, JSON.stringify(get()));
               }
             } else {
               // Child Role Sync
@@ -1839,6 +1986,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 }
               }
               const pendingInvite = (await listFamilyInvites()).find((invite) => invite.child_uid === auth.currentUser?.uid && invite.status === 'pending');
+              if (!refreshStillCurrent()) return;
               if (pendingInvite && !updates.parentEmail) {
                 updates.parentEmail = pendingInvite.parent_nickname;
                 updates.approvalStatus = 'pending';
@@ -1919,6 +2067,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   saveMockState: async () => {
     try {
+      set({ children: snapshotSelectedChild(get()) });
       const { isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, activeBackground, unlockedBackgrounds, lastSpinDate, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role } = get();
       if (!userEmail) {
         await AsyncStorage.removeItem('active_user_tag');
@@ -1926,14 +2075,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         return;
       }
       const userTag = (nickname || userEmail.split('@')[0]).toLowerCase().replace(/^@/, '');
-      const stateObj = { ...rewardState(get()), isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, activeBackground, unlockedBackgrounds, lastSpinDate, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role };
+      const stateObj = { deviceConnection: get().deviceConnection, ...rewardState(get()), isSick, xp, level, tasks, prizes, wonPrizes, coins, unlockedAvatars, currentAvatar, activeTheme, unlockedThemes, activeBackground, unlockedBackgrounds, lastSpinDate, parentEmail, approvalStatus, dailyMood, language, lastActiveDate, fullName, nickname, userId, userEmail, children, selectedChildId, linkedParents, epicBossTask, epicBossXP, role };
       
       await AsyncStorage.setItem('active_user_tag', userTag);
       await AsyncStorage.setItem('mockState', JSON.stringify(stateObj));
       if (userTag) {
         await AsyncStorage.setItem(`mockState_${userTag}`, JSON.stringify(stateObj));
       }
-      get().syncToServer();
+      void get().syncToServer();
     } catch (e) {
       console.error('Failed to save state', e);
     }

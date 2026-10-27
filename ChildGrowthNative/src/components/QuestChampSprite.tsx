@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 type SpriteMotion = 'idle' | 'celebrate' | 'focus' | 'dance';
@@ -27,6 +28,7 @@ export default function QuestChampSprite({
   style?: StyleProp<ViewStyle>;
   playing?: boolean;
 }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState(0);
   const frames = MOTION_FRAMES[motion];
   const frame = frames[step % frames.length];
@@ -41,7 +43,7 @@ export default function QuestChampSprite({
   }, [motion, playing]);
 
   return (
-    <View style={[styles.frame, style]} accessible accessibilityLabel={`Quest Champ ${motion} animation`}>
+    <View style={[styles.frame, style]} accessible accessibilityLabel={t('hero_character_label', { name: 'Quest Champ' })}>
       <Image
         source={require('../../assets/branding/quest-champ-sprite-v2.png')}
         resizeMode="stretch"

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Coins, ChevronDown } from 'lucide-react-native';
@@ -9,6 +10,7 @@ import QuestHero from '../../components/QuestHero';
 import ActionSheet from '../../components/ActionSheet';
 
 export default function MilestonesScreen() {
+  const { t } = useTranslation();
   const state = useAppStore();
   const [showLevel, setShowLevel] = useState(false);
   const [claimId, setClaimId] = useState<string | null>(null);
@@ -16,33 +18,33 @@ export default function MilestonesScreen() {
   const background = QUEST_BACKGROUNDS[state.activeBackground] || QUEST_BACKGROUNDS.clean;
   return <SafeAreaView style={[styles.screen, { backgroundColor: background.background }]} edges={['top', 'left', 'right']}>
     <ScrollView contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Your rewards</Text>
+      <Text style={styles.title}>{t('rewards_title')}</Text>
       <View style={styles.wallet}>
         <Coins size={30} color="#926500" />
-        <View><Text style={styles.balance}>{state.coins}</Text><Text style={styles.meta}>Coins to spend</Text></View>
+        <View><Text style={styles.balance}>{state.coins}</Text><Text style={styles.meta}>{t('rewards_wallet')}</Text></View>
       </View>
       <RewardGoalCard />
-      <Text style={styles.section}>Reward shelf</Text>
-      {state.wonPrizes.length === 0 && <View style={styles.empty}><Text style={styles.emoji}>🎁</Text><Text style={styles.meta}>Your earned rewards will appear here.</Text></View>}
+      <Text style={styles.section}>{t('rewards_shelf')}</Text>
+      {state.wonPrizes.length === 0 && <View style={styles.empty}><Text style={styles.emoji}>🎁</Text><Text style={styles.meta}>{t('rewards_empty')}</Text></View>}
       {state.wonPrizes.map(prize => <View key={prize.id} style={styles.reward}>
         <Text style={styles.emoji}>{prize.redeemed ? '✓' : '🎁'}</Text>
-        <View style={{ flex: 1 }}><Text style={styles.rewardName}>{prize.prize}</Text><Text style={styles.meta}>{prize.redeemed ? 'Enjoyed together' : 'Ready to enjoy'}</Text></View>
-        {!prize.redeemed && <Pressable style={styles.claim} accessibilityRole="button" onPress={() => setClaimId(prize.id)}><Text style={styles.linkText}>Enjoy</Text></Pressable>}
+        <View style={{ flex: 1 }}><Text style={styles.rewardName}>{prize.prize}</Text><Text style={styles.meta}>{t(prize.redeemed ? 'rewards_enjoyed' : 'rewards_ready')}</Text></View>
+        {!prize.redeemed && <Pressable style={styles.claim} accessibilityRole="button" accessibilityLabel={t('rewards_enjoy_named', { name: prize.prize })} onPress={() => setClaimId(prize.id)}><Text style={styles.linkText}>{t('rewards_enjoy')}</Text></Pressable>}
       </View>)}
       <Pressable style={styles.levelToggle} onPress={() => setShowLevel(value => !value)} accessibilityRole="button" accessibilityState={{ expanded: showLevel }}>
-        <Text style={styles.linkText}>My journey · Level {state.level}</Text><ChevronDown color={Colors.primary} size={20} />
+        <Text style={styles.linkText}>{t('rewards_journey', { level: state.level })}</Text><ChevronDown color={Colors.primary} size={20} />
       </Pressable>
       {showLevel && <View style={styles.journey}>
         <QuestHero id={state.currentAvatar} style={{ width: 96, height: 96 }} />
-        <View style={{ flex: 1 }}><Text style={styles.section}>Growing with every quest</Text><Text style={styles.meta}>{state.xp} / 100 XP to the next level</Text></View>
+        <View style={{ flex: 1 }}><Text style={styles.section}>{t('rewards_growth')}</Text><Text style={styles.meta}>{t('rewards_xp', { xp: state.xp })}</Text></View>
       </View>}
     </ScrollView>
-    <ActionSheet visible={Boolean(selected)} title={selected?.prize || 'Your reward'} onClose={() => setClaimId(null)}>
-      <Text style={styles.meta}>Enjoy this reward with your family. Mark it used after you receive it.</Text>
+    <ActionSheet visible={Boolean(selected)} title={selected?.prize || t('rewards_reward')} onClose={() => setClaimId(null)}>
+      <Text style={styles.meta}>{t('rewards_claim_hint')}</Text>
       <Pressable style={styles.confirm} accessibilityRole="button" onPress={() => {
         if (selected && !selected.redeemed) state.togglePrizeRedeemed(selected.id);
         setClaimId(null);
-      }}><Text style={styles.confirmText}>We enjoyed it ✓</Text></Pressable>
+      }}><Text style={styles.confirmText}>{t('rewards_claim_done')}</Text></Pressable>
     </ActionSheet>
   </SafeAreaView>;
 }

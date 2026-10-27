@@ -1,3 +1,5 @@
+import { questName } from '../lib/questTemplates';
+import { useTranslation } from 'react-i18next';
 import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,24 +10,25 @@ import { Colors } from '../constants/theme';
 import UndoNotice, { Notice } from '../components/UndoNotice';
 
 export default function QuestListScreen() {
+  const { t } = useTranslation();
   const tasks = useAppStore(state => state.tasks);
   const [notice, setNotice] = useState<Notice | null>(null);
   const dismiss = useCallback(() => setNotice(null), []);
   return <SafeAreaView style={styles.screen}>
     <View style={styles.header}>
-      <Pressable style={styles.button} accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()}><ChevronLeft size={24} color={Colors.text} /></Pressable>
-      <Text style={styles.title}>All quests</Text>
-      <Pressable style={styles.button} accessibilityRole="button" accessibilityLabel="Add a quest" onPress={() => router.push('/manage-tasks')}><Plus size={24} color={Colors.primary} /></Pressable>
+      <Pressable style={styles.button} accessibilityRole="button" accessibilityLabel={t('onboard_back')} onPress={() => router.back()}><ChevronLeft size={24} color={Colors.text} /></Pressable>
+      <Text style={styles.title}>{t('quest_all')}</Text>
+      <Pressable style={styles.button} accessibilityRole="button" accessibilityLabel={t('quest_add_accessible')} onPress={() => router.push('/manage-tasks')}><Plus size={24} color={Colors.primary} /></Pressable>
     </View>
     <ScrollView contentContainerStyle={styles.list}>
-      {tasks.length === 0 && <Text style={styles.meta}>Your next adventure starts with ＋.</Text>}
+      {tasks.length === 0 && <Text style={styles.meta}>{t('quest_empty')}</Text>}
       {tasks.map(task => <View key={task.id} style={styles.row}>
         <Text style={styles.emoji}>{task.icon || '⭐'}</Text>
-        <View style={{ flex: 1 }}><Text style={styles.name}>{task.name}</Text><Text style={styles.meta}>{task.freq === 'daily' ? 'Every day' : task.freq}{task.reminderEnabled ? ` · ${task.reminderTime}` : ''}</Text></View>
-        <Pressable style={styles.button} accessibilityRole="button" accessibilityLabel={`Edit ${task.name}`} onPress={() => router.push({ pathname: '/manage-tasks', params: { taskId: task.id } })}><Pencil size={20} color={Colors.primary} /></Pressable>
-        <Pressable style={styles.button} accessibilityRole="button" accessibilityLabel={`Delete ${task.name}`} onPress={() => {
+        <View style={{ flex: 1 }}><Text style={styles.name}>{questName(task)}</Text><Text style={styles.meta}>{t('freq_' + task.freq)}{task.reminderEnabled ? ` · ${task.reminderTime}` : ''}</Text></View>
+        <Pressable style={styles.button} accessibilityRole="button" accessibilityLabel={`Edit ${questName(task)}`} onPress={() => router.push({ pathname: '/manage-tasks', params: { taskId: task.id } })}><Pencil size={20} color={Colors.primary} /></Pressable>
+        <Pressable style={styles.button} accessibilityRole="button" accessibilityLabel={`Delete ${questName(task)}`} onPress={() => {
           useAppStore.getState().removeTask(task.id);
-          setNotice({ key: Date.now(), text: 'Quest removed', undo: () => useAppStore.getState().restoreTask({ ...task, activeFocusStartedAt: undefined, focusNotificationId: undefined }) });
+          setNotice({ key: Date.now(), text: t('quest_removed'), undo: () => useAppStore.getState().restoreTask({ ...task, activeFocusStartedAt: undefined, focusNotificationId: undefined }) });
         }}><Trash2 size={20} color="#AF332A" /></Pressable>
       </View>)}
     </ScrollView>
