@@ -112,7 +112,8 @@ Status: `[x]` built, `[~]` verify on a child's phone, `[ ]` still to finish.
 - [x] Google Play shows version code 12, API 24+, target SDK 36 and four-language release notes.
 - [ ] Add reviewer account credentials in Google Play; this currently blocks the target-audience form.
 - [ ] Finish the remaining Play Console store and policy forms.
-- [ ] Commit and push the completed source changes to GitHub `main`.
+- [x] Source committed and pushed to the GitHub review branch in pull request #1.
+- [ ] Merge pull request #1 into GitHub `main` after explicit approval.
 
 ## Release acceptance
 
