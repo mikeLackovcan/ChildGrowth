@@ -1,762 +1,139 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
+import { Bot, Gamepad2, Swords, Users } from 'lucide-react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Colors } from '../../constants/theme';
+import { FightingArena } from '../../components/questblox/FightingArena';
+import { Button, fighterFor, palette, Screen, ui } from '../../components/questblox/UI';
+import { fighterCombatImage, fighterHasCombatCutout, fighterImage } from '../../constants/fighterImages';
+import { AVAILABLE_AVATARS } from '../../constants/fighters';
 import { useAppStore } from '../../store/useAppStore';
-import { 
-  Swords, 
-  Shield, 
-  Zap, 
-  Trophy, 
-  Sparkles, 
-  Flame, 
-  ShoppingBag, 
-  Clock, 
-  Dumbbell, 
-  ChevronRight,
-  Heart,
-  Gauge
-} from 'lucide-react-native';
 
-export interface RobloxAvatar {
-  id: string;
-  name: string;
-  price: number;
-  rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
-  skillName: string;
-  skillDesc: string;
-  image?: any;
-  color: string;
-  hp: number;
-  attack: number;
-  speed: number;
-  battleSkill: string;
-  battleSkillDesc: string;
-  battleClass: string;
-  blastIcon: string;
+export const ALL_ROBLOX_FIGURES = AVAILABLE_AVATARS;
+
+function FighterPicker({ title, fighters, selected, outfit, onSelect }: {
+  title: string;
+  fighters: typeof AVAILABLE_AVATARS;
+  selected: string;
+  outfit?: string;
+  onSelect: (id: string) => void;
+}) {
+  const { t } = useTranslation();
+  return <View style={styles.picker}>
+    <Text style={ui.label}>{title}</Text>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pickerList}>
+      {fighters.map(fighter => {
+        const chosen = fighter.id === selected;
+        return <Pressable
+          key={fighter.id}
+          accessibilityRole="radio"
+          accessibilityLabel={t('fight_choose_named', { name: fighter.name })}
+          accessibilityState={{ checked: chosen }}
+          onPress={() => onSelect(fighter.id)}
+          style={[styles.fighterTile, chosen && { borderColor: fighter.color, backgroundColor: `${fighter.color}18` }]}
+        >
+          <Image source={fighterImage(fighter.id, outfit)} style={styles.fighterThumb} />
+          <Text numberOfLines={1} style={[styles.fighterTileName, chosen && { color: palette.ink }]}>{fighter.name}</Text>
+        </Pressable>;
+      })}
+    </ScrollView>
+  </View>;
 }
 
-export const ALL_ROBLOX_FIGURES: RobloxAvatar[] = [
-  { 
-    id: 'questblox_hero', 
-    name: 'QuestBlox Hero', 
-    price: 0, 
-    rarity: 'Legendary', 
-    skillName: 'Star Power ⭐', 
-    skillDesc: '+15% Coins & XP on All Quests',
-    image: require('../../assets/images/questblox_hero.png'),
-    color: '#FFB800',
-    hp: 130,
-    attack: 28,
-    speed: 26,
-    battleSkill: 'Star Blast ⭐',
-    battleSkillDesc: 'Strikes with radiant star energy for 32 damage!',
-    battleClass: 'Star Champion ⭐',
-    blastIcon: '⭐'
-  },
-  { 
-    id: 'roblox_noob', 
-    name: 'Roblox Noob', 
-    price: 0, 
-    rarity: 'Common', 
-    skillName: 'Beginner Luck 🍀', 
-    skillDesc: '+10% Bonus Coins on Easy Quests',
-    image: require('../../assets/images/roblox_noob.png'),
-    color: '#FBBF24',
-    hp: 100,
-    attack: 20,
-    speed: 20,
-    battleSkill: 'Noob Cannon 👊',
-    battleSkillDesc: 'Deals 25 damage with 15% chance to stun opponent.',
-    battleClass: 'Brawler 🥊',
-    blastIcon: '👊'
-  },
-  { 
-    id: 'roblox_bacon_hair', 
-    name: 'Bacon Hair', 
-    price: 350, 
-    rarity: 'Common', 
-    skillName: 'Crispy Focus 🔥', 
-    skillDesc: '+15% XP Boost from Daily Quests',
-    image: require('../../assets/images/roblox_bacon_hair.png'),
-    color: '#EF4444',
-    hp: 120,
-    attack: 25,
-    speed: 25,
-    battleSkill: 'Crispy Fireball Cannon 🔥',
-    battleSkillDesc: 'Launches a sizzling fireball blast dealing 35 fire damage.',
-    battleClass: 'Fire Fighter 🔥',
-    blastIcon: '🔥'
-  },
-  { 
-    id: 'roblox_guest', 
-    name: 'Roblox Guest', 
-    price: 700, 
-    rarity: 'Common', 
-    skillName: 'Stealth Shield 🛡️', 
-    skillDesc: '1-Day Free Sick Mode Streak Protection',
-    image: require('../../assets/images/roblox_guest.png'),
-    color: '#3B82F6',
-    hp: 110,
-    attack: 30,
-    speed: 45,
-    battleSkill: 'Shadow Shuriken Cannon 🥷',
-    battleSkillDesc: 'Launches spinning ninja shurikens dealing 40 damage.',
-    battleClass: 'Ninja 🥷',
-    blastIcon: '🥷'
-  },
-  { 
-    id: 'roblox_builderman', 
-    name: 'Builderman', 
-    price: 1400, 
-    rarity: 'Rare', 
-    skillName: 'Master Architect 🏗️', 
-    skillDesc: 'Earn 2x Coins on Medium & Hard Quests',
-    image: require('../../assets/images/roblox_builderman.png'),
-    color: '#F59E0B',
-    hp: 180,
-    attack: 35,
-    speed: 15,
-    battleSkill: 'Brick Wall Fortress 🧱',
-    battleSkillDesc: 'Shields HP and counters with a heavy brick blast.',
-    battleClass: 'Heavy Tank 🏗️',
-    blastIcon: '🧱'
-  },
-  { 
-    id: 'roblox_flamingo', 
-    name: 'Flamingo', 
-    price: 2100, 
-    rarity: 'Rare', 
-    skillName: 'Chill Vibe 🍨', 
-    skillDesc: 'Unlocks Bonus Ice Cream Prize Wheel Slice',
-    image: require('../../assets/images/roblox_flamingo.png'),
-    color: '#EC4899',
-    hp: 140,
-    attack: 40,
-    speed: 30,
-    battleSkill: 'Ice Cream Freeze Beam 🍨',
-    battleSkillDesc: 'Restores +30 HP and freezes rival for 1 turn.',
-    battleClass: 'Support Mage 🍨',
-    blastIcon: '🍨'
-  },
-  { 
-    id: 'roblox_ninja',
-    name: 'Roblox Ninja',
-    price: 2800,
-    rarity: 'Rare',
-    skillName: 'Shadow Speed ⚡',
-    skillDesc: 'Fast-Charge Hold-to-Claim Boss Quests',
-    image: require('../../assets/images/roblox_ninja.png'),
-    color: '#8B5CF6',
-    hp: 130,
-    attack: 50,
-    speed: 60,
-    battleSkill: 'Shadow Katana Blast ⚡',
-    battleSkillDesc: 'Delivers a rapid double energy strike dealing 60 damage.',
-    battleClass: 'Speedster ⚡',
-    blastIcon: '⚡'
-  },
-  { 
-    id: 'roblox_dominus',
-    name: 'Dominus Valkyrie',
-    price: 3500,
-    rarity: 'Epic',
-    skillName: 'Crown of Power 👑',
-    skillDesc: '+25% XP Multiplier across ALL Quests',
-    image: require('../../assets/images/roblox_dominus.png'),
-    color: '#10B981',
-    hp: 200,
-    attack: 55,
-    speed: 35,
-    battleSkill: 'Valkyrie Holy Laser 👑',
-    battleSkillDesc: 'Smites rival figure with 70 holy radiant damage.',
-    battleClass: 'Paladin 👑',
-    blastIcon: '✨'
-  },
-  { 
-    id: 'roblox_bloxy',
-    name: 'Golden Bloxy Champ',
-    price: 7000,
-    rarity: 'Legendary',
-    skillName: 'Ultimate Champion 🏆',
-    skillDesc: '+50% Coins & XP Multiplier on ALL Quests!',
-    image: require('../../assets/images/roblox_bloxy.png'),
-    color: '#F59E0B',
-    hp: 280,
-    attack: 85,
-    speed: 50,
-    battleSkill: 'Bloxy Winner Cannon 🏆',
-    battleSkillDesc: 'Ultimate Champion Cannon! Deals 100 massive damage.',
-    battleClass: 'Mythic Champ 🌟',
-    blastIcon: '🌟'
-  }
-];
-
-export default function BattleScreen() {
+export default function ArenaScreen() {
   const { t } = useTranslation();
-  const currentAvatar = useAppStore((state) => state.currentAvatar);
-  
-  // Find current active hero
-  const activeHero = ALL_ROBLOX_FIGURES.find(
-    (a) => a.id === currentAvatar || ((currentAvatar === 'default' || !currentAvatar) && a.id === 'questblox_hero')
-  ) || ALL_ROBLOX_FIGURES[0];
+  const router = useRouter();
+  const store = useAppStore();
+  const [playerId, setPlayerId] = useState(store.currentAvatar);
+  const [rivalId, setRivalId] = useState(store.currentAvatar === 'roblox_ninja' ? 'roblox_noob' : 'roblox_ninja');
+  const [fighting, setFighting] = useState(false);
+  const owned = useMemo(() => AVAILABLE_AVATARS.filter(fighter => store.unlockedAvatars.includes(fighter.id) || fighter.id === 'roblox_noob'), [store.unlockedAvatars]);
+  const player = fighterFor(playerId);
+  const rival = fighterFor(rivalId);
+  const playerName = store.nickname || t('arena_player', { number: 1 });
 
-  const [previewFigureId, setPreviewFigureId] = useState<string>(activeHero.id);
-  const selectedFigure = ALL_ROBLOX_FIGURES.find((f) => f.id === previewFigureId) || activeHero;
+  return <Screen>
+    <View style={styles.titleRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={ui.title}>{t('fight_title')}</Text>
+        <Text style={ui.meta}>{t('fight_subtitle')}</Text>
+      </View>
+      <View accessibilityLabel={t('fight_real_time')} style={styles.liveBadge}><View style={styles.liveDot} /><Text style={styles.liveText}>{t('fight_live')}</Text></View>
+    </View>
 
-  const powerLevel = Math.floor(selectedFigure.hp * 1.2 + selectedFigure.attack * 3.5 + selectedFigure.speed * 2.2);
+    {fighting ? <FightingArena
+      playerId={playerId}
+      rivalId={rivalId}
+      playerName={playerName}
+      outfit={store.fighterOutfits[playerId]}
+      onLeave={() => setFighting(false)}
+    /> : <>
+      <View style={styles.modeCard}>
+        <View style={styles.modeIcon}><Bot color={palette.gold} size={25} /></View>
+        <View style={{ flex: 1 }}><Text style={ui.heading}>{t('fight_arcade')}</Text><Text style={ui.meta}>{t('fight_arcade_desc')}</Text></View>
+        <Gamepad2 color={palette.muted} size={25} />
+      </View>
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Header Bar */}
-        <View style={styles.headerRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <View style={styles.headerIconCircle}>
-              <Swords size={20} color={Colors.amber} />
-            </View>
-            <View>
-              <Text style={styles.headerTitle}>{t('tab_battle', 'Battle Arena')}</Text>
-              <Text style={styles.headerSub}>{t('battle_coming_soon_sub', 'Arcade Combat • Update V2.0')}</Text>
-            </View>
-          </View>
+      <View style={styles.versusCard}>
+        <Image source={require('../../assets/images/fight_arena_neon.png')} contentFit="cover" style={styles.versusBackdrop} />
+        <View style={styles.versusShade} />
+        <View style={styles.previewSide}>
+          <Image source={fighterCombatImage(player.id, store.fighterOutfits[player.id])} contentFit={fighterHasCombatCutout(player.id, store.fighterOutfits[player.id]) ? 'contain' : 'cover'} style={[styles.previewImage, !fighterHasCombatCutout(player.id, store.fighterOutfits[player.id]) && styles.previewPortrait, { borderColor: player.color }]} />
+          <Text numberOfLines={1} style={styles.previewName}>{player.name}</Text>
+          <Text style={styles.previewMeta}>{t('fight_you')}</Text>
         </View>
-
-        {/* ARENA HERO SHOWCASE */}
-        <View style={styles.arenaStageCard}>
-          <View style={styles.arenaHeaderRow}>
-            <View style={styles.comingSoonBadge}>
-              <Clock size={12} color={Colors.amber} />
-              <Text style={styles.comingSoonBadgeText}>V2.0 ARENA PREVIEW</Text>
-            </View>
-            {selectedFigure.id === activeHero.id && (
-              <View style={styles.activeTag}>
-                <Sparkles size={11} color="#10B981" />
-                <Text style={styles.activeTagText}>EQUIPPED</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Large Hero Figure in Arena Spotlight */}
-          <View style={styles.pedestalStage}>
-            <Image source={selectedFigure.image} style={styles.arenaHeroImg} resizeMode="contain" />
-            <View style={[styles.pedestalBase, { borderColor: selectedFigure.color }]} />
-          </View>
-
-          {/* Hero Name, Class & Rarity */}
-          <Text style={styles.arenaHeroName}>{selectedFigure.name}</Text>
-          <Text style={styles.arenaHeroClass}>{selectedFigure.battleClass} · {selectedFigure.rarity}</Text>
-
-          {/* 3 Compact Stat Chips */}
-          <View style={styles.statChipsRow}>
-            <View style={styles.statChip}>
-              <Heart size={13} color="#EF4444" />
-              <Text style={styles.statChipText}>{selectedFigure.hp} HP</Text>
-            </View>
-            <View style={styles.statChip}>
-              <Flame size={13} color="#F59E0B" />
-              <Text style={styles.statChipText}>{selectedFigure.attack} ATK</Text>
-            </View>
-            <View style={styles.statChip}>
-              <Gauge size={13} color="#3B82F6" />
-              <Text style={styles.statChipText}>{selectedFigure.speed} SPD</Text>
-            </View>
-          </View>
-
-          {/* Special Battle Move */}
-          <View style={styles.specialMovePill}>
-            <Text style={{ fontSize: 13 }}>{selectedFigure.blastIcon}</Text>
-            <Text style={styles.specialMoveTitle}>{selectedFigure.battleSkill}</Text>
-          </View>
+        <View style={styles.vsCircle}><Swords color={palette.bg} size={24} /><Text style={styles.vsText}>VS</Text></View>
+        <View style={styles.previewSide}>
+          <Image source={fighterCombatImage(rival.id)} contentFit={fighterHasCombatCutout(rival.id) ? 'contain' : 'cover'} style={[styles.previewImage, !fighterHasCombatCutout(rival.id) && styles.previewPortrait, { borderColor: rival.color }]} />
+          <Text numberOfLines={1} style={styles.previewName}>{rival.name}</Text>
+          <Text style={styles.previewMeta}>{t('fight_cpu')}</Text>
         </View>
+      </View>
 
-        {/* ROSTER CAROUSEL */}
-        <View style={styles.section}>
-          <Text style={styles.secTitle}>EXPLORE ALL FIGHTERS 🦹</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 4 }}>
-            {ALL_ROBLOX_FIGURES.map((fig) => {
-              const isSelected = fig.id === previewFigureId;
-              const isHero = fig.id === activeHero.id;
-              return (
-                <TouchableOpacity
-                  key={fig.id}
-                  style={[
-                    styles.rosterCard,
-                    isSelected && { borderColor: Colors.amber, borderWidth: 2, backgroundColor: Colors.surface2 }
-                  ]}
-                  onPress={() => setPreviewFigureId(fig.id)}
-                  activeOpacity={0.8}
-                >
-                  {isHero && (
-                    <View style={styles.heroBadgeTiny}>
-                      <Text style={styles.heroBadgeTinyText}>HERO</Text>
-                    </View>
-                  )}
-                  <Image source={fig.image} style={styles.rosterCardImg} resizeMode="contain" />
-                  <Text style={styles.rosterCardName} numberOfLines={1}>{fig.name}</Text>
-                  <Text style={styles.rosterCardClass}>{fig.battleClass}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
+      <FighterPicker title={t('fight_pick_yours')} fighters={owned} selected={playerId} outfit={store.fighterOutfits[playerId]} onSelect={setPlayerId} />
+      <FighterPicker title={t('fight_pick_rival')} fighters={AVAILABLE_AVATARS} selected={rivalId} onSelect={setRivalId} />
 
-        {/* PREPARE IN SHOP CALL-TO-ACTION */}
-        <View style={styles.section}>
-          <TouchableOpacity 
-            style={styles.shopCtaCard}
-            onPress={() => router.push('/(tabs)/shop')}
-            activeOpacity={0.85}
-          >
-            <View style={styles.shopCtaIconCircle}>
-              <ShoppingBag size={22} color="#FFF" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.shopCtaTitle}>PREPARE YOUR ROSTER IN THE SHOP 🛒</Text>
-              <Text style={styles.shopCtaSub}>Unlock legendary avatars using your quest coins!</Text>
-            </View>
-            <ChevronRight size={20} color={Colors.amber} />
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+      <View style={styles.rules}>
+        <Text style={styles.rulesTitle}>{t('fight_rules_title')}</Text>
+        <Text style={ui.meta}>{t('fight_rules')}</Text>
+      </View>
+      <Button label={`⚔️ ${t('arena_start')}`} onPress={() => setFighting(true)} />
+
+      <Pressable accessibilityRole="button" onPress={() => router.push('/family-battle')} style={styles.familyCard}>
+        <Users color="#93c5fd" size={25} />
+        <View style={{ flex: 1 }}><Text style={styles.familyTitle}>{t('online_title')}</Text><Text style={ui.meta}>{t('fight_family_desc')}</Text></View>
+        <Text style={styles.familyArrow}>→</Text>
+      </Pressable>
+    </>}
+  </Screen>;
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  container: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  headerIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 184, 0, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 184, 0, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 22,
-    color: '#F8FAFC',
-    letterSpacing: -0.3,
-  },
-  headerSub: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 12,
-    color: '#94A3B8',
-  },
-  arenaStageCard: {
-    backgroundColor: '#151926',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 24,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  arenaHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 16,
-  },
-  pedestalStage: {
-    width: 140,
-    height: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    position: 'relative',
-  },
-  arenaHeroImg: {
-    width: 110,
-    height: 110,
-    zIndex: 2,
-  },
-  pedestalBase: {
-    position: 'absolute',
-    bottom: 0,
-    width: 120,
-    height: 30,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 2,
-    transform: [{ scaleY: 0.4 }],
-  },
-  arenaHeroName: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 20,
-    color: '#F8FAFC',
-    letterSpacing: -0.3,
-  },
-  arenaHeroClass: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 13,
-    color: Colors.amber,
-    marginTop: 2,
-    marginBottom: 14,
-  },
-  statChipsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 14,
-  },
-  statChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-  },
-  statChipText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 11,
-    color: '#E2E8F0',
-  },
-  specialMovePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 184, 0, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 184, 0, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  specialMoveTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 11,
-    color: Colors.amber,
-  },
-  comingSoonBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,179,0,0.15)',
-    borderWidth: 1,
-    borderColor: Colors.amber,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  comingSoonBadgeText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 11,
-    color: Colors.amber,
-    letterSpacing: 0.5,
-  },
-  heroTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 18,
-    color: Colors.text,
-    marginBottom: 6,
-  },
-  heroDescription: {
-    fontFamily: 'Nunito_600SemiBold',
-    fontSize: 13,
-    color: Colors.textMuted,
-    lineHeight: 19,
-    marginBottom: 16,
-  },
-  featuresRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 14,
-    padding: 10,
-  },
-  featureItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-  },
-  featureEmoji: {
-    fontSize: 20,
-  },
-  featureText: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 11,
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  secTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
-    color: Colors.text,
-    fontSize: 13,
-    letterSpacing: 0.5,
-  },
-  activeTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(16,185,129,0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#10B981',
-  },
-  activeTagText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 10,
-    color: '#10B981',
-  },
-  figureCard: {
-    backgroundColor: '#151926',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 20,
-    padding: 16,
-    gap: 14,
-  },
-  figureTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  avatarBox: {
-    width: 76,
-    height: 76,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarImg: {
-    width: 64,
-    height: 64,
-  },
-  figureName: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 18,
-    color: Colors.text,
-  },
-  rarityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  rarityText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 10,
-  },
-  figureClass: {
-    fontFamily: 'Nunito_600SemiBold',
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 2,
-    marginBottom: 6,
-  },
-  powerPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,179,0,0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-    alignSelf: 'flex-start',
-  },
-  powerPillText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 11,
-    color: Colors.amber,
-  },
-  statMetersContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 14,
-    padding: 12,
-    gap: 8,
-  },
-  meterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  meterLabelBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    width: 50,
-  },
-  meterLabel: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 11,
-    color: Colors.textMuted,
-  },
-  meterTrack: {
-    flex: 1,
-    height: 8,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  meterFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  meterValue: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 12,
-    color: Colors.text,
-    width: 32,
-    textAlign: 'right',
-  },
-  specialSkillCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 14,
-    padding: 12,
-  },
-  specialSkillEmoji: {
-    fontSize: 14,
-  },
-  specialSkillTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 13,
-    color: Colors.text,
-  },
-  specialSkillDesc: {
-    fontFamily: 'Nunito_600SemiBold',
-    fontSize: 12,
-    color: Colors.textMuted,
-    lineHeight: 16,
-  },
-  rosterCard: {
-    width: 90,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 16,
-    padding: 8,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  heroBadgeTiny: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: '#10B981',
-    borderRadius: 4,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    zIndex: 5,
-  },
-  heroBadgeTinyText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 8,
-    color: '#FFF',
-  },
-  rosterCardImg: {
-    width: 48,
-    height: 48,
-    marginBottom: 4,
-  },
-  rosterCardName: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 11,
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  rosterCardClass: {
-    fontFamily: 'Nunito_600SemiBold',
-    fontSize: 9,
-    color: Colors.textMuted,
-    textAlign: 'center',
-  },
-  shopCtaCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#131726',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 18,
-    padding: 14,
-  },
-  shopCtaIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: '#4F46E5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shopCtaTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 13,
-    color: Colors.text,
-  },
-  shopCtaSub: {
-    fontFamily: 'Nunito_600SemiBold',
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  roadmapCard: {
-    backgroundColor: '#131726',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 18,
-    padding: 16,
-    gap: 14,
-  },
-  roadmapItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  roadmapDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.amber,
-    marginTop: 5,
-  },
-  roadmapItemTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 13,
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  roadmapItemSub: {
-    fontFamily: 'Nunito_600SemiBold',
-    fontSize: 12,
-    color: Colors.textMuted,
-    lineHeight: 16,
-  },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#ef444422', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 99 },
+  liveDot: { width: 7, height: 7, borderRadius: 99, backgroundColor: '#ef4444' },
+  liveText: { color: '#fca5a5', fontFamily: 'Nunito_900Black', fontSize: 10, letterSpacing: 1 },
+  modeCard: { flexDirection: 'row', alignItems: 'center', gap: 13, padding: 15, borderRadius: 18, backgroundColor: palette.panel, borderWidth: 1, borderColor: palette.line },
+  modeIcon: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center', borderRadius: 15, backgroundColor: '#ffc85718' },
+  versusCard: { minHeight: 250, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 14, borderRadius: 18, overflow: 'hidden', backgroundColor: '#11182a', borderWidth: 2, borderColor: '#7655c766', shadowColor: '#7c3aed', shadowOpacity: 0.22, shadowRadius: 16 },
+  versusBackdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, width: '100%', height: '100%' },
+  versusShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: '#05071266' },
+  previewSide: { flex: 1, alignItems: 'center', gap: 6 },
+  previewImage: { width: '100%', aspectRatio: 1, maxWidth: 165, borderRadius: 18 },
+  previewPortrait: { borderWidth: 2 },
+  previewName: { color: '#fff', fontFamily: 'Nunito_900Black', fontSize: 13, maxWidth: '100%', textShadowColor: '#000', textShadowRadius: 5 },
+  previewMeta: { color: '#d8def0', fontFamily: 'Nunito_900Black', fontSize: 10, textTransform: 'uppercase', textShadowColor: '#000', textShadowRadius: 4 },
+  vsCircle: { width: 58, height: 58, borderRadius: 99, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.gold, borderWidth: 3, borderColor: '#fff4c6', transform: [{ rotate: '-7deg' }], shadowColor: palette.gold, shadowOpacity: 0.65, shadowRadius: 18 },
+  vsText: { color: palette.bg, fontFamily: 'Nunito_900Black', fontSize: 10, marginTop: -3 },
+  picker: { gap: 9 },
+  pickerList: { gap: 10, paddingRight: 8 },
+  fighterTile: { width: 88, gap: 6, padding: 6, paddingBottom: 9, borderRadius: 16, borderWidth: 2, borderColor: 'transparent', backgroundColor: '#ffffff08' },
+  fighterThumb: { width: 72, height: 72, borderRadius: 12 },
+  fighterTileName: { color: palette.muted, fontFamily: 'Nunito_700Bold', fontSize: 11, textAlign: 'center' },
+  rules: { gap: 5, padding: 14, borderLeftWidth: 3, borderLeftColor: palette.gold, backgroundColor: '#ffc8570a' },
+  rulesTitle: { color: palette.ink, fontFamily: 'Nunito_800ExtraBold', fontSize: 14 },
+  familyCard: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 13, padding: 15, borderRadius: 18, backgroundColor: '#60a5fa10', borderWidth: 1, borderColor: '#60a5fa33' },
+  familyTitle: { color: palette.ink, fontFamily: 'Nunito_800ExtraBold', fontSize: 15 },
+  familyArrow: { color: '#93c5fd', fontSize: 24 },
 });

@@ -12,17 +12,30 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
-      }
+      },
+      "channel": "production"
+    },
+    "internal-testing": {
+      "extends": "production",
+      "channel": "internal-testing",
+      "environment": "production"
     }
   },
   "submit": {
     "production": {
+      "android": {
+        "track": "internal",
+        "changesNotSentForReview": true
+      }
+    },
+    "internal-testing": {
       "android": {
         "track": "internal",
         "changesNotSentForReview": true

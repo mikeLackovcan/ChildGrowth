@@ -1,0 +1,12 @@
+<en-US>
+Choose a notification or ringing alarm for each quest. Speak task names using the microphone inside the name field. Cleaner quest controls and a clearer app icon.
+</en-US>
+<cs-CZ>
+U každého úkolu vyberte oznámení nebo budík. Nadiktujte název mikrofonem v poli úkolu. Přehlednější ovládání a výraznější ikona aplikace.
+</cs-CZ>
+<es-ES>
+Elige una notificación o alarma para cada misión. Dicta el nombre con el micrófono dentro del campo. Controles más sencillos y un icono más claro.
+</es-ES>
+<de-DE>
+Wähle für jede Aufgabe eine Benachrichtigung oder einen Wecker. Sprich den Namen mit dem Mikrofon im Eingabefeld ein. Übersichtliche Bedienung und klareres App-Symbol.
+</de-DE>

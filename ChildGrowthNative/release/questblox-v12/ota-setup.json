@@ -1,0 +1,19 @@
+{
+  "message": "Add family setup flow and clearer first-day actions",
+  "branch": "internal-testing",
+  "runtime": "aae75b492cbe429692d6eacbe52bb5dc1dbfb675",
+  "androidUpdateId": "01a172ae-1a49-7174-b4c6-3328d9cb8468",
+  "group": "2027feda-fa50-4c6b-a1ad-a394988f2d74",
+  "publishedAt": "2026-10-25T10:49:35.049Z",
+  "status": "published",
+  "latestUpdate": {
+    "message": "Open reward icon choices from the reward name or picture",
+    "androidRuntime": "aae75b492cbe429692d6eacbe52bb5dc1dbfb675",
+    "androidUpdateId": "01a17d76-9ba5-7fff-8327-4e07b738f8a0",
+    "androidGroupId": "0a1c3e7f-9aeb-4d83-b7ce-09cc8ae417e6",
+    "iosRuntime": "e3586dda4299cdbefae41d44146f13446cd401e0",
+    "iosUpdateId": "01a17d76-9ba5-7112-8086-4f22468a9bb3",
+    "iosGroupId": "22d31cec-1c67-48fd-a81f-4b3e86e9ddf8",
+    "publishedAt": "2026-10-27T13:04:47.525Z"
+  }
+}

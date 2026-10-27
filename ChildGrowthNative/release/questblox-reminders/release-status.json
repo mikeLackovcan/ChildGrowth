@@ -1,0 +1,19 @@
+{
+  "app": "QuestBlox",
+  "package": "com.questblox.app",
+  "version": "1.0.0",
+  "versionCode": 6,
+  "channel": "internal-testing",
+  "runtime": "48f4d8c4be9ff603fc18e79c6ea5d445b78d98fe",
+  "otaStatus": "published",
+  "updateGroupId": "05497e2d-6d3e-47ce-b5e8-fd7255aa90a2",
+  "buildId": "ce0d72e4-26a5-4029-a8af-b409c949f1b7",
+  "buildUrl": "https://expo.dev/accounts/misko7/projects/QuestBlox/builds/ce0d72e4-26a5-4029-a8af-b409c949f1b7",
+  "googlePlayStatus": "Available to internal testers",
+  "buildStatus": "FINISHED",
+  "aabFile": "questblox-1.0.0-v6.aab",
+  "aabSha256": "30a9a5cdde59a39a27a690768af31a7bc9728ce76f8d116c5a5dfdc354d92b22",
+  "googlePlayRelease": "4",
+  "googlePlayPublishedLocal": "2026-10-21 17:27 Europe/Prague",
+  "googlePlayReleaseUrl": "https://play.google.com/console/u/0/developers/8678689728528439012/app/4973160647974386489/tracks/4701374113761647208/releases/4/details"
+}

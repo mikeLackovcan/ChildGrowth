@@ -1,0 +1,36 @@
+QUESTBLOX — INTERNAL TESTING RELEASE
+
+App: QuestBlox
+Android package: com.questblox.app
+Version name: 1.0.0
+Version code: 6
+Expo project: @misko7/QuestBlox
+Update channel: internal-testing
+
+Upload the signed .aab to the EXISTING Questblox listing:
+https://play.google.com/console/u/0/developers/8678689728528439012/app/4973160647974386489/tracks/4701374113761647208?tab=releases
+
+Create an internal-testing release; upload the AAB; use release name
+"Questblox v06 — Quest reminders" and paste google-play-release-notes.txt.
+Review Google Play checks, save, and publish to internal testers.
+Do not upload to Quest Champ or to the production track.
+
+After installation:
+1. Open Questblox on the child's phone.
+2. Open My day & more options > Quest reminders.
+3. Choose the default time, enable reminders, and allow Android notifications.
+4. Use "Try a reminder in 5 seconds" and background the app to verify delivery.
+5. Optional per-quest times are in Manage quests. Parent changes take effect
+   on the child's device after that app syncs.
+
+Validation: 19 isolated checks passed, TypeScript passed, Android bundle exported.
+Still requires real-device notification/background and two-account sync testing.
+
+Reminder scope: local notifications, not server push or repeating alarm-clock alerts.
+Quiet hours 20:00–07:00. Opening the app refreshes up to seven days of scheduled
+reminders (maximum 60 alerts). Rest mode pauses scheduling; completed/pending-review
+chores are excluded. Android settings may delay or silence notifications.
+
+Build 5 has a different native runtime; it cannot receive this new-runtime OTA.
+Install build 6 once from Google Play. Future compatible OTA updates download
+on launch and generally apply after closing and reopening the app.

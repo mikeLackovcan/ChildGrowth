@@ -2,7 +2,6 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Colors } from '../../constants/theme';
 import { LayoutDashboard, Swords, Gift, ShoppingBag } from 'lucide-react-native';
-import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
@@ -14,7 +13,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.amber,
+        tabBarActiveTintColor: '#ffc857',
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
           backgroundColor: '#0F1322',
@@ -25,11 +24,14 @@ export default function TabLayout() {
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.3,
           shadowRadius: 12,
-          height: (Platform.OS === 'ios' ? 88 : 64) + insets.bottom,
-          paddingBottom: (Platform.OS === 'ios' ? 28 : 10) + insets.bottom,
-          paddingTop: 12,
+          height: 76 + insets.bottom,
+          paddingBottom: 10 + insets.bottom,
+          paddingTop: 8,
         },
+        tabBarIconStyle: { height: 24, width: 24, flexGrow: 0 },
         tabBarLabelStyle: {
+          flexShrink: 0,
+          lineHeight: 18,
           fontFamily: 'Nunito_600SemiBold',
           fontSize: 12,
         },
@@ -44,33 +46,9 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="battle"
-        options={{
-          title: t('tab_battle', 'Battle'),
-          tabBarIcon: ({ color }) => (
-            <Swords size={24} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="milestones"
-        options={{
-          title: t('tab_prizes', 'Prizes'),
-          tabBarIcon: ({ color }) => (
-            <Gift size={24} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="shop"
-        options={{
-          title: t('tab_shop', 'Shop'),
-          tabBarIcon: ({ color }) => (
-            <ShoppingBag size={24} color={color} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="shop" options={{ title: t('nav_fighters'), tabBarIcon: ({ color }) => <ShoppingBag size={24} color={color} /> }} />
+      <Tabs.Screen name="battle" options={{ title: t('nav_arena'), tabBarIcon: ({ color }) => <Swords size={24} color={color} /> }} />
+      <Tabs.Screen name="milestones" options={{ title: t('nav_rewards'), tabBarIcon: ({ color }) => <Gift size={24} color={color} /> }} />
       <Tabs.Screen
         name="tips"
         options={{

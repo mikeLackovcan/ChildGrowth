@@ -1,563 +1,119 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PrizeWheel from '../../components/questblox/PrizeWheel';
+import { wheelRotation } from '../../utils/prizeWheel';
 import { useTranslation } from 'react-i18next';
-import { Colors, Typography, Layout, getThemeColors } from '../../constants/theme';
-import { useAppStore } from '../../store/useAppStore';
-import { Trophy, Star, Gift, Calendar, CheckCircle2, Circle, Settings, Lock } from 'lucide-react-native';
-import SettingsModal from '../../components/SettingsModal';
-import PrizeWheelModal from '../../components/PrizeWheelModal';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Animated, Easing, AccessibilityInfo, TextInput, Modal, Pressable } from 'react-native';
+import { useAppStore, WonPrize } from '../../store/useAppStore';
+import { canSpin, localDay, tasksForDay } from '../../utils/questDay';
+import { Screen, Button, ui, palette } from '../../components/questblox/UI';
+import { DEFAULT_PRIZES, PRIZE_ICONS, prizeEmoji, prizeLabel } from '../../constants/prizes';
 
-export default function MilestonesScreen() {
-  const { t } = useTranslation();
-  const xp = useAppStore((state) => state.xp);
-  const level = useAppStore((state) => state.level);
-  const wonPrizes = useAppStore((state) => state.wonPrizes);
-  const togglePrizeRedeemed = useAppStore((state) => state.togglePrizeRedeemed);
-  const activeTheme = useAppStore((state) => state.activeTheme);
-  const themeColors = getThemeColors(activeTheme);
-  const tasks = useAppStore((state) => state.tasks);
-  const prizes = useAppStore((state) => state.prizes);
-  const addWonPrize = useAppStore((state) => state.addWonPrize);
-  const lastSpinDate = useAppStore((state) => state.lastSpinDate);
-
-  const [settingsVisible, setSettingsVisible] = useState(false);
-  const [wheelModalVisible, setWheelModalVisible] = useState(false);
-  const [currentWonPrize, setCurrentWonPrize] = useState('');
-
-  const todayStr = new Date().toISOString().split('T')[0];
-  const alreadySpunToday = lastSpinDate === todayStr;
-
-  const totalTasks = tasks.length;
-  const doneTasks = tasks.filter(t => t.done).length;
-  const allQuestsDone = totalTasks > 0 && doneTasks === totalTasks;
-
-  const handleOpenWheel = () => {
-    if (!allQuestsDone || alreadySpunToday) return;
-    const randomPrize = (prizes && prizes.length > 0) ? prizes[Math.floor(Math.random() * prizes.length)] : 'Extra Roblox Coins!';
-    setCurrentWonPrize(randomPrize);
-    addWonPrize(randomPrize);
-    setWheelModalVisible(true);
+export default function RewardsScreen() {
+  const { t, i18n } = useTranslation();
+  const s = useAppStore();
+  const [spinPool, setSpinPool] = useState<string[] | null>(null);
+  const storedPool = s.prizes.filter(p => p.trim());
+  const suggestedPool = storedPool.length > 0 && storedPool.length < DEFAULT_PRIZES.length ? Array.from(new Set([...storedPool, ...DEFAULT_PRIZES])) : storedPool;
+  const pool = spinPool || suggestedPool;
+  const spinningRef = useRef(false);
+  const [spinError, setSpinError] = useState(false);
+  const rotation = useRef(new Animated.Value(0)).current;
+  const [spinning, setSpinning] = useState(false);
+  const [result, setResult] = useState<WonPrize | null>(null);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [newPrizeName, setNewPrizeName] = useState('');
+  const [newPrizeIcon, setNewPrizeIcon] = useState(PRIZE_ICONS[0]);
+  const [presentingPrize, setPresentingPrize] = useState<WonPrize | null>(null);
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => { subscription.remove(); rotation.stopAnimation(); };
+  }, [rotation]);
+  const eligible = canSpin(s.tasks, s.epicClaimedDate, s.lastSpinDate) && !s.isSick;
+  const hasSpun = s.lastSpinDate === localDay();
+  const remaining = tasksForDay(s.tasks).filter(t => !t.done || t.pendingApproval).length;
+  const draftPrizes = draft.split('\n').map(prize => prize.trim()).filter(Boolean);
+  const updateDraftPrize = (index: number, name: string) => {
+    const current = draftPrizes[index] || '';
+    const icon = prizeEmoji(current);
+    const next = [...draftPrizes];
+    next[index] = name.trim() ? `${name.trim()} ${icon}` : icon;
+    setDraft(next.join('\n'));
   };
-
-  const handleLockedWheelTap = () => {
-    alert(`🔒 Complete all ${totalTasks} daily quests to unlock the Prize Wheel! (${doneTasks}/${totalTasks} done)`);
+  const removeDraftPrize = (index: number) => setDraft(draftPrizes.filter((_, prizeIndex) => prizeIndex !== index).join('\n'));
+  const addDraftPrize = () => {
+    const name = newPrizeName.trim();
+    if (!name) return;
+    setDraft([...draftPrizes, `${name} ${newPrizeIcon}`].join('\n'));
+    setNewPrizeName('');
   };
-
-  const xpNeeded = 100;
-  const progressPercent = Math.min((xp / xpNeeded) * 100, 100);
-
-  return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>{t('winnings_prizes_title', 'Winnings & Prizes 🎁')}</Text>
-          <TouchableOpacity 
-            style={styles.settingBtn}
-            onPress={() => setSettingsVisible(true)}
-          >
-            <Settings size={20} color={Colors.amber} />
-          </TouchableOpacity>
+  const spin = async () => {
+    if (spinningRef.current) return;
+    spinningRef.current = true; setSpinning(true); setSpinError(false); setResult(null);
+    const prize = await s.spinPrize();
+    if (!prize) { setSpinning(false); spinningRef.current = false; setSpinError(true); return; }
+    const drawPool = pool;
+    setSpinPool(drawPool);
+    const index = drawPool.indexOf(prize.prize);
+    if (index < 0) { setResult(prize); setSpinning(false); spinningRef.current = false; return; }
+    rotation.setValue(0);
+    Animated.timing(rotation, { toValue: wheelRotation(index, drawPool.length), duration: reduceMotion ? 0 : 3200, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(({ finished }) => {
+      setSpinning(false); spinningRef.current = false;
+      if (finished) setResult(prize);
+    });
+  };
+  return <>
+  <Screen>
+    <Text style={ui.title}>{t('wheel_title')}</Text>
+    <PrizeWheel prizes={pool} rotation={rotation} />
+    <View style={{ gap: 10 }}>
+      {result && <View accessibilityLabel={result.prize} style={{ alignItems: 'center', gap: 4, paddingVertical: 4 }}><Text style={{ fontSize: 54 }}>{prizeEmoji(result.prize)}</Text><Text style={ui.heading}>{prizeLabel(result.prize)}</Text></View>}
+      <Text accessibilityLiveRegion="polite" style={ui.heading}>{spinning ? t('wheel_spinning') : result ? t('prize_ready') : hasSpun ? t('wheel_saved') : eligible ? t('wheel_ready') : remaining ? t('wheel_remaining', { count: remaining }) : t('wheel_epic')}</Text>
+      {!hasSpun && <Button label={spinning ? t('wheel_spinning') : t('wheel_spin')} disabled={!eligible || spinning || !pool.length} onPress={spin} />}
+      {spinError && <Text accessibilityLiveRegion="polite" style={ui.text}>{t('reward_connect_retry')}</Text>}
+      <Text style={ui.meta}>{pool.length ? t('wheel_equal') : t('wheel_empty')}</Text>
+      {pool.map((prize, index) => <View key={`${index}-${prize}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 }}><Text accessibilityLabel={prize} style={{ fontSize: 32 }}>{prizeEmoji(prize)}</Text><Text style={[ui.text, { flex: 1 }]}>{index + 1} · {prizeLabel(prize)}</Text></View>)}
+    </View>
+    {(s.role === 'parent' || !s.linkedParents.length) && <>
+      <Button secondary disabled={spinning} label={editing ? t('action_cancel') : t('wheel_edit')} onPress={() => { setDraft(s.prizes.join('\n')); setEditing(!editing); setSpinPool(null); }} />
+      {editing && <View style={{ gap: 12 }}>
+        <Text style={ui.meta}>{t('prize_choose_icon')}</Text>
+        <View accessibilityRole="radiogroup" accessibilityLabel={t('prize_choose_icon')} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {PRIZE_ICONS.map(icon => <Pressable key={icon} accessibilityRole="radio" accessibilityState={{ checked: newPrizeIcon === icon }} onPress={() => setNewPrizeIcon(icon)} style={{ width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: newPrizeIcon === icon ? palette.gold : palette.panel, borderWidth: 1, borderColor: newPrizeIcon === icon ? palette.gold : palette.line }}><Text style={{ fontSize: 28 }}>{icon}</Text></Pressable>)}
         </View>
-        
-        {/* Unified Progression Slate (Combines Level, XP, and Reward Summary) */}
-        <View style={styles.progressionSlate}>
-          <View style={styles.levelHeader}>
-            <View style={styles.levelBadge}>
-              <Star size={32} color="#121212" fill="#121212" />
-              <Text style={styles.levelText}>{level}</Text>
-            </View>
-            <View style={styles.levelInfo}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <Text style={styles.levelTitle}>Level {level}</Text>
-                <Text style={styles.xpText}>{xp} / {xpNeeded} XP ⭐</Text>
-              </View>
-              <View style={styles.progressBarBg}>
-                <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
-              </View>
-              <Text style={styles.progressSubText}>
-                Earn {Math.max(0, xpNeeded - xp)} more XP to reach Level {level + 1}
-              </Text>
-            </View>
-          </View>
-
-          {/* Calm Reward Summary Footnote */}
-          <View style={styles.slateDivider} />
-          <View style={styles.slateRewardRow}>
-            <Calendar size={16} color={Colors.amber} />
-            <Text style={styles.slateRewardText}>
-              {wonPrizes.length} {t('rewards_and_prizes', 'Rewards Won')} · {wonPrizes.filter(p => p.redeemed).length} {t('redeemed_status', 'Redeemed ✅')}
-            </Text>
-          </View>
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <TextInput accessibilityLabel={t('prize_name')} placeholder={t('prize_name')} placeholderTextColor={palette.muted} value={newPrizeName} onChangeText={setNewPrizeName} style={[ui.text, { flex: 1, minHeight: 48, borderBottomColor: palette.line, borderBottomWidth: 1, paddingHorizontal: 10 }]} />
+          <Pressable accessibilityRole="button" accessibilityLabel={t('prize_add')} disabled={!newPrizeName.trim()} onPress={addDraftPrize} style={{ minHeight: 52, borderRadius: 14, paddingHorizontal: 12, backgroundColor: newPrizeName.trim() ? palette.gold : palette.line, alignItems: 'center', justifyContent: 'center', gap: 1 }}><Text style={{ fontSize: 22 }}>➕</Text><Text style={[ui.meta, { color: palette.bg }]}>{t('prize_add')}</Text></Pressable>
         </View>
-
-        {/* Prize Wheel Daily Status (Locked until 100% of quests are done, 1 spin per day) */}
-        {!allQuestsDone ? (
-          <TouchableOpacity 
-            style={styles.wheelCardLocked}
-            onPress={handleLockedWheelTap}
-            activeOpacity={0.85}
-          >
-            <Text style={{ fontSize: 26, opacity: 0.8 }}>🔒</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.wheelTitleLocked}>PRIZE WHEEL LOCKED 🎡</Text>
-              <Text style={styles.wheelSubLocked}>
-                Complete all quests today to unlock! ({doneTasks}/{totalTasks} done)
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ) : alreadySpunToday ? (
-          <View style={styles.wheelCardSpun}>
-            <Text style={{ fontSize: 28 }}>🎡</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.wheelTitleSpun}>DAILY SPIN COMPLETED ✅</Text>
-              <Text style={styles.wheelSubSpun}>1 spin per day · Come back tomorrow for your next reward!</Text>
-            </View>
-            <View style={styles.spunBadgePill}>
-              <CheckCircle2 size={16} color="#00E676" />
-            </View>
-          </View>
-        ) : (
-          <TouchableOpacity 
-            testID="open-wheel-card-btn"
-            style={styles.wheelCardUnlocked}
-            onPress={handleOpenWheel}
-            activeOpacity={0.85}
-          >
-            <Text style={{ fontSize: 32 }}>🎡</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.wheelTitleUnlocked}>ALL QUESTS COMPLETE! 🎉</Text>
-              <Text style={styles.wheelSubUnlocked}>Tap to spin the Prize Wheel! (1 spin/day)</Text>
-            </View>
-            <View style={styles.spinButtonPill}>
-              <Text style={styles.spinButtonPillText}>SPIN! 🎡</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* Trophy Cabinet & Winnings Checklist */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Trophy size={24} color={Colors.cardYellow} />
-            <Text style={styles.sectionTitle}>{t('won_prizes_history', 'Awarded Winnings')}</Text>
-          </View>
-          
-          {wonPrizes.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Gift size={48} color={Colors.textSecondary} opacity={0.5} />
-              <Text style={styles.emptyText}>{t('no_prizes_won_yet', 'Complete quests to win prizes on the spin wheel!')}</Text>
-            </View>
-          ) : (
-            <View style={styles.grid}>
-              {wonPrizes.map((item, index) => {
-                const rewardDate = item.date ? new Date(item.date) : new Date();
-                const now = new Date();
-                const diffTime = Math.abs(now.getTime() - rewardDate.getTime());
-                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                
-                let dayMarker = t('reward_day_today', 'Today (Day 1) 📅');
-                if (diffDays === 1) {
-                  dayMarker = t('reward_day_yesterday', '1 day ago 📅');
-                } else if (diffDays > 1) {
-                  dayMarker = t('reward_days_ago', { count: diffDays, defaultValue: `${diffDays} days ago 📅` });
-                }
-
-                const itemKey = item.id || `prize_${index}`;
-
-                return (
-                  <TouchableOpacity 
-                    key={itemKey} 
-                    style={[styles.prizeCard, item.redeemed && styles.prizeCardRedeemed]}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      if (item.redeemed) {
-                        alert(t('cannot_unpick_prize_alert', '🔒 Prize already claimed! Kids cannot un-claim prizes once picked.'));
-                        return;
-                      }
-                      togglePrizeRedeemed(item.id || index);
-                    }}
-                  >
-                    <Text style={[styles.prizeIcon, item.redeemed && { opacity: 0.6 }]}>
-                      {item.prize.match(/[\uD800-\uDBFF][\uDC00-\uDFFF]/)?.[0] || '🎁'}
-                    </Text>
-                    <Text style={[styles.prizeName, item.redeemed && styles.prizeNameRedeemed]} numberOfLines={2}>
-                      {item.prize.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/, '').trim()}
-                    </Text>
-                    
-                    {/* Day Badge */}
-                    <View style={styles.dayBadgeContainer}>
-                      <Text style={styles.dayBadgeLabel}>{dayMarker}</Text>
-                    </View>
-
-                    {/* Checkbox / Redemption Status Toggle Pill */}
-                    <View style={[styles.redeemBtn, item.redeemed ? styles.redeemBtnDone : styles.redeemBtnReady]}>
-                      {item.redeemed ? (
-                        <>
-                          <CheckCircle2 size={14} color={Colors.green} />
-                          <Text style={styles.redeemBtnDoneText}>{t('locked_claimed', 'Claimed (Locked) 🔒')}</Text>
-                        </>
-                      ) : (
-                        <>
-                          <Gift size={14} color={Colors.amber} />
-                          <Text style={styles.redeemBtnReadyText}>{t('ready_to_redeem', 'Ready to Claim 🎁')}</Text>
-                        </>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-        </View>
-      </ScrollView>
-
-      <SettingsModal 
-        visible={settingsVisible} 
-        onClose={() => setSettingsVisible(false)} 
-      />
-
-      <PrizeWheelModal 
-        visible={wheelModalVisible && allQuestsDone && !alreadySpunToday}
-        onClose={() => setWheelModalVisible(false)}
-        prizeName={currentWonPrize}
-      />
-    </SafeAreaView>
-  );
+        <View style={{ gap: 8 }}>{draftPrizes.map((prize, index) => <View key={`${index}-${prize}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={{ fontSize: 30 }}>{prizeEmoji(prize)}</Text><TextInput accessibilityLabel={`${t('prize_name')} ${index + 1}`} value={prizeLabel(prize)} onChangeText={name => updateDraftPrize(index, name)} style={[ui.text, { flex: 1, minHeight: 44, borderBottomColor: palette.line, borderBottomWidth: 1, paddingHorizontal: 8 }]} /><Pressable accessibilityRole="button" accessibilityLabel={t('prize_remove')} onPress={() => removeDraftPrize(index)} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22, color: palette.muted }}>✕</Text></Pressable></View>)}</View>
+        <Button label={t('action_save')} disabled={spinning || !draftPrizes.length} onPress={() => { s.setPrizes([...new Set(draftPrizes)]); setEditing(false); }} />
+      </View>}
+    </>}
+    <View style={{ gap: 16 }}><Text style={ui.heading}>{t('wheel_prizes')}</Text>
+      {s.wonPrizes.filter(p => !spinning || p.id !== s.wonPrizes[0]?.id).map(prize => <View key={prize.id} style={{ gap: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><Text style={{ fontSize: 40 }}>{prizeEmoji(prize.prize)}</Text><Text style={[ui.heading, { flex: 1 }]}>{prizeLabel(prize.prize)}</Text></View>
+        <Text style={ui.meta}>{new Date(prize.date).toLocaleDateString(i18n.language)} · {prize.redeemed ? t('prize_claimed') : prize.status === 'requested' ? t('prize_requested') : t('prize_agreed')}</Text>
+        {!prize.redeemed && <View style={{ flexDirection: 'row', gap: 10 }}>
+          {s.linkedParents.length && s.role !== 'parent' && prize.status !== 'approved'
+            ? <Pressable accessibilityRole="button" accessibilityLabel={t(prize.status === 'requested' ? 'prize_requested' : 'prize_request')} disabled={prize.status === 'requested'} onPress={() => s.requestPrize(prize.id)} style={{ flex: 1, minHeight: 62, borderRadius: 16, backgroundColor: palette.panel, borderWidth: 1, borderColor: palette.line, alignItems: 'center', justifyContent: 'center', gap: 2, opacity: prize.status === 'requested' ? 0.55 : 1 }}><Text style={{ fontSize: 25 }}>🙋</Text><Text style={ui.meta}>{t(prize.status === 'requested' ? 'prize_requested' : 'prize_request')}</Text></Pressable>
+            : <Pressable accessibilityRole="button" accessibilityLabel={t('prize_claim')} onPress={() => s.togglePrizeRedeemed(prize.id)} style={{ flex: 1, minHeight: 62, borderRadius: 16, backgroundColor: palette.gold, alignItems: 'center', justifyContent: 'center', gap: 2 }}><Text style={{ fontSize: 25 }}>🎁</Text><Text style={[ui.meta, { color: palette.bg }]}>{t('prize_claim')}</Text></Pressable>}
+          {s.role !== 'parent' && !s.linkedParents.length && <Pressable accessibilityRole="button" accessibilityLabel={t('prize_show_parent')} onPress={() => setPresentingPrize(prize)} style={{ flex: 1, minHeight: 62, borderRadius: 16, backgroundColor: palette.panel, borderWidth: 1, borderColor: palette.gold, alignItems: 'center', justifyContent: 'center', gap: 2 }}><Text style={{ fontSize: 25 }}>👨‍👩‍👧</Text><Text style={ui.meta}>{t('prize_show_parent')}</Text></Pressable>}
+        </View>}
+      </View>)}
+    </View>
+  </Screen>
+  <Modal visible={Boolean(presentingPrize)} transparent animationType="fade" onRequestClose={() => setPresentingPrize(null)}>
+    <View accessibilityViewIsModal style={{ flex: 1, backgroundColor: 'rgba(14,20,34,0.94)', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 18 }}>
+      {presentingPrize && <>
+        <Text style={{ fontSize: 76 }}>{prizeEmoji(presentingPrize.prize)}</Text>
+        <Text style={[ui.title, { textAlign: 'center' }]}>{prizeLabel(presentingPrize.prize)}</Text>
+        <Text style={[ui.meta, { textAlign: 'center' }]}>{t('prize_showing_parent')}</Text>
+        <Button label={`✅ ${t('prize_given')}`} onPress={() => { s.togglePrizeRedeemed(presentingPrize.id); setPresentingPrize(null); }} />
+        <Button secondary label={t('action_cancel')} onPress={() => setPresentingPrize(null)} />
+      </>}
+    </View>
+  </Modal>
+  </>;
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  container: {
-    padding: Layout.padding,
-    paddingBottom: 60,
-    maxWidth: 500,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    marginTop: 6,
-  },
-  headerTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 22,
-    color: '#F8FAFC',
-    letterSpacing: -0.3,
-  },
-  settingBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressionSlate: {
-    backgroundColor: '#151926',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    padding: 16,
-    borderRadius: 20,
-    marginBottom: 14,
-  },
-  levelHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  levelBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.amber,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  levelText: {
-    position: 'absolute',
-    color: '#121212',
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 14,
-    marginTop: 1,
-  },
-  levelInfo: {
-    flex: 1,
-  },
-  levelTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 16,
-    color: '#F8FAFC',
-  },
-  xpText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 13,
-    color: Colors.amber,
-  },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: '#272B40',
-    borderRadius: 999,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: Colors.amber,
-    borderRadius: 999,
-  },
-  progressSubText: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 11,
-    color: '#94A3B8',
-  },
-  slateDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    marginVertical: 12,
-  },
-  slateRewardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  slateRewardText: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 12,
-    color: '#CBD5E1',
-  },
-  section: {
-    flex: 1,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    ...Typography.title,
-  },
-  emptyCard: {
-    backgroundColor: '#131726',
-    padding: 36,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  emptyText: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 14,
-  },
-  prizeCard: {
-    width: '47.5%',
-    backgroundColor: '#131726',
-    padding: 16,
-    borderRadius: 18,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  prizeCardRedeemed: {
-    backgroundColor: '#0F121E',
-    borderColor: 'rgba(0, 230, 118, 0.2)',
-    opacity: 0.8,
-  },
-  prizeIcon: {
-    fontSize: 40,
-    marginBottom: 8,
-  },
-  prizeName: {
-    ...Typography.body,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  prizeNameRedeemed: {
-    color: Colors.textMuted,
-    textDecorationLine: 'line-through',
-  },
-  prizeDate: {
-    ...Typography.small,
-    color: Colors.textSecondary,
-  },
-  rewardDaysCard: {
-    backgroundColor: '#131726',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 18,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    marginBottom: 16,
-  },
-  rewardDaysTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 11,
-    color: Colors.textMuted,
-    letterSpacing: 1,
-    marginBottom: 2,
-    textTransform: 'uppercase',
-  },
-  rewardDaysCount: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 16,
-    color: Colors.amber,
-  },
-  dayBadgeContainer: {
-    backgroundColor: '#1E2337',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    marginVertical: 6,
-  },
-  dayBadgeLabel: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 10,
-    color: Colors.blue,
-  },
-  redeemBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minHeight: 36,
-    borderRadius: 999,
-    marginTop: 6,
-  },
-  redeemBtnReady: {
-    backgroundColor: 'rgba(255, 184, 0, 0.15)',
-    borderWidth: 1,
-    borderColor: Colors.amber,
-  },
-  redeemBtnDone: {
-    backgroundColor: 'rgba(0, 230, 118, 0.12)',
-    borderWidth: 1,
-    borderColor: Colors.green,
-  },
-  redeemBtnReadyText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 11,
-    color: Colors.amber,
-  },
-  redeemBtnDoneText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 11,
-    color: Colors.green,
-  },
-  wheelCardUnlocked: {
-    backgroundColor: '#181E32',
-    borderWidth: 1.5,
-    borderColor: '#FFB800',
-    borderRadius: 20,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    marginBottom: 20,
-    shadowColor: '#FFB800',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  wheelTitleUnlocked: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 14,
-    color: '#FFB800',
-    letterSpacing: 0.5,
-  },
-  wheelSubUnlocked: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  spinButtonPill: {
-    backgroundColor: '#FFB800',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 999,
-  },
-  spinButtonPillText: {
-    fontFamily: 'Nunito_900Black',
-    fontSize: 12,
-    color: '#121212',
-  },
-  wheelCardLocked: {
-    backgroundColor: '#131726',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 20,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    marginBottom: 20,
-  },
-  wheelTitleLocked: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 13,
-    color: Colors.textMuted,
-    letterSpacing: 0.5,
-  },
-  wheelSubLocked: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  wheelCardSpun: {
-    backgroundColor: '#131D24',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 230, 118, 0.3)',
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    marginBottom: 20,
-  },
-  wheelTitleSpun: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 13,
-    color: '#00E676',
-    letterSpacing: 0.5,
-  },
-  wheelSubSpun: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  spunBadgePill: {
-    backgroundColor: 'rgba(0, 230, 118, 0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 230, 118, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

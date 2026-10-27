@@ -1,15 +1,31 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput } from 'react-native';
-import { router } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { localDay } from '../utils/questDay';
+import FamilyReconnect from '../components/FamilyReconnect';
+import { showMessage, confirmAction } from '../lib/dialogs';
+import React, { useRef, useState } from 'react';
+import { Image } from 'expo-image';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { Redirect, router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { RecoveryReview } from '../components/questblox/RecoveryReview';
+import { QuestReview } from '../components/questblox/QuestReview';
 import { Colors } from '../constants/theme';
-import { useAppStore } from '../store/useAppStore';
-import { LogOut, UserPlus, User, Gift, CheckCircle2, Circle, CheckSquare, RotateCcw, ShoppingBag, Coins, Shield, Tag, Trash2, Plus } from 'lucide-react-native';
+import { DEFAULT_PRIZES, useAppStore } from '../store/useAppStore';
+import { Bell, LogOut, UserPlus, User, Gift, CheckCircle2, Circle, CheckSquare, RotateCcw, ShoppingBag, Coins, Shield, Tag, Trash2, Plus } from 'lucide-react-native';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { AVAILABLE_AVATARS } from './(tabs)/shop';
+import { personName, visibleNickname } from '../utils/displayName';
+import { PRIZE_ICONS, prizeEmoji, prizeLabel } from '../constants/prizes';
 
 export default function ParentDashboardScreen() {
-  const { t } = useTranslation();
+  const uid = useAppStore(state => state.userId);
+  const role = useAppStore(state => state.role);
+  if (!uid) return <Redirect href="/login" />;
+  if (role !== 'parent' || uid === 'guest-local') return <Redirect href="/(tabs)" />;
+  return <ParentDashboard key={uid} />;
+}
+function ParentDashboard() {
+  const { t, i18n } = useTranslation();
   const logout = useAppStore((state) => state.logout);
 
   const handleLogout = async () => {
@@ -18,6 +34,8 @@ export default function ParentDashboardScreen() {
   const userEmail = useAppStore((state) => state.userEmail);
   const fullName = useAppStore((state) => state.fullName);
   const nickname = useAppStore((state) => state.nickname);
+  const syncError = useAppStore(s => s.syncError);
+  const syncIssueCount = useAppStore(s => s.syncIssueCount);
   const prizes = useAppStore((state) => state.prizes);
   const setPrizes = useAppStore((state) => state.setPrizes);
   const tasks = useAppStore((state) => state.tasks);
@@ -31,7 +49,6 @@ export default function ParentDashboardScreen() {
   
   const children = useAppStore((state) => state.children);
   const selectedChildId = useAppStore((state) => state.selectedChildId);
-  const addChildByNickname = useAppStore((state) => state.addChildByNickname);
   const removeChild = useAppStore((state) => state.removeChild);
   const approveChildByParent = useAppStore((state) => state.approveChildByParent);
   const verifyChildTask = useAppStore((state) => state.verifyChildTask);
@@ -41,35 +58,47 @@ export default function ParentDashboardScreen() {
   const epicBossXP = useAppStore((state) => state.epicBossXP);
   const setEpicBossTask = useAppStore((state) => state.setEpicBossTask);
 
-  const [editingPrizes, setEditingPrizes] = useState([...prizes]);
-  const [childNicknameInput, setChildNicknameInput] = useState('');
-  const [childNameInput, setChildNameInput] = useState('');
-  const [inviteMsg, setInviteMsg] = useState<string | null>(null);
+  const [editingPrizes, setEditingPrizes] = useState(() => Array.from({ length: DEFAULT_PRIZES.length }, (_, i) => prizes[i] || ''));
+  const [choosingPrizeIcon, setChoosingPrizeIcon] = useState<number | null>(null);
+  const page = useRef<ScrollView>(null);
+  const sectionPositions = useRef({ rewards: 0 });
+  const jumpTo = (section: 'rewards') => page.current?.scrollTo({ y: sectionPositions.current[section], animated: true });
+
+  // A reward draft belongs to one child; never carry it into a sibling's form.
+  React.useEffect(() => {
+    const currentPrizes = useAppStore.getState().prizes;
+    setEditingPrizes(Array.from({ length: DEFAULT_PRIZES.length }, (_, i) => currentPrizes[i] || ''));
+  }, [selectedChildId]);
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
 
   const approvedChildren = children.filter(c => c.isApproved === true);
   const pendingChildren = children.filter(c => c.isApproved !== true);
   const pendingTaskReviews = children.flatMap(child => (child.tasks || []).filter(t => t.pendingApproval === true).map(t => ({ task: t, child })));
   const activeChild = approvedChildren.find(c => c.id === selectedChildId) || approvedChildren[0];
+  const childName = (child: { name?: string; nickname?: string } | undefined) => child ? personName(child.name, child.nickname, t('settings_child')) : t('settings_child');
 
-  const [epicBossTitleInput, setEpicBossTitleInput] = useState(activeChild?.epicBossTask || epicBossTask || '30-min deep focus block 🧠');
+  const [epicBossTitleInput, setEpicBossTitleInput] = useState(activeChild?.epicBossTask || epicBossTask || t('quest_focus_full'));
   const [epicBossXPInput, setEpicBossXPInput] = useState(String(activeChild?.epicBossXP || epicBossXP || 35));
 
   React.useEffect(() => {
     if (!userEmail) {
-      router.replace('/');
+      router.replace('/login');
     }
   }, [userEmail]);
 
   React.useEffect(() => {
-    const interval = setInterval(() => {
-      useAppStore.getState().loadMockState();
-    }, 1500);
+    let refreshing = false;
+    const interval = setInterval(async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try { await useAppStore.getState().loadMockState(); } finally { refreshing = false; }
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
   React.useEffect(() => {
     if (activeChild) {
-      setEpicBossTitleInput(activeChild.epicBossTask || epicBossTask || '30-min deep focus block 🧠');
+      setEpicBossTitleInput(activeChild.epicBossTask || epicBossTask || t('quest_focus_full'));
       setEpicBossXPInput(String(activeChild.epicBossXP || epicBossXP || 35));
     }
   }, [activeChild?.id, epicBossTask, epicBossXP]);
@@ -79,59 +108,77 @@ export default function ParentDashboardScreen() {
   }
 
   const handleSaveEpicBoss = () => {
-    const xpVal = parseInt(epicBossXPInput, 10);
-    setEpicBossTask(epicBossTitleInput, isNaN(xpVal) ? 35 : xpVal);
-    alert(t('epic_quest_saved_alert', 'Epic Daily Boss Quest updated! ⚔️'));
+    const cleanTitle = epicBossTitleInput.trim() || t('quest_focus_full');
+    const xpVal = Math.max(10, Math.min(100, parseInt(epicBossXPInput, 10) || 35));
+    setEpicBossTitleInput(cleanTitle); setEpicBossXPInput(String(xpVal));
+    setEpicBossTask(cleanTitle, xpVal);
+    showMessage(t('epic_quest_saved_alert', 'Epic Daily Boss Quest updated! ⚔️'));
   };
 
 
-
-  const handleAddChild = () => {
-    if (!childNicknameInput.trim()) return;
-    addChildByNickname(childNicknameInput.trim(), childNameInput.trim());
-    setInviteMsg(t('invite_sent_notice', 'Invitation sent to @{{nickname}}! Waiting for kid approval on their app ⏳', { nickname: childNicknameInput.trim() }));
-    setChildNicknameInput('');
-    setChildNameInput('');
-  };
 
   const handleSavePrizes = () => {
     setPrizes(editingPrizes);
-    alert(t('save_prizes'));
+    showMessage(t('save_prizes'));
   };
 
   const updatePrize = (index: number, text: string) => {
     const newPrizes = [...editingPrizes];
-    newPrizes[index] = text;
+    newPrizes[index] = text.trim() ? `${text} ${prizeEmoji(newPrizes[index])}` : prizeEmoji(newPrizes[index]);
     setEditingPrizes(newPrizes);
+  };
+  const updatePrizeIcon = (index: number, icon: string) => {
+    const next = [...editingPrizes];
+    next[index] = `${prizeLabel(next[index])} ${icon}`.trim();
+    setEditingPrizes(next); setChoosingPrizeIcon(null);
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={styles.keyboardLayer} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView ref={page} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
+        <FamilyReconnect />
+        {syncError && <Text style={{ color: Colors.amber }}>{t(syncError)}</Text>}
         {/* Header with Parent Name, Nickname and Administration Badge */}
         <View style={{ backgroundColor: '#131726', borderWidth: 1, borderColor: 'rgba(255, 184, 0, 0.25)', borderRadius: 20, padding: 18, marginBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ gap: 4, flex: 1 }}>
+          <View style={{ gap: 4, flex: 1, minWidth: 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Shield size={18} color={Colors.amber} />
-              <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.amber, fontSize: 13, letterSpacing: 0.5 }}>
+              <Text numberOfLines={2} style={{ flex: 1, fontFamily: 'Nunito_800ExtraBold', color: Colors.amber, fontSize: 13, letterSpacing: 0.5 }}>
                 {t('parent_control_center', 'PARENTS CONTROL CENTER 👨‍👩‍👧')}
               </Text>
             </View>
-            <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 20 }}>
-              {fullName || 'Parent'} (@{nickname || userEmail?.split('@')[0] || 'parent_boss'})
-            </Text>
+            <Text numberOfLines={1} style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 20 }}>{personName(fullName, nickname, t('settings_parent'))}</Text>
+            {!!visibleNickname(nickname) && <Text numberOfLines={1} style={styles.userTag}>@{visibleNickname(nickname)}</Text>}
           </View>
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('notifications_title')} onPress={() => router.push('/reminders')} style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}>
+              <Bell size={24} color={Colors.amber} />
+            </TouchableOpacity>
             <TouchableOpacity testID="parent-logout-btn" onPress={handleLogout} style={{ backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, padding: 10, borderRadius: 12 }}>
               <LogOut size={18} color={Colors.red} />
             </TouchableOpacity>
           </View>
         </View>
 
+        <View style={{ paddingVertical: 16, gap: 8 }}>
+          <Text accessibilityRole="header" style={{ color: Colors.text, fontFamily: 'Nunito_800ExtraBold', fontSize: 24 }}>{t('family_start_title')}</Text>
+          <Text style={{ color: Colors.textSecondary, fontSize: 16, lineHeight: 23 }}>{t(activeChild ? 'family_start_child' : 'family_start_connect', { name: activeChild ? childName(activeChild) : '' })}</Text>
+          {[
+            { icon: '👨‍👩‍👧', label: 'family_start_link', action: () => router.push('/link-account'), disabled: false },
+            { icon: '⭐', label: 'family_start_quests', action: () => { if (activeChild) selectChild(activeChild.id); router.push('/manage-tasks'); }, disabled: !activeChild },
+            { icon: '🎁', label: 'family_start_rewards', action: () => { if (activeChild) selectChild(activeChild.id); jumpTo('rewards'); }, disabled: !activeChild },
+          ].map(item => <TouchableOpacity key={item.label} accessibilityRole="button" accessibilityLabel={t(item.label)} accessibilityState={{ disabled: item.disabled }} disabled={item.disabled} onPress={item.action} style={{ flexDirection: 'row', alignItems: 'center', gap: 16, minHeight: 64, opacity: item.disabled ? 0.45 : 1 }}>
+            <Text accessible={false} style={{ fontSize: 32 }}>{item.icon}</Text>
+            <Text style={{ flex: 1, color: Colors.text, fontFamily: 'Nunito_800ExtraBold', fontSize: 18 }}>{t(item.label)}</Text>
+            <Text accessible={false} style={{ color: Colors.amber, fontSize: 24 }}>›</Text>
+          </TouchableOpacity>)}
+        </View>
+
         {/* Pending Approvals Section (Parent Approves Child Link Requests) */}
         {pendingChildren.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.secTitle}>{t('pending_approvals', 'PENDING CHILD APPROVAL REQUESTS ⏳')}</Text>
+            <Text style={styles.secTitle}>{t('pending_approvals')}</Text>
             <View style={{ gap: 10 }}>
               {pendingChildren.map((child) => (
                 <View key={child.id} style={[styles.card, { backgroundColor: Colors.cardYellow, borderColor: Colors.amber }]}>
@@ -141,7 +188,8 @@ export default function ParentDashboardScreen() {
                         <UserPlus size={22} color={Colors.amber} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.childName}>{t('kid_label', 'Kid: {{name}} (@{{nickname}})', { name: child.name || child.nickname || 'Kid', nickname: child.nickname || 'guest' })}</Text>
+                        <Text numberOfLines={2} style={styles.childName}>{childName(child)}</Text>
+                        {!!visibleNickname(child.nickname) && <Text numberOfLines={1} style={styles.childSub}>@{visibleNickname(child.nickname)}</Text>}
                         <Text style={{ fontFamily: 'Nunito_700Bold', color: Colors.amber, fontSize: 12, marginTop: 2 }}>
                           {child.initiatedBy === 'parent' 
                             ? t('parent_sent_invite_notice', 'Invitation sent to @{{nickname}}! Waiting for kid approval on their app ⏳', { nickname: child.nickname || 'guest' })
@@ -150,13 +198,14 @@ export default function ParentDashboardScreen() {
                       </View>
                     </View>
 
-                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
                       {child.initiatedBy !== 'parent' && (
                         <TouchableOpacity 
-                          style={{ flex: 1, backgroundColor: Colors.green, paddingVertical: 10, borderRadius: 10, alignItems: 'center' }}
-                          onPress={() => {
-                            approveChildByParent(child.id);
-                            alert(`🎉 Approved ${child.name || child.nickname || 'Kid'} (@${child.nickname})! Account linked successfully.`);
+                          accessibilityRole="button" accessibilityLabel={t('review_approve')}
+                        style={{ flexGrow: 1, flexBasis: 140, minHeight: 48, backgroundColor: Colors.green, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}
+                          onPress={async () => {
+                            const accepted = await approveChildByParent(child.id);
+                            showMessage(t(accepted ? 'family_linked' : 'family_link_error'));
                           }}
                         >
                           <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: '#FFF', fontSize: 13 }}>
@@ -166,7 +215,7 @@ export default function ParentDashboardScreen() {
                       )}
 
                       <TouchableOpacity 
-                        style={{ flex: 1, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.border, paddingVertical: 10, borderRadius: 10, alignItems: 'center' }}
+                        style={{ flexGrow: 1, flexBasis: 140, minHeight: 48, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.border, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}
                         onPress={() => removeChild(child.id)}
                       >
                         <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.red, fontSize: 13 }}>
@@ -181,64 +230,42 @@ export default function ParentDashboardScreen() {
           </View>
         )}
 
+        {(syncIssueCount > 0 || syncError === 'progress_legacy_pending') && <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('recovery_title')} onPress={() => router.push('/sync-recovery')} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: Colors.amber }}>🗂️ {t('recovery_title')}</Text></TouchableOpacity>}
+        {children.flatMap(child => (child.recoveryRequests || []).map(request => <RecoveryReview key={`${child.id}-${request.id}`} request={request} childName={child.name || child.nickname} currentCoins={child.coins} t={t} language={i18n.language} busy={recoveryBusy}
+          onReview={approved => confirmAction(t(approved ? request.kind === 'quest' ? 'recovery_quest_confirm' : 'recovery_restore_confirm' : 'recovery_decline_confirm'), () => {
+            setRecoveryBusy(true);
+            void useAppStore.getState().reviewProgressRecovery(child.id, request.id, approved).then(saved => {
+              showMessage(t(saved ? 'recovery_review_saved' : 'recovery_failed'));
+            }).finally(() => setRecoveryBusy(false));
+          })} />))}
+        {children.filter(child => child.isApproved && child.dailyMood && child.lastActiveDate === localDay()).map(child => <View key={`mood-${child.id}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
+          <Text style={{ fontSize: 34 }}>{child.dailyMood === 'wiped' ? '😴' : child.dailyMood === 'thriving' ? '🙂' : '⚡'}</Text>
+          <Text style={{ color: Colors.text, flex: 1 }}>{child.name || child.nickname} · {t(`day_${child.dailyMood}`)}</Text>
+        </View>)}
+        {children.flatMap(child => child.tasks.filter(task => task.helpRequested && !task.done).map(task =>
+          <View key={`${child.id}-${task.id}`} style={{ paddingVertical: 12 }}>
+            <Text style={{ color: Colors.amber }}>🙋 {child.name || child.nickname} · {t('quest_help')}</Text>
+            <Text style={{ color: Colors.text }}>{task.shortName || t(task.name, task.name)}</Text>
+          </View>
+        ))}
+        {children.flatMap(child => child.wonPrizes.filter(prize => prize.status === 'requested' && !prize.redeemed).map(prize =>
+          <View key={`${child.id}-${prize.id}`} style={{ paddingVertical: 12, gap: 8 }}>
+            <Text style={{ color: Colors.text }}>🎁 {child.name || child.nickname} · {prize.prize}</Text>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('prize_approve')} style={{ minHeight: 48, justifyContent: 'center' }} onPress={() => useAppStore.getState().approvePrize(child.id, prize.id)}><Text style={{ color: Colors.amber }}>✓ {t('prize_approve')}</Text></TouchableOpacity>
+          </View>
+        ))}
         {/* Pending Quest Reviews Section */}
         {pendingTaskReviews.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.secTitle}>{t('pending_quest_reviews', 'QUESTS AWAITING YOUR VERIFICATION 📸')}</Text>
+            <Text style={styles.secTitle}>{t('review_quests')}</Text>
             <View style={{ gap: 10 }}>
               {pendingTaskReviews.map(({ task, child }) => (
-                <View key={`${child.id}_${task.id}`} style={[styles.card, { backgroundColor: Colors.surface2, borderColor: Colors.purple, borderWidth: 1.5 }]}>
-                  <View style={{ gap: 8 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.purple, fontSize: 16 }}>
-                        {task.icon || '📸'} {task.name}
-                      </Text>
-                      <View style={{ backgroundColor: Colors.purpleDim, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
-                        <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.purple, fontSize: 12 }}>
-                          {task.diff === 'hard' ? '+35 XP' : task.diff === 'med' ? '+20 XP' : '+10 XP'}
-                        </Text>
-                      </View>
-                    </View>
-                    
-                    <Text style={{ fontFamily: 'Nunito_700Bold', color: Colors.textSecondary, fontSize: 13 }}>
-                      Kid: <Text style={{ color: Colors.text }}>{child.name}</Text> (@{child.nickname})
-                    </Text>
-                    
-                    {task.verificationNote && (
-                      <View style={{ backgroundColor: Colors.surface, padding: 8, borderRadius: 8, borderLeftWidth: 3, borderLeftColor: Colors.purple }}>
-                        <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, fontSize: 12 }}>
-                          Note: "{task.verificationNote}"
-                        </Text>
-                      </View>
-                    )}
-
-                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-                      <TouchableOpacity 
-                        style={{ flex: 1, backgroundColor: Colors.green, paddingVertical: 10, borderRadius: 10, alignItems: 'center' }}
-                        onPress={() => {
-                          verifyChildTask(child.id, task.id, true);
-                          alert(`✅ Approved quest "${task.name}" for ${child.name}! XP & Coins awarded.`);
-                        }}
-                      >
-                        <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: '#FFF', fontSize: 13 }}>
-                          APPROVE & AWARD XP ✅
-                        </Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity 
-                        style={{ flex: 1, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, paddingVertical: 10, borderRadius: 10, alignItems: 'center' }}
-                        onPress={() => {
-                          verifyChildTask(child.id, task.id, false);
-                          alert(`Returned quest to ${child.name}.`);
-                        }}
-                      >
-                        <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.red, fontSize: 13 }}>
-                          RETURN TO KID ❌
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
+                <QuestReview key={`${child.id}_${task.id}`} task={task} child={child} t={t} language={i18n.language}
+                  onReview={async approved => {
+                    const saved = await verifyChildTask(child.id, task.id, approved);
+                    if (!saved) { showMessage(t('family_sync_retry')); return; }
+                    showMessage(t(approved ? 'review_approved' : 'review_returned', { name: child.name }));
+                  }} />
               ))}
             </View>
           </View>
@@ -246,11 +273,11 @@ export default function ParentDashboardScreen() {
 
         {/* Approved Child Selector Switcher Bar (Only approved kids appear here) */}
         <View style={styles.section}>
-          <Text style={styles.secTitle}>{t('select_child_title', 'YOUR APPROVED CHILDREN 🧒👧')}</Text>
+          <Text style={styles.secTitle}>{t('select_child_title')}</Text>
           {approvedChildren.length === 0 ? (
             <View style={styles.card}>
               <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, textAlign: 'center', marginVertical: 8 }}>
-                No approved children linked yet. Add a child by nickname below and wait for them to approve!
+                {t('family_start_connect')}
               </Text>
             </View>
           ) : (
@@ -269,9 +296,9 @@ export default function ParentDashboardScreen() {
                       activeOpacity={0.8}
                     >
                       <Text style={{ fontSize: 18 }}>🎮</Text>
-                      <View>
-                        <Text style={[styles.childPillName, isSelected && styles.childPillNameActive]}>{child.name || child.nickname || 'Kid'}</Text>
-                        <Text style={[styles.childPillTag, isSelected && { color: Colors.amber }]}>@{child.nickname}</Text>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text numberOfLines={1} style={[styles.childPillName, isSelected && styles.childPillNameActive]}>{childName(child)}</Text>
+                        {!!visibleNickname(child.nickname) && <Text style={[styles.childPillTag, isSelected && { color: Colors.amber }]}>@{visibleNickname(child.nickname)}</Text>}
                       </View>
                     </TouchableOpacity>
                   );
@@ -286,9 +313,10 @@ export default function ParentDashboardScreen() {
                       <View style={[styles.avatar, { backgroundColor: Colors.surface }]}>
                         <User size={22} color={Colors.green} />
                       </View>
-                      <View>
-                        <Text style={styles.childName}>{t('kid_label', 'Kid: {{name}} (@{{nickname}})', { name: activeChild.name || activeChild.nickname || 'Kid', nickname: activeChild.nickname || 'guest' })}</Text>
-                        <Text style={styles.childSub}>Level {activeChild.level} • {activeChild.xp} XP • 💰 {activeChild.coins} Coins</Text>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text numberOfLines={2} style={styles.childName}>{childName(activeChild)}</Text>
+                        {!!visibleNickname(activeChild.nickname) && <Text numberOfLines={1} style={styles.childSub}>@{visibleNickname(activeChild.nickname)}</Text>}
+                        <Text style={styles.childSub}>{t('family_child_stats', { level: activeChild.level, xp: activeChild.xp, coins: activeChild.coins })}</Text>
                         {activeChild.linkedParents && activeChild.linkedParents.length > 0 && (
                           <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.blue, fontSize: 11, marginTop: 2 }}>
                             {t('instructed_by', 'Instructed by Parents: ')}{activeChild.linkedParents.map(p => `@${p}`).join(', ')}
@@ -296,16 +324,13 @@ export default function ParentDashboardScreen() {
                         )}
                       </View>
                     </View>
-                    <TouchableOpacity 
-                      style={{ backgroundColor: 'rgba(232,0,27,0.15)', borderWidth: 1, borderColor: Colors.red, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                    <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('remove_child_btn')}
+                      style={{ width: 44, height: 44, flexShrink: 0, backgroundColor: 'rgba(232,0,27,0.12)', borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}
                       onPress={() => {
-                        if (confirm(`Remove ${activeChild.name || activeChild.nickname || 'Kid'} (@${activeChild.nickname})?`)) {
-                          removeChild(activeChild.id);
-                        }
+                        confirmAction(t('family_remove_confirm', { name: activeChild.name || activeChild.nickname || t('settings_child') }), () => removeChild(activeChild.id));
                       }}
                     >
-                      <Trash2 size={14} color={Colors.red} />
-                      <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.red, fontSize: 11 }}>{t('remove_child_btn', 'Remove 🗑️')}</Text>
+                      <Trash2 size={20} color={Colors.red} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -314,95 +339,46 @@ export default function ParentDashboardScreen() {
           )}
         </View>
 
-        {/* Add Child by Nickname Section (No Email Required!) */}
         <View style={styles.section}>
-          <Text style={styles.secTitle}>{t('add_child_by_nickname', 'ADD CHILD BY NICKNAME 👨‍👩‍👧')}</Text>
-          <View style={styles.card}>
-            <Text style={styles.settingsSub}>{t('add_child_sub', "Enter your child's Nickname to link their account directly (no email needed!):")}</Text>
-            
-            <View style={{ gap: 10, marginTop: 6 }}>
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <TextInput
-                  testID="add-child-name-input"
-                  style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                  placeholder={t('name_placeholder', 'Child Name (optional)')}
-                  placeholderTextColor={Colors.textMuted}
-                  value={childNameInput}
-                  onChangeText={setChildNameInput}
-                />
-                <TextInput
-                  testID="add-child-nick-input"
-                  style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                  placeholder={t('nickname_input_placeholder', "Child's Nickname / Tag (e.g. AlexRoblox)")}
-                  placeholderTextColor={Colors.textMuted}
-                  autoCapitalize="none"
-                  value={childNicknameInput}
-                  onChangeText={setChildNicknameInput}
-                />
-              </View>
-
-              <TouchableOpacity 
-                testID="add-child-submit-btn"
-                style={{ backgroundColor: Colors.amber, paddingVertical: 14, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}
-                onPress={handleAddChild}
-                activeOpacity={0.8}
-              >
-                <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: '#121212', fontSize: 14 }}>{t('btn_add_child', 'ADD CHILD 🚀')}</Text>
-              </TouchableOpacity>
+          <TouchableOpacity accessibilityRole="button" onPress={() => router.push('/link-account')} style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 14 }]}>
+            <View style={[styles.avatar, { backgroundColor: Colors.amberDim }]}><UserPlus size={23} color={Colors.amber} /></View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[styles.childName, { fontSize: 17 }]}>{t('family_connect_child')}</Text>
+              <Text style={[styles.settingsSub, { marginBottom: 0 }]}>{t('family_connect_methods')}</Text>
             </View>
-
-            {inviteMsg && (
-              <Text style={{ fontFamily: 'Nunito_700Bold', color: Colors.green, fontSize: 13, marginTop: 10, textAlign: 'center' }}>
-                {inviteMsg}
-              </Text>
-            )}
-          </View>
+            <Text accessible={false} style={{ color: Colors.amber, fontSize: 28 }}>›</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Edit Epic Daily Boss Quest Card */}
+        {/* Edit Epic Daily Boss Quest */}
         <View style={styles.section}>
-          <Text style={styles.secTitle}>{t('edit_epic_boss_title', 'EDIT EPIC DAILY BOSS QUEST ⚔️')}</Text>
-          <View style={styles.card}>
-            <Text style={styles.settingsSub}>
-              {t('edit_epic_boss_sub', 'Customize the main daily boss challenge and XP reward for your child:')}
-            </Text>
-            
-            <View style={{ gap: 10, marginTop: 8 }}>
+          <View style={styles.sectionHeading}><Text style={styles.sectionEmoji}>⚔️</Text><View style={{ flex: 1, minWidth: 0 }}><Text style={styles.sectionTitle}>{t('edit_epic_boss_title')}</Text><Text style={styles.sectionHint}>{t('edit_epic_boss_sub')}</Text></View></View>
+          <View style={styles.featurePanel}>
+            <View style={{ gap: 18 }}>
               <View>
-                <Text style={{ fontFamily: 'Nunito_700Bold', color: Colors.textSecondary, fontSize: 12, marginBottom: 4 }}>
-                  {t('epic_quest_title_label', 'Epic Quest Title / Challenge:')}
-                </Text>
+                <Text style={styles.fieldLabel}>{t('epic_quest_title_label')}</Text>
                 <TextInput
-                  style={styles.input}
-                  placeholder="e.g. 30-min deep focus block 🧠"
+                  style={[styles.input, styles.epicTitleInput]}
+                  placeholder={t('quest_focus_full')} accessibilityLabel={t('epic_quest_title_label')}
                   placeholderTextColor={Colors.textMuted}
                   value={epicBossTitleInput}
                   onChangeText={setEpicBossTitleInput}
+                  maxLength={80}
+                  multiline
                 />
               </View>
 
               <View>
-                <Text style={{ fontFamily: 'Nunito_700Bold', color: Colors.textSecondary, fontSize: 12, marginBottom: 4 }}>
-                  {t('epic_quest_xp_label', 'XP Reward Amount:')}
-                </Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="35"
-                  placeholderTextColor={Colors.textMuted}
-                  keyboardType="numeric"
-                  value={epicBossXPInput}
-                  onChangeText={setEpicBossXPInput}
-                />
+                <Text style={styles.fieldLabel}>{t('epic_quest_xp_label')}</Text>
+                <View accessibilityRole="radiogroup" style={styles.xpChoices}>{[20, 35, 50, 75].map(value => <TouchableOpacity key={value} accessibilityRole="radio" accessibilityState={{ checked: epicBossXPInput === String(value) }} style={[styles.xpChoice, epicBossXPInput === String(value) && styles.xpChoiceActive]} onPress={() => setEpicBossXPInput(String(value))}><Text style={[styles.xpChoiceText, epicBossXPInput === String(value) && styles.xpChoiceTextActive]}>✨ {value}</Text></TouchableOpacity>)}</View>
               </View>
 
               <TouchableOpacity 
-                style={{ backgroundColor: Colors.amber, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}
+                style={styles.saveButton}
                 onPress={handleSaveEpicBoss}
                 activeOpacity={0.8}
               >
-                <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: '#121212', fontSize: 13 }}>
-                  {t('btn_save_epic_quest', 'SAVE EPIC BOSS QUEST 💾')}
-                </Text>
+                <Text style={styles.saveButtonText}>{t('btn_save_epic_quest')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -410,13 +386,13 @@ export default function ParentDashboardScreen() {
 
         {/* Parent Check/Uncheck Quest Verification Card */}
         <View style={styles.section}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ marginBottom: 12, gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <CheckSquare size={18} color={Colors.green} />
-              <Text style={[styles.secTitle, { marginBottom: 0 }]}>{t('quest_verification_title', 'QUEST VERIFICATION (CHECK / UNCHECK)')}</Text>
+              <Text style={[styles.sectionTitle, { flex: 1 }]}>{t('quest_verification_title')}</Text>
             </View>
             <TouchableOpacity testID="manage-quests-btn" onPress={() => router.push('/manage-tasks')} style={styles.viewButton}>
-              <Text style={styles.viewButtonText}>{t('manage_quests_btn', 'Manage Quests')} &gt;</Text>
+              <Plus size={18} color={Colors.amber} /><Text style={styles.viewButtonText}>{t('manage_quests_btn')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -436,17 +412,11 @@ export default function ParentDashboardScreen() {
                       {t(task.name, task.name)}
                     </Text>
                   </View>
-                  <View style={styles.checkStatusPill}>
+                  <View accessible accessibilityLabel={t(task.done ? 'done_status' : 'pending_status')} style={styles.checkStatusPill}>
                     {task.done ? (
-                      <View style={styles.doneTag}>
-                        <CheckCircle2 size={16} color={Colors.green} />
-                        <Text style={styles.doneTagText}>{t('done_status', 'DONE ✅')}</Text>
-                      </View>
+                      <CheckCircle2 size={26} color={Colors.green} />
                     ) : (
-                      <View style={styles.pendingTag}>
-                        <Circle size={16} color={Colors.textMuted} />
-                        <Text style={styles.pendingTagText}>{t('pending_status', 'PENDING ⏳')}</Text>
-                      </View>
+                      <Circle size={26} color={Colors.textMuted} />
                     )}
                   </View>
                 </TouchableOpacity>
@@ -454,12 +424,12 @@ export default function ParentDashboardScreen() {
             </View>
 
             {/* Parent Task Control Buttons: Reset Daily / Delete All Tasks */}
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+            <View style={{ gap: 10, marginTop: 14 }}>
               <TouchableOpacity 
-                style={[styles.resetDayButton, { flex: 1, marginTop: 0 }]} 
+                style={[styles.resetDayButton, { marginTop: 0 }]}
                 onPress={() => {
                   resetTasksForNewDay();
-                  alert(t('new_day_alert', '🔄 New Day Started! All daily quests reset to 0/N completed.'));
+                  showMessage(t('new_day_alert', '🔄 New Day Started! All daily quests reset to 0/N completed.'));
                 }}
               >
                 <RotateCcw size={16} color={Colors.blue} />
@@ -467,11 +437,10 @@ export default function ParentDashboardScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity 
-                style={[styles.resetDayButton, { flex: 1, marginTop: 0, backgroundColor: 'rgba(232,0,27,0.12)', borderColor: Colors.red }]} 
+                style={[styles.resetDayButton, { marginTop: 0, backgroundColor: 'rgba(232,0,27,0.12)', borderColor: Colors.red }]}
                 onPress={() => {
-                  if (confirm(t('delete_all_tasks_confirm', 'Are you sure you want to delete all tasks for this child?'))) {
-                    deleteAllTasks();
-                  }
+                  if (tasks.some(task => task.pendingApproval)) { showMessage(t('quest_review_before_delete')); return; }
+                  confirmAction(t('delete_all_tasks_confirm', 'Are you sure you want to delete all tasks for this child?'), deleteAllTasks);
                 }}
               >
                 <Trash2 size={16} color={Colors.red} />
@@ -482,7 +451,7 @@ export default function ParentDashboardScreen() {
         </View>
 
         {/* Parent Check/Uncheck Awarded Winnings Card */}
-        <View style={styles.section}>
+        <View onLayout={event => { sectionPositions.current.rewards = event.nativeEvent.layout.y; }} style={styles.section}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <Gift size={18} color={Colors.amber} />
             <Text style={[styles.secTitle, { marginBottom: 0 }]}>{t('awarded_winnings_title', 'AWARDED WINNINGS & REDEMPTIONS')}</Text>
@@ -564,18 +533,18 @@ export default function ParentDashboardScreen() {
               <View style={{ gap: 10 }}>
                 {AVAILABLE_AVATARS.filter(av => unlockedAvatars.includes(av.id)).map((av) => (
                   <View key={av.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface2, padding: 12, borderRadius: 12, borderLeftWidth: 4, borderLeftColor: av.color }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                      <Text style={{ fontSize: 26 }}>{av.emoji || '🦸'}</Text>
-                      <View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                      <Image source={av.image} style={{ width: 52, height: 52 }} contentFit="contain" />
+                      <View style={{ flex: 1 }}>
                         <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 15 }}>{av.name}</Text>
                         <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textSecondary, fontSize: 12 }}>
-                          {av.battleClass} · HP {av.hp} · ATK {av.attack}
+                          {t(`shop_skill_${av.id}`)} · ♥ 100 · ⚔ 14
                         </Text>
                       </View>
                     </View>
                     <View style={{ backgroundColor: 'rgba(255,179,0,0.15)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
                       <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.amber, fontSize: 13 }}>
-                        {av.price === 0 ? 'FREE 🎁' : `${av.price} 💰`}
+                        {av.price === 0 ? `${t('free_reward')} 🎁` : `${av.price} 💰`}
                       </Text>
                     </View>
                   </View>
@@ -585,24 +554,29 @@ export default function ParentDashboardScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
+        <View onLayout={event => { sectionPositions.current.rewards = event.nativeEvent.layout.y; }} style={styles.section}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <Gift size={18} color={Colors.amber} />
             <Text style={[styles.secTitle, { marginBottom: 0 }]}>{t('prize_settings').toUpperCase()}</Text>
           </View>
           <View style={styles.card}>
-            <Text style={styles.settingsSub}>{t('prize_settings_sub', 'Set the 6 rewards kids can win when finishing all daily quests:')}</Text>
+            <Text style={styles.settingsSub}>{t('prize_settings_sub')}</Text>
             
-            <View style={styles.grid}>
+            <View style={styles.rewardList}>
               {editingPrizes.map((prize, index) => (
+                <View key={index} style={{ gap: 8 }}><View style={styles.rewardRow}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel={`${t('prize_choose_icon')} ${index + 1}`} onPress={() => setChoosingPrizeIcon(choosingPrizeIcon === index ? null : index)} style={styles.rewardIconButton}><Text style={styles.rewardIcon}>{prizeEmoji(prize)}</Text></TouchableOpacity>
                 <TextInput
-                  key={index}
-                  style={styles.input}
-                  value={prize}
+                  style={[styles.input, { flex: 1 }]}
+                  value={prizeLabel(prize)}
+                  onFocus={() => setChoosingPrizeIcon(index)}
                   onChangeText={(text) => updatePrize(index, text)}
-                  placeholder={`Prize ${index + 1}`}
+                  placeholder={t('family_reward_number', { count: index + 1 })}
+                  accessibilityLabel={t('family_reward_number', { count: index + 1 })}
                   placeholderTextColor={Colors.textMuted}
+                  maxLength={60}
                 />
+                </View>{choosingPrizeIcon === index && <View accessibilityRole="radiogroup" accessibilityLabel={t('prize_choose_icon')} style={styles.rewardIconGrid}>{PRIZE_ICONS.map(icon => <TouchableOpacity key={icon} accessibilityRole="radio" accessibilityState={{ checked: prizeEmoji(prize) === icon }} onPress={() => updatePrizeIcon(index, icon)} style={[styles.rewardIconChoice, prizeEmoji(prize) === icon && styles.rewardIconChoiceActive]}><Text style={{ fontSize: 28 }}>{icon}</Text></TouchableOpacity>)}</View>}</View>
               ))}
             </View>
 
@@ -622,6 +596,7 @@ export default function ParentDashboardScreen() {
           </View>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -630,6 +605,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  keyboardLayer: {
+    flex: 1,
   },
   container: {
     padding: 18,
@@ -662,11 +640,25 @@ const styles = StyleSheet.create({
   },
   secTitle: {
     fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 11,
+    fontSize: 14,
+    lineHeight: 20,
+    flexShrink: 1,
     color: Colors.textMuted,
     letterSpacing: 1,
     marginBottom: 10,
   },
+  sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  sectionEmoji: { fontSize: 34 },
+  sectionTitle: { fontFamily: 'Nunito_900Black', fontSize: 21, lineHeight: 27, color: Colors.text, flexShrink: 1 },
+  sectionHint: { fontFamily: 'Nunito_600SemiBold', fontSize: 14, lineHeight: 20, color: Colors.textMuted, marginTop: 2 },
+  featurePanel: { backgroundColor: '#131726', borderWidth: 2, borderColor: 'rgba(255,184,0,0.32)', borderRadius: 22, padding: 18 },
+  fieldLabel: { fontFamily: 'Nunito_800ExtraBold', color: Colors.textSecondary, fontSize: 16, marginBottom: 8 },
+  epicTitleInput: { minHeight: 82, paddingVertical: 14, textAlignVertical: 'top', fontSize: 19 },
+  xpChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  xpChoice: { minWidth: 72, minHeight: 48, flexGrow: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: Colors.surface2, borderWidth: 2, borderColor: Colors.border2 },
+  xpChoiceActive: { backgroundColor: Colors.amberDim, borderColor: Colors.amber },
+  xpChoiceText: { fontFamily: 'Nunito_800ExtraBold', color: Colors.textSecondary, fontSize: 16 },
+  xpChoiceTextActive: { color: Colors.amber },
   card: {
     backgroundColor: '#131726',
     borderWidth: 1,
@@ -688,6 +680,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
+    minWidth: 0,
   },
   avatar: {
     width: 44,
@@ -702,6 +696,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 15,
     color: Colors.text,
+    flexShrink: 1,
   },
   childSub: {
     fontFamily: 'Nunito_700Bold',
@@ -728,6 +723,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 999,
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   viewButtonText: {
     color: Colors.amber,
@@ -736,25 +736,27 @@ const styles = StyleSheet.create({
   },
   settingsSub: {
     fontFamily: 'Nunito_700Bold',
-    fontSize: 12,
+    fontSize: 14,
+    lineHeight: 20,
     color: Colors.textMuted,
     marginBottom: 16,
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 18,
-  },
+  rewardList: { gap: 10, marginBottom: 18 },
+  rewardRow: { flexDirection: 'row', alignItems: 'center', gap: 10, width: '100%' },
+  rewardIconButton: { width: 58, height: 58, flexShrink: 0, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.amberDim, borderWidth: 2, borderColor: 'rgba(255,184,0,0.35)' },
+  rewardIcon: { fontSize: 32 },
+  rewardIconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingLeft: 68 },
+  rewardIconChoice: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.border2 },
+  rewardIconChoiceActive: { backgroundColor: Colors.amberDim, borderColor: Colors.amber },
   input: {
-    width: '48%',
-    height: 48,
+    width: '100%',
+    minHeight: 54,
     backgroundColor: '#1A2035',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 12,
     paddingHorizontal: 14,
-    fontSize: 13,
+    fontSize: 16,
     fontFamily: 'Nunito_700Bold',
     color: Colors.text,
   },
@@ -790,6 +792,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito_700Bold',
     fontSize: 14,
     color: Colors.text,
+    flex: 1,
+    flexShrink: 1,
   },
   questCheckNameDone: {
     color: Colors.textMuted,
@@ -798,6 +802,8 @@ const styles = StyleSheet.create({
   checkStatusPill: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginLeft: 10,
+    width: 32,
   },
   doneTag: {
     flexDirection: 'row',
@@ -847,6 +853,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 12,
     color: Colors.blue,
+    flexShrink: 1,
+    textAlign: 'center',
   },
   userTag: {
     fontFamily: 'Nunito_700Bold',
