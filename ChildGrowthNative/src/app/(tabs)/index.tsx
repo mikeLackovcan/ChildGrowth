@@ -3,17 +3,19 @@ import QuestCelebration from '../../components/questblox/QuestCelebration';
 import { canManageQuest } from '../../utils/accountState';
 import { Pencil, Trash2, Plus, Volume2 } from 'lucide-react-native';
 import { confirmAction } from '../../lib/dialogs';
-import { useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, AppState, TextInput } from 'react-native';
-import { router, Redirect } from 'expo-router';
+import { router, Redirect, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { calculateQuestReward, getNextLockedAvatar } from '../../utils/avatarSkills';
 import { questVisual } from '../../utils/questVisuals';
 import { localDay, tasksForDay, taskBaseReward } from '../../utils/questDay';
 import { Screen, Button, Progress, SceneArt, ui, palette, fighterFor } from '../../components/questblox/UI';
+import { isTimedQuest, questTimeRemainingMs, questTimerText } from '../../utils/questTimer';
+import { db } from '../../lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 export default function QuestsScreen() {
   const s = useAppStore();
@@ -28,6 +30,7 @@ export default function QuestsScreen() {
   const [more, setMore] = useState(false);
   const [detailsTask, setDetailsTask] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
+  const [timerNow, setTimerNow] = useState(Date.now());
   useEffect(() => {
     let syncing = false;
     const refresh = async () => {
@@ -41,11 +44,21 @@ export default function QuestsScreen() {
     refresh();
     const timer = setInterval(refresh, 30000);
     const listener = AppState.addEventListener('change', status => { if (status === 'active') refresh(); });
-    return () => { clearInterval(timer); listener.remove(); };
-  }, []);
+    const uid = useAppStore.getState().userId;
+    const liveRefresh = () => { void refresh(); };
+    const stopProfile = uid && uid !== 'guest-local' ? onSnapshot(doc(db, 'profiles', uid), liveRefresh, () => {}) : undefined;
+    const stopProgress = uid && uid !== 'guest-local' ? onSnapshot(doc(db, 'user_data', uid), liveRefresh, () => {}) : undefined;
+    return () => { clearInterval(timer); listener.remove(); stopProfile?.(); stopProgress?.(); };
+  }, [s.userId]);
   const { quest } = useLocalSearchParams<{ quest?: string }>();
-  useEffect(() => { if (quest && s.tasks.some(task => task.id === quest)) setSelectedTask(quest); }, [quest]);
+  useEffect(() => { if (quest && s.tasks.some(task => task.id === quest)) setSelectedTask(quest); }, [quest, s.tasks]);
   useEffect(() => () => { import('expo-speech').then(speech => speech.stop()).catch(() => {}); }, []);
+  useEffect(() => {
+    if (!s.tasks.some(task => isTimedQuest(task) && task.startedAt && !task.done && !task.pendingApproval)) return;
+    setTimerNow(Date.now());
+    const timer = setInterval(() => setTimerNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [s.tasks]);
   if (!s.userEmail) return <Redirect href="/login" />;
   if (s.role === 'parent') return <Redirect href="/parent-dashboard" />;
   const today = localDay();
@@ -62,6 +75,12 @@ export default function QuestsScreen() {
   const defaultEpicTask = '30-min deep focus block 🧠';
   const epicTaskName = s.epicBossTask === defaultEpicTask ? t('quest_focus_full') : s.epicBossTask;
   const invitation = s.children.find(c => c.initiatedBy === 'parent' && !c.isApproved && c.linkedParents?.length);
+  const completeTask = (task: (typeof tasks)[number]) => {
+    const result = s.toggleTaskDone(task.id, Boolean(task.mystery));
+    setSelectedTask(null);
+    setDetailsTask(null);
+    setMessage(result ? t('quest_complete', { coins: result.coinGain }) : task.requiresApproval ? t('quest_waiting') : '');
+  };
   return <Screen>
     <View style={{ height: 250, marginHorizontal: -20, justifyContent: 'center', paddingHorizontal: 20 }}>
       <SceneArt source={fighterImage(currentFighter.id, s.fighterOutfits[currentFighter.id])} prominent />
@@ -97,6 +116,8 @@ export default function QuestsScreen() {
           const reward = task.awardedReward || calculateQuestReward(taskBaseReward(task), task.diff, s.currentAvatar, Boolean(task.mystery), done, s.superchargedTaskId === task.id);
           const visual = questVisual(task, t(task.name, task.name), s.language);
           const expanded = activeTask === task.id && !task.done && !task.pendingApproval;
+          const timed = isTimedQuest(task);
+          const remainingMs = questTimeRemainingMs(task, timerNow);
           return <View key={task.id} style={{ paddingVertical: 16, gap: 12 }}>
             <View style={{ position: 'absolute', left: -34, top: 18, width: 22, height: 22, borderRadius: 11, backgroundColor: task.done ? palette.green : expanded ? palette.gold : palette.bg, borderWidth: 1, borderColor: task.done ? palette.green : palette.line, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: task.done || expanded ? palette.bg : palette.muted, fontSize: 11 }}>{task.done ? '✓' : index + 1}</Text></View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -109,7 +130,7 @@ export default function QuestsScreen() {
                 <Text style={{ fontSize: 70, lineHeight: 88 }}>{visual.icon}</Text>
                 {task.done && <View style={{ position: 'absolute', right: 0, bottom: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: palette.green, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: palette.bg }}>✓</Text></View>}
               </View>
-              <View style={{ flex: 1, gap: 5 }}><Text style={[ui.heading, { fontSize: 23 }]}>{visual.label}</Text><Text accessibilityLabel={task.pendingApproval ? t('quest_parent_check') : task.done ? t('quest_done') : t('quest_reward_amount', { coins: reward.coinGain, xp: reward.xpGain })} style={ui.meta}>{task.pendingApproval ? `⏳ ${t('quest_parent_check')}` : task.done ? `✓ ${t('quest_done')}` : `🪙 ${reward.coinGain}  ·  ✨ ${reward.xpGain}`}</Text></View>
+              <View style={{ flex: 1, gap: 5 }}><Text style={[ui.heading, { fontSize: 23 }]}>{visual.label}</Text>{timed && !task.done && <Text style={[ui.meta, { color: palette.gold }]}>⏱ {t('quest_minutes', { count: task.durationMinutes })}</Text>}<Text accessibilityLabel={task.pendingApproval ? t('quest_parent_check') : task.done ? t('quest_done') : t('quest_reward_amount', { coins: reward.coinGain, xp: reward.xpGain })} style={ui.meta}>{task.pendingApproval ? `⏳ ${t('quest_parent_check')}` : task.done ? `✓ ${t('quest_done')}` : `🪙 ${reward.coinGain}  ·  ✨ ${reward.xpGain}`}</Text></View>
             </Pressable>
             {editingQuest !== task.id && canManageQuest(task, s.role, s.linkedParents) && <View style={{ width: 44, alignSelf: 'center' }}>
               <Pressable accessibilityRole="button" accessibilityLabel={t('quest_edit', { name: t(task.name, task.name) })}
@@ -145,13 +166,10 @@ export default function QuestsScreen() {
             </View> : null}
 
             {expanded && editingQuest !== task.id && <>
-              {!task.startedAt ? <Button label={`▶ ${t('quest_start')}`} onPress={() => { setMessage(''); s.startQuest(task.id); }} /> : <Button label={`✓ ${t('quest_complete_action')}`} onPress={() => {
-                const result = s.toggleTaskDone(task.id, Boolean(task.mystery));
-                setSelectedTask(null);
-                setDetailsTask(null);
-                setMessage(result ? t('quest_complete', { coins: result.coinGain }) : task.requiresApproval ? t('quest_waiting') : '');
-              }} />}
-              {task.startedAt && <Text style={ui.meta}>{t('quest_working')}</Text>}
+              {!timed ? <Button label={`✓ ${t('quest_mark_done')}`} onPress={() => completeTask(task)} /> : !task.startedAt ? <Button label={`▶ ${t('quest_start')} · ${t('quest_minutes', { count: task.durationMinutes })}`} onPress={() => { setMessage(''); s.startQuest(task.id); setTimerNow(Date.now()); }} /> : <>
+                <Text accessibilityLiveRegion="polite" style={[ui.heading, { color: remainingMs ? palette.gold : palette.green, textAlign: 'center' }]}>{remainingMs ? t('quest_timer_running', { time: questTimerText(remainingMs) }) : t('quest_timer_ready')}</Text>
+                <Button disabled={remainingMs > 0} label={`✓ ${t('quest_complete_action')}`} onPress={() => completeTask(task)} />
+              </>}
               {task.canPostpone && <Button secondary label={`${t('quest_later')} →`} onPress={() => { s.postponeTask(task.id); setSelectedTask(null); }} />}
             </>}
           </View>;

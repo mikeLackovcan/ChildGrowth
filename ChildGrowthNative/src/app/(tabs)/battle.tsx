@@ -10,7 +10,7 @@ import { fighterCombatImage, fighterHasCombatCutout, fighterImage } from '../../
 import { AVAILABLE_AVATARS } from '../../constants/fighters';
 import { useAppStore } from '../../store/useAppStore';
 
-export const ALL_ROBLOX_FIGURES = AVAILABLE_AVATARS;
+export const ALL_FIGHTERS = AVAILABLE_AVATARS;
 
 function FighterPicker({ title, fighters, selected, outfit, onSelect }: {
   title: string;
@@ -48,12 +48,13 @@ export default function ArenaScreen() {
   const [playerId, setPlayerId] = useState(store.currentAvatar);
   const [rivalId, setRivalId] = useState(store.currentAvatar === 'roblox_ninja' ? 'roblox_noob' : 'roblox_ninja');
   const [fighting, setFighting] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const owned = useMemo(() => AVAILABLE_AVATARS.filter(fighter => store.unlockedAvatars.includes(fighter.id) || fighter.id === 'roblox_noob'), [store.unlockedAvatars]);
   const player = fighterFor(playerId);
   const rival = fighterFor(rivalId);
   const playerName = store.nickname || t('arena_player', { number: 1 });
 
-  return <Screen>
+  return <Screen onSettingsChange={setSettingsOpen}>
     <View style={styles.titleRow}>
       <View style={{ flex: 1 }}>
         <Text style={ui.title}>{t('fight_title')}</Text>
@@ -63,6 +64,7 @@ export default function ArenaScreen() {
     </View>
 
     {fighting ? <FightingArena
+      paused={settingsOpen}
       playerId={playerId}
       rivalId={rivalId}
       playerName={playerName}

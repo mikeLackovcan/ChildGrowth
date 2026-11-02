@@ -66,6 +66,13 @@ export function takeProgressResult(uid: string, requestId: string) {
   completedResults.delete(id);
   return result;
 }
+export function takeProgressOutcome(uid: string, requestId: string) {
+  const id = `${uid}:${requestId}`;
+  const completed = completedResults.has(id);
+  const result = completedResults.get(id);
+  completedResults.delete(id);
+  return { completed, result };
+}
 async function read(uid: string): Promise<ProgressOperation[]> {
   const raw = await AsyncStorage.getItem(key(uid));
   const saved = raw ? JSON.parse(raw) : [];

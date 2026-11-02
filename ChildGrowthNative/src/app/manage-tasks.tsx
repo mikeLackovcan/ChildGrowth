@@ -5,7 +5,7 @@ import TimeWheel from '../components/questblox/TimeWheel';
 import { canManageQuest } from '../utils/accountState';
 import { confirmAction, showMessage } from '../lib/dialogs';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, useWindowDimensions, KeyboardAvoidingView, Platform, Modal, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, useWindowDimensions, KeyboardAvoidingView, Platform, Modal, Keyboard, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { validReminderTime } from '../utils/reminderPlan';
@@ -13,6 +13,8 @@ import { Colors } from '../constants/theme';
 import { useAppStore, Task } from '../store/useAppStore';
 import { ChevronLeft, X, Plus, Trash2, Edit2, Check, Calendar, CheckCircle2, Circle, ChevronDown } from 'lucide-react-native';
 import { personName } from '../utils/displayName';
+import { QUEST_DURATION_OPTIONS } from '../utils/questTimer';
+import { QuestbloxIcon } from '../components/questblox/QuestbloxBrand';
 
 const FREQUENCY_OPTIONS: { id: Task['freq']; key: string; label: string }[] = [
   { id: 'daily', key: 'freq_daily', label: 'Everyday 🔄' },
@@ -55,6 +57,7 @@ export default function ManageTasksScreen() {
   const removeTask = useAppStore((state) => state.removeTask);
   const updateTask = useAppStore((state) => state.updateTask);
   const toggleTaskDone = useAppStore((state) => state.toggleTaskDone);
+  const setChildTaskDone = useAppStore((state) => state.setChildTaskDone);
   const children = useAppStore((state) => state.children);
   const selectedChildId = useAppStore((state) => state.selectedChildId);
 
@@ -81,6 +84,21 @@ export default function ManageTasksScreen() {
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
   const [canPostpone, setCanPostpone] = useState(false);
+  const [durationMinutes, setDurationMinutes] = useState(0);
+  const [editingDurationMinutes, setEditingDurationMinutes] = useState(0);
+  const [syncingTaskId, setSyncingTaskId] = useState<string | null>(null);
+
+  const handleTaskToggle = async (task: Task) => {
+    if (role !== 'parent') {
+      toggleTaskDone(task.id);
+      return;
+    }
+    if (!activeChild || syncingTaskId) return;
+    setSyncingTaskId(task.id);
+    const synced = await setChildTaskDone(activeChild.id, task.id, !task.done);
+    setSyncingTaskId(null);
+    if (!synced) showMessage(t('quest_sync_failed'));
+  };
 
   const handleAddTask = () => {
     if (newTaskName.trim().length === 0) return;
@@ -97,6 +115,7 @@ export default function ManageTasksScreen() {
       requiresApproval: requiresApproval,
       isRolling: isRolling,
       canPostpone: canPostpone,
+      durationMinutes: durationMinutes || undefined,
     });
     if (useAppStore.getState().tasks.length === previousCount) { setReminderError(t('quest_create_retry')); return; }
     setCreated(true); setShowPictures(true);
@@ -105,12 +124,14 @@ export default function ManageTasksScreen() {
     setNewTaskName('');
     setIsRolling(false);
     setCanPostpone(false);
+    setDurationMinutes(0);
   };
 
   const startEditing = (id: string, currentName: string) => {
     setEditingReminderMode(tasks.find(task => task.id === id)?.reminderMode || 'notification');
     setEditingReminderTime(tasks.find(task => task.id === id)?.reminderTime || '');
     setEditingRevision(tasks.find(task => task.id === id)?.revision ?? 0);
+    setEditingDurationMinutes(tasks.find(task => task.id === id)?.durationMinutes || 0);
     setEditingTaskId(id);
     setEditingTaskName(currentName);
   };
@@ -119,7 +140,7 @@ export default function ManageTasksScreen() {
     if (editingReminderTime && !validReminderTime(editingReminderTime)) { setReminderError(t('reminder_time_error')); return; }
     setReminderError('');
     if (editingTaskId && editingTaskName.trim().length > 0) {
-      if (!updateTask(editingTaskId, { name: editingTaskName.trim(), reminderTime: editingReminderTime, reminderMode: editingReminderMode }, editingRevision)) {
+      if (!updateTask(editingTaskId, { name: editingTaskName.trim(), reminderTime: editingReminderTime, reminderMode: editingReminderMode, durationMinutes: editingDurationMinutes }, editingRevision)) {
         showMessage(t('quest_edit_changed')); return;
       }
     }
@@ -140,6 +161,7 @@ export default function ManageTasksScreen() {
           <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('action_back')} testID="manage-tasks-back-btn" onPress={() => router.back()} style={styles.backButton}>
             <ChevronLeft size={22} color={Colors.text} />
           </TouchableOpacity>
+          <QuestbloxIcon size={40} />
           <Text style={[styles.title, { flex: 1, flexShrink: 1, minWidth: 0 }]}>
             {childDisplayName
               ? t('manage_quests_for', `Manage Quests for ${childDisplayName}`, { name: childDisplayName })
@@ -218,6 +240,15 @@ export default function ManageTasksScreen() {
 
             <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: showOptions }} onPress={() => setShowOptions(!showOptions)} style={styles.optionsButton}><Text style={styles.habitLabel}>{t('quest_more_options')}</Text><ChevronDown color={Colors.amber} size={24} style={{ transform: [{ rotate: showOptions ? '180deg' : '0deg' }] }} /></TouchableOpacity>
             {showOptions && <View>
+            <Text style={styles.stepTitle}>{t('quest_timer_optional')}</Text>
+            <View accessibilityRole="radiogroup" accessibilityLabel={t('quest_timer_optional')} style={styles.scheduleGrid}>
+              {QUEST_DURATION_OPTIONS.map(minutes => <TouchableOpacity key={minutes} accessibilityRole="radio"
+                accessibilityLabel={minutes ? t('quest_duration_a11y', { count: minutes }) : t('quest_no_timer')}
+                accessibilityState={{ checked: durationMinutes === minutes }} aria-checked={durationMinutes === minutes}
+                onPress={() => setDurationMinutes(minutes)} style={[styles.freqPill, durationMinutes === minutes && styles.freqPillActive]}>
+                <Text style={[styles.freqPillText, durationMinutes === minutes && styles.freqPillTextActive]}>{minutes ? `⏱ ${t('quest_minutes', { count: minutes })}` : t('quest_no_timer')}</Text>
+              </TouchableOpacity>)}
+            </View>
             {/* Verification Toggle */}
             <TouchableOpacity
               testID="approval-toggle-btn" accessibilityRole="checkbox" accessibilityState={{ checked: requiresApproval }} aria-checked={requiresApproval}
@@ -330,6 +361,14 @@ export default function ManageTasksScreen() {
                 {editingTaskId === task.id ? (
                   <View style={[styles.editRow, { flexWrap: 'wrap' }]}>
                     <View style={{ width: '100%' }}><TimeWheel label={t('quest_reminder_optional')} value={editingReminderTime} onChange={setEditingReminderTime} optional /><QuestAlertChoice value={editingReminderMode} onChange={setEditingReminderMode} /></View>
+                    <View accessibilityRole="radiogroup" accessibilityLabel={t('quest_timer_optional')} style={[styles.scheduleGrid, { width: '100%' }]}>
+                      {QUEST_DURATION_OPTIONS.map(minutes => <TouchableOpacity key={minutes} accessibilityRole="radio"
+                        accessibilityLabel={minutes ? t('quest_duration_a11y', { count: minutes }) : t('quest_no_timer')}
+                        accessibilityState={{ checked: editingDurationMinutes === minutes }} aria-checked={editingDurationMinutes === minutes}
+                        onPress={() => setEditingDurationMinutes(minutes)} style={[styles.freqPill, editingDurationMinutes === minutes && styles.freqPillActive]}>
+                        <Text style={[styles.freqPillText, editingDurationMinutes === minutes && styles.freqPillTextActive]}>{minutes ? `⏱ ${t('quest_minutes', { count: minutes })}` : t('quest_no_timer')}</Text>
+                      </TouchableOpacity>)}
+                    </View>
                     <TextInput
                       accessibilityLabel={t('quest_name_label')} style={styles.editInput}
                       value={editingTaskName}
@@ -349,10 +388,13 @@ export default function ManageTasksScreen() {
                     <TouchableOpacity
                       accessibilityRole="button" accessibilityLabel={t(task.done ? 'quest_toggle_undo' : 'quest_toggle_done', { name: t(task.name, task.name) })}
                       style={[styles.statusToggleBtn, task.done && styles.statusToggleBtnDone]}
-                      onPress={() => toggleTaskDone(task.id)}
+                      onPress={() => void handleTaskToggle(task)}
+                      disabled={syncingTaskId !== null}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      {task.done ? (
+                      {syncingTaskId === task.id ? (
+                        <ActivityIndicator accessibilityLabel={t('quest_syncing')} color={Colors.amber} />
+                      ) : task.done ? (
                         <CheckCircle2 size={24} color={Colors.green} />
                       ) : (
                         <Circle size={24} color={Colors.textMuted} />
@@ -365,6 +407,7 @@ export default function ManageTasksScreen() {
                       </View>
                       <View style={{ flex: 1 }}>
                         {task.reminderTime ? <Text style={{ color: Colors.amber }}>{task.reminderMode === 'alarm' ? '⏰' : '🔔'} {task.reminderTime}</Text> : null}
+                        {task.durationMinutes ? <Text style={{ color: Colors.amber }}>⏱ {t('quest_minutes', { count: task.durationMinutes })}</Text> : null}
                         <Text style={[styles.taskName, task.done && styles.taskNameDone]}>{t(task.name, task.name)}</Text>
                         <View style={[styles.badgeRow, { flexWrap: 'wrap', gap: 6 }]}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>

@@ -11,6 +11,7 @@ import { WORLD_THEMES } from '../../constants/theme';
 import SettingsModal from '../SettingsModal';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { personName } from '../../utils/displayName';
+import { QuestbloxIcon } from './QuestbloxBrand';
 
 export const palette = { bg: '#0e1422', panel: '#192235', ink: '#f6f7fd', muted: '#aab8cf', line: '#2b3950', gold: '#ffc857', green: '#88e4bb' };
 export const fighterFor = (id: string) => AVAILABLE_AVATARS.find(f => f.id === id) || AVAILABLE_AVATARS[0];
@@ -34,7 +35,7 @@ export function SceneArt({ source, centered = false, prominent = false }: { sour
     </Svg>
   </View>;
 }
-export function Screen({ children }: { children: React.ReactNode }) {
+export function Screen({ children, onSettingsChange }: { children: React.ReactNode; onSettingsChange?: (open: boolean) => void }) {
   const { t } = useTranslation();
   const state = useAppStore();
   const pathname = usePathname();
@@ -46,8 +47,8 @@ export function Screen({ children }: { children: React.ReactNode }) {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <ScrollView contentContainerStyle={ui.page} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
       <View style={ui.row}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t('profile_open')} onPress={() => setSettings(true)} style={[ui.row, { flex: 1 }]}>
-          <Image source={require('../../../assets/images/app-icon-v2.png')} style={ui.avatar} />
+        <Pressable accessibilityRole="button" accessibilityLabel={t('profile_open')} onPress={() => { setSettings(true); onSettingsChange?.(true); }} style={[ui.row, { flex: 1 }]}>
+          <QuestbloxIcon size={46} />
           <View style={{ flex: 1 }}><Text style={ui.brand}>Questblox</Text><Text numberOfLines={1} style={ui.meta}>{displayName} · {t('profile_level', { level: state.level })}</Text></View>
         </Pressable>
         <Text accessibilityLabel={t('coin_count', { count: state.coins })} style={ui.balance}>🪙 {state.coins.toLocaleString()}</Text>
@@ -58,7 +59,7 @@ export function Screen({ children }: { children: React.ReactNode }) {
       <FamilyReconnect />{children}
     </ScrollView>
     </KeyboardAvoidingView>
-    <SettingsModal visible={settings} onClose={() => setSettings(false)} />
+    <SettingsModal visible={settings} onClose={() => { setSettings(false); onSettingsChange?.(false); }} />
   </SafeAreaView>;
 }
 export function ChoiceTabs<T extends string>({ choices, selected, onSelect }: { choices: readonly T[]; selected: T; onSelect: (value: T) => void }) {

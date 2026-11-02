@@ -25,6 +25,7 @@ function load(file) {
   return module.exports;
 }
 const { localDay, tasksForDay, canSpin } = load('utils/questDay');
+const { isTimedQuest, questTimeRemainingMs, questTimerText } = load('utils/questTimer');
 const { newPractice, practiceTurn } = load('utils/practiceBattle');
 const { useAppStore: store } = load('store/useAppStore');
 let passed = 0;
@@ -38,6 +39,14 @@ test('Local dates and weekday schedule exclude future postponements', () => {
   assert.equal(localDay(date), '2026-10-20');
   const result = tasksForDay([{ ...task, freq: 'weekdays' }, { ...task, id: 'weekend', freq: 'weekends' }, { ...task, id: 'later', postponedUntil: '2026-10-21' }], date);
   assert.equal(result.length, 1);
+});
+test('Untimed quests complete in one step while timed quests expose a real countdown', () => {
+  assert.equal(isTimedQuest(task), false);
+  const timed = { ...task, durationMinutes: 15, startedAt: '2026-10-29T10:00:00.000Z' };
+  assert.equal(isTimedQuest(timed), true);
+  assert.equal(questTimeRemainingMs(timed, Date.parse('2026-10-29T10:05:30.000Z')), 570000);
+  assert.equal(questTimerText(570000), '09:30');
+  assert.equal(questTimeRemainingMs(timed, Date.parse('2026-10-29T10:20:00.000Z')), 0);
 });
 test('Parent edits update only the selected child reminder time', () => {
   reset({ role: 'parent', selectedChildId: 'kid-a', children: [

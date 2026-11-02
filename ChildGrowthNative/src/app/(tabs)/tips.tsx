@@ -3,40 +3,44 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Typography, Layout } from '../../constants/theme';
 import { BookOpen, Sparkles, Heart, Brain, ChevronRight } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
+import { QuestbloxIcon } from '../../components/questblox/QuestbloxBrand';
 
 const TIPS = [
   {
     id: '1',
-    title: 'The Power of Positive Reinforcement',
-    description: 'Catch them being good! Praising effort rather than innate ability builds a growth mindset.',
+    title: 'tips_positive_title',
+    description: 'tips_positive_body',
     icon: Sparkles,
     color: Colors.cardPink,
   },
   {
     id: '2',
-    title: 'Managing Screen Time',
-    description: 'Create tech-free zones in the house, like the dining table and bedrooms, to encourage better sleep and conversation.',
+    title: 'tips_screen_title',
+    description: 'tips_screen_body',
     icon: Brain,
     color: Colors.cardBlue,
   },
   {
     id: '3',
-    title: 'Emotional Regulation',
-    description: 'Teach children to identify their emotions. "I see you are feeling frustrated" validates them before correcting behavior.',
+    title: 'tips_emotion_title',
+    description: 'tips_emotion_body',
     icon: Heart,
     color: Colors.cardYellow,
   }
 ];
 
 export default function TipsScreen() {
+  const { t } = useTranslation();
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.headerRow}>
+          <QuestbloxIcon size={42} />
           <BookOpen size={32} color={Colors.text} />
-          <Text style={styles.headerTitle}>Parenting Guide</Text>
+          <Text style={styles.headerTitle}>{t('tips_title')}</Text>
         </View>
-        <Text style={styles.headerSub}>Bite-sized tips for raising resilient kids.</Text>
+        <Text style={styles.headerSub}>{t('tips_subtitle')}</Text>
 
         <View style={styles.tipsList}>
           {TIPS.map((tip) => (
@@ -45,8 +49,8 @@ export default function TipsScreen() {
                 <tip.icon size={24} color={Colors.text} />
               </View>
               <View style={styles.tipContent}>
-                <Text style={styles.tipTitle}>{tip.title}</Text>
-                <Text style={styles.tipDesc}>{tip.description}</Text>
+                <Text style={styles.tipTitle}>{t(tip.title)}</Text>
+                <Text style={styles.tipDesc}>{t(tip.description)}</Text>
               </View>
               <ChevronRight size={20} color={Colors.textSecondary} />
             </TouchableOpacity>
@@ -54,10 +58,10 @@ export default function TipsScreen() {
         </View>
 
         <View style={styles.promoCard}>
-          <Text style={styles.promoTitle}>Want more insights?</Text>
-          <Text style={styles.promoDesc}>Unlock our premium library of child psychology articles and deep dives.</Text>
+          <Text style={styles.promoTitle}>{t('tips_more_title')}</Text>
+          <Text style={styles.promoDesc}>{t('tips_more_body')}</Text>
           <TouchableOpacity style={styles.promoButton}>
-            <Text style={styles.promoButtonText}>Upgrade to Premium</Text>
+            <Text style={styles.promoButtonText}>{t('tips_more_action')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

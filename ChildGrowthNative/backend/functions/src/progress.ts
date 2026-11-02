@@ -42,6 +42,11 @@ function validateTask(input: any, parent: boolean, linked: boolean, day: string)
     if (reminder && !/^(0[7-9]|1[0-9]):[0-5][0-9]$/.test(reminder)) return failure('INVALID_REMINDER');
     task.reminderTime = reminder;
   }
+  if (input.durationMinutes !== undefined) {
+    const duration = Number(input.durationMinutes);
+    if (!Number.isInteger(duration) || duration < 0 || duration > 180) return failure('INVALID_TASK_TIMER');
+    task.durationMinutes = duration || undefined;
+  }
   for (const key of ['isRolling', 'canPostpone', 'requiresApproval'] as const) if (input[key] !== undefined) task[key] = input[key] === true;
   if (!parent && linked) { task.diff = 'easy'; task.requiresApproval = true; }
   return task;
@@ -171,10 +176,13 @@ export function progressTransition(profileInput: any, dataInput: any, action: st
       checkRevision(task);
       const changes = payload?.changes;
       if (!changes || typeof changes !== 'object' || Array.isArray(changes)) return failure('INVALID_TASK');
-      const fields = parent ? ['name', 'shortName', 'icon', 'reminderTime', 'reminderMode', 'diff', 'freq', 'mystery', 'isRolling', 'canPostpone', 'requiresApproval'] : ['name', 'shortName', 'icon', 'reminderTime', 'reminderMode'];
+      const fields = parent ? ['name', 'shortName', 'icon', 'reminderTime', 'reminderMode', 'durationMinutes', 'diff', 'freq', 'mystery', 'isRolling', 'canPostpone', 'requiresApproval'] : ['name', 'shortName', 'icon', 'reminderTime', 'reminderMode', 'durationMinutes'];
       if (Object.keys(changes).some(key => !fields.includes(key))) return failure('INVALID_TASK_EDIT');
       const checked = validateTask({ ...task, ...changes }, parent, linked, day);
-      for (const key of Object.keys(changes)) (task as any)[key] = (checked as any)[key];
+      for (const key of Object.keys(changes)) {
+        if (key === 'durationMinutes' && !checked.durationMinutes) delete task.durationMinutes;
+        else (task as any)[key] = (checked as any)[key];
+      }
       // Unique tokens prevent a later offline edit from matching a different
       // device's revision after its prerequisite edit was rejected.
       const nextRevision = requestKey(payload.nextRevision || context.operationId || `revision-${time}-${randomInt(1000000000)}`);

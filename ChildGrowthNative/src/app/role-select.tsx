@@ -6,11 +6,13 @@ import { Colors } from '../constants/theme';
 import { useAppStore } from '../store/useAppStore';
 import { Users, Baby, Lock } from 'lucide-react-native';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { QuestbloxBrand } from '../components/questblox/QuestbloxBrand';
 
 export default function RoleSelectScreen() {
   const { t } = useTranslation();
   const setUser = useAppStore((state) => state.setUser);
   const userEmail = useAppStore((state) => state.userEmail);
+  const userId = useAppStore((state) => state.userId);
   
   const [showGate, setShowGate] = useState(false);
   const [mathAnswer, setMathAnswer] = useState('');
@@ -30,6 +32,10 @@ export default function RoleSelectScreen() {
   const handleGateSubmit = () => {
     if (mathAnswer.trim() === '56') {
       setShowGate(false);
+      if (!userEmail || userId === 'guest-local') {
+        router.replace({ pathname: '/login', params: { role: 'parent' } });
+        return;
+      }
       setUser(userEmail, 'parent');
       router.replace('/parent-dashboard');
     } else {
@@ -41,6 +47,7 @@ export default function RoleSelectScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.authBox}>
+          <View style={{ marginBottom: 18 }}><QuestbloxBrand /></View>
           <View style={{ marginBottom: 16 }}>
             <LanguageSwitcher />
           </View>
@@ -81,27 +88,28 @@ export default function RoleSelectScreen() {
             <View style={{ alignItems: 'center', marginBottom: 12 }}>
               <Lock size={32} color={Colors.amber} />
             </View>
-            <Text style={styles.gateTitle}>Parental Gate</Text>
-            <Text style={styles.gateSubtitle}>Solve this math problem to access parent features:</Text>
-            <Text style={styles.gateQuestion}>What is 7 x 8?</Text>
+            <Text style={styles.gateTitle}>{t('parent_gate_title')}</Text>
+            <Text style={styles.gateSubtitle}>{t('parent_gate_body')}</Text>
+            <Text style={styles.gateQuestion}>{t('parent_gate_question')}</Text>
             
             <TextInput 
               style={[styles.gateInput, mathError && styles.gateInputError]} 
               keyboardType="number-pad"
               value={mathAnswer}
               onChangeText={(text) => { setMathAnswer(text); setMathError(false); }}
-              placeholder="Enter answer"
+              accessibilityLabel={t('parent_gate_answer')}
+              placeholder={t('parent_gate_answer')}
               placeholderTextColor={Colors.textMuted}
               autoFocus
             />
-            {mathError && <Text style={styles.errorText}>Incorrect answer. Try again.</Text>}
+            {mathError && <Text style={styles.errorText}>{t('parent_gate_error')}</Text>}
             
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowGate(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('action_cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.submitBtn} onPress={handleGateSubmit}>
-                <Text style={styles.submitBtnText}>Submit</Text>
+                <Text style={styles.submitBtnText}>{t('action_submit')}</Text>
               </TouchableOpacity>
             </View>
           </View>

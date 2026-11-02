@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput, ScrollView, Image, KeyboardAvoidingView, Platform } from 'react-native';
-import { router, usePathname } from 'expo-router';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput, ScrollView, Image, KeyboardAvoidingView, Platform, Modal, Linking } from 'react-native';
+import { router, useLocalSearchParams, usePathname } from 'expo-router';
 import { Colors } from '../constants/theme';
 import { useAppStore } from '../store/useAppStore';
-import { Lock, Mail, User, Tag, Eye, EyeOff, ArrowLeft } from 'lucide-react-native';
+import { Lock, Mail, User, Tag, Eye, EyeOff, ArrowLeft, Check } from 'lucide-react-native';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
 import * as Google from 'expo-auth-session/providers/google';
@@ -14,6 +14,7 @@ WebBrowser.maybeCompleteAuthSession();
 export default function LoginScreen() {
   const { t } = useTranslation();
   const pathname = usePathname();
+  const params = useLocalSearchParams<{ role?: 'child' | 'parent' }>();
   const userId = useAppStore(state => state.userId);
   const loadMockState = useAppStore((state) => state.loadMockState);
   const userEmail = useAppStore((state) => state.userEmail);
@@ -27,7 +28,7 @@ export default function LoginScreen() {
   const signInWithGoogle = useAppStore((state) => state.signInWithGoogle);
 
   const [authMode, setAuthMode] = useState<'signin' | 'register'>('signin');
-  const [selectedRole, setSelectedRole] = useState<'child' | 'parent' | null>(null);
+  const [selectedRole, setSelectedRole] = useState<'child' | 'parent' | null>(params.role === 'child' || params.role === 'parent' ? params.role : null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -36,6 +37,12 @@ export default function LoginScreen() {
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [showChildConsent, setShowChildConsent] = useState(false);
+  const [consentAnswer, setConsentAnswer] = useState('');
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [consentError, setConsentError] = useState(false);
+  const [childConsentGranted, setChildConsentGranted] = useState(false);
+  const [pendingChildAction, setPendingChildAction] = useState<'register' | 'google' | null>(null);
 
   const googleClientIds = {
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '35992182600-oounvs8ja932t3drbsq2e3ru0lemh8c2.apps.googleusercontent.com',
@@ -78,8 +85,20 @@ export default function LoginScreen() {
     return () => { active = false; };
   }, [googleResponse]);
 
-  const handleGoogleSignIn = async () => {
+  const requestChildConsent = (action: 'register' | 'google') => {
+    setPendingChildAction(action);
+    setConsentAnswer('');
+    setConsentChecked(false);
+    setConsentError(false);
+    setShowChildConsent(true);
+  };
+
+  const handleGoogleSignIn = async (bypassConsent = false) => {
     if (loading || !selectedRole) return;
+    if (selectedRole === 'child' && !childConsentGranted && !bypassConsent) {
+      requestChildConsent('google');
+      return;
+    }
     setLoading(true);
     setAuthMessage(null);
     try {
@@ -132,8 +151,12 @@ export default function LoginScreen() {
     finally { setLoading(false); }
   };
 
-  const handleAuthSubmit = async () => {
+  const handleAuthSubmit = async (bypassConsent = false) => {
     if (!selectedRole) return;
+    if (selectedRole === 'child' && authMode === 'register' && !childConsentGranted && !bypassConsent) {
+      requestChildConsent('register');
+      return;
+    }
     if (!email.trim()) {
       setAuthMessage(t('enter_valid_email', 'Please enter a valid email address!'));
       return;
@@ -186,6 +209,19 @@ export default function LoginScreen() {
     }
   };
 
+  const confirmChildConsent = () => {
+    if (consentAnswer.trim() !== '56' || !consentChecked) {
+      setConsentError(true);
+      return;
+    }
+    const action = pendingChildAction;
+    setChildConsentGranted(true);
+    setShowChildConsent(false);
+    setPendingChildAction(null);
+    if (action === 'google') void handleGoogleSignIn(true);
+    if (action === 'register') void handleAuthSubmit(true);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -213,7 +249,7 @@ export default function LoginScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={accountRole === 'child' ? t('auth_child_clean') : t('auth_parent_clean')}
                     disabled={loading}
-                    onPress={() => { setSelectedRole(accountRole); setAuthMessage(null); }}
+                    onPress={() => { setSelectedRole(accountRole); setChildConsentGranted(false); setAuthMessage(null); }}
                     style={[styles.roleChoiceCard, accountRole === 'child' ? styles.childRoleCard : styles.parentRoleCard]}
                     activeOpacity={0.82}
                   >
@@ -233,7 +269,7 @@ export default function LoginScreen() {
                 accessibilityLabel={t('auth_change_role')}
                 disabled={loading}
                 style={styles.selectedRoleRow}
-                onPress={() => { setSelectedRole(null); setAuthMessage(null); }}
+                onPress={() => { setSelectedRole(null); setChildConsentGranted(false); setAuthMessage(null); }}
               >
                 <ArrowLeft size={20} color="#ffc857" />
                 <Text accessible={false} style={styles.selectedRoleIcon}>{selectedRole === 'child' ? '🎮' : '👨‍👩‍👧'}</Text>
@@ -270,7 +306,7 @@ export default function LoginScreen() {
             testID="auth-google-btn" accessibilityLabel={t('auth_google')}
             style={[styles.googleBtn, loading && { opacity: 0.6 }]}
             activeOpacity={0.8}
-            onPress={handleGoogleSignIn}
+            onPress={() => { void handleGoogleSignIn(); }}
             disabled={loading}
           >
             <Text accessible={false} style={styles.googleMark}>G</Text>
@@ -411,7 +447,7 @@ export default function LoginScreen() {
             accessibilityRole="button" accessibilityState={{ disabled: loading, busy: loading }}
             testID="auth-submit-btn"
             style={[styles.submitBtn, loading && { opacity: 0.6 }]}
-            onPress={handleAuthSubmit}
+            onPress={() => { void handleAuthSubmit(); }}
             activeOpacity={0.8}
             disabled={loading}
           >
@@ -443,6 +479,32 @@ export default function LoginScreen() {
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
+      <Modal visible={showChildConsent} transparent animationType="fade" onRequestClose={() => setShowChildConsent(false)}>
+        <View style={styles.consentOverlay}>
+          <View style={styles.consentCard} accessibilityViewIsModal>
+            <Lock size={34} color="#ffc857" />
+            <Text style={styles.consentTitle}>{t('child_consent_title')}</Text>
+            <Text style={styles.consentBody}>{t('child_consent_body')}</Text>
+            <TouchableOpacity accessibilityRole="link" onPress={() => { void Linking.openURL('https://questblox-10c14.web.app/privacy.html'); }}>
+              <Text style={styles.privacyLink}>{t('child_consent_privacy')}</Text>
+            </TouchableOpacity>
+            <Text style={styles.consentQuestion}>{t('parent_gate_question')}</Text>
+            <TextInput value={consentAnswer} onChangeText={text => { setConsentAnswer(text); setConsentError(false); }}
+              keyboardType="number-pad" accessibilityLabel={t('parent_gate_answer')} placeholder={t('parent_gate_answer')}
+              placeholderTextColor="#72829b" style={[styles.consentInput, consentError && styles.consentInputError]} />
+            <TouchableOpacity accessibilityRole="checkbox" accessibilityState={{ checked: consentChecked }}
+              accessibilityLabel={t('child_consent_confirm')} onPress={() => { setConsentChecked(value => !value); setConsentError(false); }} style={styles.consentCheckRow}>
+              <View style={[styles.consentCheck, consentChecked && styles.consentCheckActive]}>{consentChecked && <Check size={18} color="#0e1422" />}</View>
+              <Text style={styles.consentCheckText}>{t('child_consent_confirm')}</Text>
+            </TouchableOpacity>
+            {consentError && <Text accessibilityLiveRegion="polite" style={styles.consentError}>{t('child_consent_error')}</Text>}
+            <View style={styles.consentButtons}>
+              <TouchableOpacity accessibilityRole="button" style={styles.consentCancel} onPress={() => setShowChildConsent(false)}><Text style={styles.consentCancelText}>{t('action_cancel')}</Text></TouchableOpacity>
+              <TouchableOpacity accessibilityRole="button" style={styles.consentContinue} onPress={confirmChildConsent}><Text style={styles.consentContinueText}>{t('child_consent_continue')}</Text></TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -490,4 +552,22 @@ const styles = StyleSheet.create({
   guestBtnText: { fontFamily: 'Nunito_700Bold', fontSize: 14, color: '#aab8cf' },
   msgBanner: { borderLeftWidth: 3, borderLeftColor: '#ffc857', padding: 12, marginBottom: 12 },
   msgBannerText: { fontFamily: 'Nunito_700Bold', fontSize: 14, color: '#ffc857' },
+  consentOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.82)', justifyContent: 'center', padding: 20 },
+  consentCard: { width: '100%', maxWidth: 420, maxHeight: '92%', alignSelf: 'center', backgroundColor: '#111c2d', borderRadius: 22, borderWidth: 1, borderColor: '#334766', padding: 22, gap: 13 },
+  consentTitle: { fontFamily: 'Nunito_900Black', fontSize: 24, color: '#f6f7fd' },
+  consentBody: { fontFamily: 'Nunito_600SemiBold', fontSize: 15, lineHeight: 21, color: '#aab8cf' },
+  privacyLink: { fontFamily: 'Nunito_800ExtraBold', fontSize: 15, color: '#4db8ff', minHeight: 36, textAlignVertical: 'center' },
+  consentQuestion: { fontFamily: 'Nunito_900Black', fontSize: 22, color: '#ffc857', textAlign: 'center' },
+  consentInput: { minHeight: 50, borderWidth: 1, borderColor: '#46516a', borderRadius: 12, paddingHorizontal: 14, color: '#f6f7fd', fontFamily: 'Nunito_800ExtraBold', fontSize: 18, textAlign: 'center' },
+  consentInputError: { borderColor: '#ff6b6b' },
+  consentCheckRow: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  consentCheck: { width: 26, height: 26, borderRadius: 7, borderWidth: 2, borderColor: '#ffc857', alignItems: 'center', justifyContent: 'center' },
+  consentCheckActive: { backgroundColor: '#ffc857' },
+  consentCheckText: { flex: 1, fontFamily: 'Nunito_700Bold', fontSize: 14, lineHeight: 20, color: '#f6f7fd' },
+  consentError: { fontFamily: 'Nunito_700Bold', color: '#ff8a8a', fontSize: 14 },
+  consentButtons: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  consentCancel: { flex: 1, minHeight: 50, borderRadius: 13, borderWidth: 1, borderColor: '#46516a', alignItems: 'center', justifyContent: 'center' },
+  consentCancelText: { fontFamily: 'Nunito_800ExtraBold', color: '#aab8cf', fontSize: 15 },
+  consentContinue: { flex: 1.3, minHeight: 50, borderRadius: 13, backgroundColor: '#ffc857', alignItems: 'center', justifyContent: 'center' },
+  consentContinueText: { fontFamily: 'Nunito_900Black', color: '#0e1422', fontSize: 15 },
 });

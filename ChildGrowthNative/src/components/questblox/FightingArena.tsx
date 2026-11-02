@@ -7,11 +7,13 @@ import { useTranslation } from 'react-i18next';
 import { fighterCombatImage, fighterHasCombatCutout, fighterImage } from '../../constants/fighterImages';
 import { fighterFor, palette } from './UI';
 import { FighterRig } from './FighterRig';
-import { AttackAction, chooseAiInput, FightInput, newRealTimeFight, RealTimeFight, stepRealTimeFight } from '../../utils/fightingGame';
+import { AttackAction, chooseAiInput, clearFightInputs, FightInput, newRealTimeFight, RealTimeFight, stepRealTimeFight } from '../../utils/fightingGame';
 import { playSound } from '../../lib/sound';
 import { fighterLoadout, RIG_SCALE } from '../../utils/fighterRigging';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 interface FightingArenaProps {
+  paused?: boolean;
   playerId: string;
   rivalId: string;
   playerName: string;
@@ -20,6 +22,20 @@ interface FightingArenaProps {
 }
 
 const neutralInput = (): FightInput => ({ move: 0, block: false });
+
+function ContactSpark({ blocked, heavy, color }: { blocked: boolean; heavy: boolean; color: string }) {
+  return <Svg width={74} height={74} viewBox="-37 -37 74 74" accessible={false}>
+    {blocked ? <>
+      <Path d="M-12 -24 Q20 0 -12 24" stroke="#93c5fd" strokeWidth={3} fill="none" />
+      <Path d="M-6 -19 Q17 0 -6 19" stroke="#e0f2fe" strokeWidth={1} fill="none" />
+    </> : <>
+      <Circle r={heavy ? 17 : 11} fill={color} opacity={0.17} />
+      <Path d="M-30 -21 L-8 -6 M-27 18 L-7 5 M29 -15 L8 -4 M27 23 L7 6 M-1 -30 L0 -9 M5 30 L2 9" stroke={color} strokeWidth={heavy ? 3 : 2} strokeLinecap="round" />
+      <Path d="M-17 -11 L14 10 M-12 10 L15 -9 M0 -18 L2 17" stroke="#fff9da" strokeWidth={1.8} strokeLinecap="round" />
+      <Circle r={3.5} fill="#fff" />
+    </>}
+  </Svg>;
+}
 
 function FightHealthBar({ fighterId, name, hp, color, rounds, reverse = false, healthLabel }: {
   fighterId: string;
@@ -65,7 +81,7 @@ function ControlButton({ label, disabled = false, color = palette.gold, children
   >{children}</Pressable>;
 }
 
-export function FightingArena({ playerId, rivalId, playerName, outfit, onLeave }: FightingArenaProps) {
+export function FightingArena({ playerId, rivalId, playerName, outfit, onLeave, paused = false }: FightingArenaProps) {
   const { t } = useTranslation();
   const [fight, setFight] = useState<RealTimeFight>(() => newRealTimeFight(playerId, rivalId));
   const [stageWidth, setStageWidth] = useState(360);
@@ -78,8 +94,8 @@ export function FightingArena({ playerId, rivalId, playerName, outfit, onLeave }
   const specialPulse = useRef(new Animated.Value(0)).current;
   const player = fight.fighters[0];
   const rival = fight.fighters[1];
-  const controlsDisabled = fight.phase !== 'fighting';
-  const playerBusy = player.action === 'jab' || player.action === 'kick' || player.action === 'special' || player.action === 'hit' || player.action === 'ko';
+  const controlsDisabled = paused || fight.phase !== 'fighting';
+  const playerBusy = player.action === 'ko' || player.action === 'victory';
   const playerFighter = fighterFor(playerId);
   const rivalFighter = fighterFor(rivalId);
   const specialIndex = player.action === 'special' ? 0 : rival.action === 'special' ? 1 : null;
@@ -90,7 +106,19 @@ export function FightingArena({ playerId, rivalId, playerName, outfit, onLeave }
     return () => listener.remove();
   }, []);
 
+  useEffect(() => {
+    if (!reduceMotion && !paused) return;
+    // A preference change or modal pause must also stop effects already running.
+    [shake, impact, specialPulse].forEach(value => { value.stopAnimation(); value.setValue(0); });
+  }, [reduceMotion, paused, shake, impact, specialPulse]);
+
   useFocusEffect(useCallback(() => {
+    // A modal is not a navigation blur. Stop simulation explicitly and discard
+    // held/queued controls; resume with dt=0 so modal time cannot cause catch-up.
+    lastFrame.current = null;
+    input.current = neutralInput();
+    setFight(clearFightInputs);
+    if (paused) return;
     let frame = 0;
     let active = AppState.currentState === 'active';
     lastFrame.current = null;
@@ -98,6 +126,7 @@ export function FightingArena({ playerId, rivalId, playerName, outfit, onLeave }
       active = state === 'active';
       lastFrame.current = null;
       input.current = neutralInput();
+      setFight(clearFightInputs);
     });
     const animate = (now: number) => {
       frame = requestAnimationFrame(animate);
@@ -111,7 +140,7 @@ export function FightingArena({ playerId, rivalId, playerName, outfit, onLeave }
     };
     frame = requestAnimationFrame(animate);
     return () => { cancelAnimationFrame(frame); listener.remove(); input.current = neutralInput(); };
-  }, []));
+  }, [paused]));
 
   useEffect(() => {
     if (!fight.event || fight.event.serial === lastEvent.current) return;
@@ -183,10 +212,10 @@ export function FightingArena({ playerId, rivalId, playerName, outfit, onLeave }
       <View style={styles.stageShade} />
       <View style={styles.floorGlow} />
       <View pointerEvents="none" style={[styles.fighterSlot, { left: fighterLeft(player.x), bottom: 16 - 20 * rigScale }]}>
-        <FighterRig fighterId={player.id} outfit={outfit} action={player.action} actionElapsed={player.actionElapsed} facing={player.facing} airborne={player.y} reduceMotion={reduceMotion} pixelsPerWorldUnit={stageWidth / 100} />
+        <FighterRig fighter={player} outfit={outfit} reduceMotion={reduceMotion} pixelsPerWorldUnit={stageWidth / 100} />
       </View>
       <View pointerEvents="none" style={[styles.fighterSlot, { left: fighterLeft(rival.x), bottom: 16 - 20 * rigScale }]}>
-        <FighterRig fighterId={rival.id} action={rival.action} actionElapsed={rival.actionElapsed} facing={rival.facing} airborne={rival.y} reduceMotion={reduceMotion} pixelsPerWorldUnit={stageWidth / 100} />
+        <FighterRig fighter={rival} reduceMotion={reduceMotion} pixelsPerWorldUnit={stageWidth / 100} />
       </View>
       {specialIndex !== null && <Animated.View pointerEvents="none" style={[styles.specialCinematic, {
         opacity: reduceMotion ? 0.82 : specialPulse,
@@ -198,13 +227,16 @@ export function FightingArena({ playerId, rivalId, playerName, outfit, onLeave }
         <Text style={[styles.specialText, { textShadowColor: specialIndex === 0 ? playerFighter.color : rivalFighter.color }]}>{t('fight_super_callout')}</Text>
       </Animated.View>}
       {!!fight.event && <Animated.View pointerEvents="none" style={[styles.impactFlash, { opacity: impact }]} />}
-      {!!fight.event && !fight.event.blocked && <Animated.View pointerEvents="none" style={[styles.damageBurst, {
+      {!!fight.event && <Animated.View pointerEvents="none" style={[styles.damageBurst, {
         left: Math.max(0, Math.min(stageWidth - 74, fight.event.x * stageWidth / 100 - 37)),
         top: undefined,
         bottom: 16 - fight.event.y * stageWidth / 100 - 37,
         opacity: impact,
         transform: [{ scale: impact.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1.2] }) }],
-      }]}><Text style={styles.damageText}>−{fight.event.damage}</Text></Animated.View>}
+      }]}>
+        <ContactSpark blocked={fight.event.blocked} heavy={fight.event.action === 'special'} color={fight.event.attacker === 0 ? playerFighter.color : rivalFighter.color} />
+        {!fight.event.blocked && <Text style={styles.damageText}>−{fight.event.damage}</Text>}
+      </Animated.View>}
       {!!fight.event && fight.event.combo >= 2 && fight.fighters[fight.event.attacker].comboTimer > 0 && <View pointerEvents="none" style={[styles.comboBadge, fight.event.attacker === 1 && { left: undefined, right: 16 }]}>
         <Text style={styles.comboCount}>{fight.event.combo}</Text><Text style={styles.comboLabel}>{t('fight_combo')}</Text>
       </View>}
@@ -281,9 +313,9 @@ const styles = StyleSheet.create({
   stageShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: '#08051c22', borderTopWidth: 26, borderTopColor: '#03050c44', borderBottomWidth: 22, borderBottomColor: '#03050c55' },
   floorGlow: { position: 'absolute', left: '9%', right: '9%', bottom: 13, height: 40, borderRadius: 999, backgroundColor: '#8b5cf655', transform: [{ scaleY: 0.22 }] },
   fighterSlot: { position: 'absolute', bottom: 16 },
-  impactFlash: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: '#ffffff99' },
-  damageBurst: { position: 'absolute', top: '38%', width: 74, height: 74, alignItems: 'center', justifyContent: 'center', borderRadius: 99, backgroundColor: '#fb718555', borderWidth: 4, borderColor: '#fff' },
-  damageText: { color: '#fff', fontFamily: 'Nunito_900Black', fontSize: 25, textShadowColor: '#ef4444', textShadowRadius: 8 },
+  impactFlash: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: '#ffffff24' },
+  damageBurst: { position: 'absolute', width: 74, height: 74, alignItems: 'center', justifyContent: 'center' },
+  damageText: { position: 'absolute', top: -12, color: '#fff', fontFamily: 'Nunito_900Black', fontSize: 19, textShadowColor: '#171020', textShadowRadius: 5 },
   specialCinematic: { position: 'absolute', top: '20%', left: '20%', right: '20%', height: 170, alignItems: 'center', justifyContent: 'center' },
   specialRing: { position: 'absolute', width: 148, height: 148, borderRadius: 999, borderWidth: 9, opacity: 0.72 },
   specialRay: { position: 'absolute', width: '165%', height: 13, borderRadius: 99, opacity: 0.42 },

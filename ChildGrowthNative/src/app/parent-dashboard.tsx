@@ -1,21 +1,22 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { localDay } from '../utils/questDay';
+import { localDay, tasksForDay } from '../utils/questDay';
 import FamilyReconnect from '../components/FamilyReconnect';
 import { showMessage, confirmAction } from '../lib/dialogs';
 import React, { useRef, useState } from 'react';
 import { Image } from 'expo-image';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Redirect, router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { RecoveryReview } from '../components/questblox/RecoveryReview';
 import { QuestReview } from '../components/questblox/QuestReview';
 import { Colors } from '../constants/theme';
 import { DEFAULT_PRIZES, useAppStore } from '../store/useAppStore';
-import { Bell, LogOut, UserPlus, User, Gift, CheckCircle2, Circle, CheckSquare, RotateCcw, ShoppingBag, Coins, Shield, Tag, Trash2, Plus } from 'lucide-react-native';
+import { Bell, LogOut, UserPlus, User, Gift, CheckCircle2, Circle, CheckSquare, RotateCcw, ShoppingBag, Coins, Shield, Trash2, Plus, House, ListChecks, Users } from 'lucide-react-native';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { AVAILABLE_AVATARS } from './(tabs)/shop';
 import { personName, visibleNickname } from '../utils/displayName';
 import { PRIZE_ICONS, prizeEmoji, prizeLabel } from '../constants/prizes';
+import { QuestbloxIcon } from '../components/questblox/QuestbloxBrand';
 
 export default function ParentDashboardScreen() {
   const uid = useAppStore(state => state.userId);
@@ -39,7 +40,7 @@ function ParentDashboard() {
   const prizes = useAppStore((state) => state.prizes);
   const setPrizes = useAppStore((state) => state.setPrizes);
   const tasks = useAppStore((state) => state.tasks);
-  const toggleTaskDone = useAppStore((state) => state.toggleTaskDone);
+  const setChildTaskDone = useAppStore((state) => state.setChildTaskDone);
   const resetTasksForNewDay = useAppStore((state) => state.resetTasksForNewDay);
   const deleteAllTasks = useAppStore((state) => state.deleteAllTasks);
   const wonPrizes = useAppStore((state) => state.wonPrizes);
@@ -60,9 +61,7 @@ function ParentDashboard() {
 
   const [editingPrizes, setEditingPrizes] = useState(() => Array.from({ length: DEFAULT_PRIZES.length }, (_, i) => prizes[i] || ''));
   const [choosingPrizeIcon, setChoosingPrizeIcon] = useState<number | null>(null);
-  const page = useRef<ScrollView>(null);
-  const sectionPositions = useRef({ rewards: 0 });
-  const jumpTo = (section: 'rewards') => page.current?.scrollTo({ y: sectionPositions.current[section], animated: true });
+  const page = useRef<any>(null);
 
   // A reward draft belongs to one child; never carry it into a sibling's form.
   React.useEffect(() => {
@@ -70,12 +69,27 @@ function ParentDashboard() {
     setEditingPrizes(Array.from({ length: DEFAULT_PRIZES.length }, (_, i) => currentPrizes[i] || ''));
   }, [selectedChildId]);
   const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [syncingTaskId, setSyncingTaskId] = useState<string | null>(null);
+  const [parentTab, setParentTab] = useState<'overview' | 'quests' | 'rewards' | 'family'>('overview');
+  const [questScope, setQuestScope] = useState<'selected' | 'all'>('selected');
 
   const approvedChildren = children.filter(c => c.isApproved === true);
   const pendingChildren = children.filter(c => c.isApproved !== true);
   const pendingTaskReviews = children.flatMap(child => (child.tasks || []).filter(t => t.pendingApproval === true).map(t => ({ task: t, child })));
   const activeChild = approvedChildren.find(c => c.id === selectedChildId) || approvedChildren[0];
   const childName = (child: { name?: string; nickname?: string } | undefined) => child ? personName(child.name, child.nickname, t('settings_child')) : t('settings_child');
+  const questGroups = questScope === 'all'
+    ? approvedChildren.map(child => ({ child, tasks: tasksForDay(child.tasks || []) }))
+    : activeChild ? [{ child: activeChild, tasks: tasksForDay(tasks) }] : [];
+
+  const handleTaskToggle = async (childId: string, task: { id: string; done: boolean }) => {
+    if (syncingTaskId) return;
+    const syncKey = `${childId}:${task.id}`;
+    setSyncingTaskId(syncKey);
+    const synced = await setChildTaskDone(childId, task.id, !task.done);
+    setSyncingTaskId(null);
+    if (!synced) showMessage(t('quest_sync_failed'));
+  };
 
   const [epicBossTitleInput, setEpicBossTitleInput] = useState(activeChild?.epicBossTask || epicBossTask || t('quest_focus_full'));
   const [epicBossXPInput, setEpicBossXPInput] = useState(String(activeChild?.epicBossXP || epicBossXP || 35));
@@ -101,7 +115,7 @@ function ParentDashboard() {
       setEpicBossTitleInput(activeChild.epicBossTask || epicBossTask || t('quest_focus_full'));
       setEpicBossXPInput(String(activeChild.epicBossXP || epicBossXP || 35));
     }
-  }, [activeChild?.id, epicBossTask, epicBossXP]);
+  }, [activeChild, epicBossTask, epicBossXP, t]);
 
   if (!userEmail) {
     return null;
@@ -141,6 +155,7 @@ function ParentDashboard() {
         {syncError && <Text style={{ color: Colors.amber }}>{t(syncError)}</Text>}
         {/* Header with Parent Name, Nickname and Administration Badge */}
         <View style={{ backgroundColor: '#131726', borderWidth: 1, borderColor: 'rgba(255, 184, 0, 0.25)', borderRadius: 20, padding: 18, marginBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ marginRight: 12 }}><QuestbloxIcon size={46} /></View>
           <View style={{ gap: 4, flex: 1, minWidth: 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Shield size={18} color={Colors.amber} />
@@ -161,13 +176,23 @@ function ParentDashboard() {
           </View>
         </View>
 
-        <View style={{ paddingVertical: 16, gap: 8 }}>
+        {approvedChildren.length > 0 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.activeChildBar}>
+          {approvedChildren.map(child => {
+            const selected = child.id === activeChild?.id;
+            return <TouchableOpacity key={`top-${child.id}`} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => { selectChild(child.id); setQuestScope('selected'); }} style={[styles.activeChildChip, selected && styles.activeChildChipSelected]}>
+              <Text style={styles.activeChildChipIcon}>🎮</Text>
+              <View style={{ minWidth: 0 }}><Text numberOfLines={1} style={[styles.activeChildChipName, selected && styles.activeChildChipNameSelected]}>{childName(child)}</Text><Text style={styles.activeChildChipStats}>✨ {child.xp} · 🪙 {child.coins}</Text></View>
+            </TouchableOpacity>;
+          })}
+        </ScrollView>}
+
+        <View style={[{ paddingVertical: 16, gap: 8 }, parentTab !== 'overview' && styles.hidden]}>
           <Text accessibilityRole="header" style={{ color: Colors.text, fontFamily: 'Nunito_800ExtraBold', fontSize: 24 }}>{t('family_start_title')}</Text>
           <Text style={{ color: Colors.textSecondary, fontSize: 16, lineHeight: 23 }}>{t(activeChild ? 'family_start_child' : 'family_start_connect', { name: activeChild ? childName(activeChild) : '' })}</Text>
           {[
             { icon: '👨‍👩‍👧', label: 'family_start_link', action: () => router.push('/link-account'), disabled: false },
             { icon: '⭐', label: 'family_start_quests', action: () => { if (activeChild) selectChild(activeChild.id); router.push('/manage-tasks'); }, disabled: !activeChild },
-            { icon: '🎁', label: 'family_start_rewards', action: () => { if (activeChild) selectChild(activeChild.id); jumpTo('rewards'); }, disabled: !activeChild },
+            { icon: '🎁', label: 'family_start_rewards', action: () => { if (activeChild) selectChild(activeChild.id); setParentTab('rewards'); }, disabled: !activeChild },
           ].map(item => <TouchableOpacity key={item.label} accessibilityRole="button" accessibilityLabel={t(item.label)} accessibilityState={{ disabled: item.disabled }} disabled={item.disabled} onPress={item.action} style={{ flexDirection: 'row', alignItems: 'center', gap: 16, minHeight: 64, opacity: item.disabled ? 0.45 : 1 }}>
             <Text accessible={false} style={{ fontSize: 32 }}>{item.icon}</Text>
             <Text style={{ flex: 1, color: Colors.text, fontFamily: 'Nunito_800ExtraBold', fontSize: 18 }}>{t(item.label)}</Text>
@@ -177,7 +202,7 @@ function ParentDashboard() {
 
         {/* Pending Approvals Section (Parent Approves Child Link Requests) */}
         {pendingChildren.length > 0 && (
-          <View style={styles.section}>
+          <View style={[styles.section, parentTab !== 'family' && styles.hidden]}>
             <Text style={styles.secTitle}>{t('pending_approvals')}</Text>
             <View style={{ gap: 10 }}>
               {pendingChildren.map((child) => (
@@ -230,25 +255,25 @@ function ParentDashboard() {
           </View>
         )}
 
-        {(syncIssueCount > 0 || syncError === 'progress_legacy_pending') && <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('recovery_title')} onPress={() => router.push('/sync-recovery')} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: Colors.amber }}>🗂️ {t('recovery_title')}</Text></TouchableOpacity>}
-        {children.flatMap(child => (child.recoveryRequests || []).map(request => <RecoveryReview key={`${child.id}-${request.id}`} request={request} childName={child.name || child.nickname} currentCoins={child.coins} t={t} language={i18n.language} busy={recoveryBusy}
+        {parentTab === 'overview' && (syncIssueCount > 0 || syncError === 'progress_legacy_pending') && <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('recovery_title')} onPress={() => router.push('/sync-recovery')} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: Colors.amber }}>🗂️ {t('recovery_title')}</Text></TouchableOpacity>}
+        {parentTab === 'overview' && children.flatMap(child => (child.recoveryRequests || []).map(request => <RecoveryReview key={`${child.id}-${request.id}`} request={request} childName={child.name || child.nickname} currentCoins={child.coins} t={t} language={i18n.language} busy={recoveryBusy}
           onReview={approved => confirmAction(t(approved ? request.kind === 'quest' ? 'recovery_quest_confirm' : 'recovery_restore_confirm' : 'recovery_decline_confirm'), () => {
             setRecoveryBusy(true);
             void useAppStore.getState().reviewProgressRecovery(child.id, request.id, approved).then(saved => {
               showMessage(t(saved ? 'recovery_review_saved' : 'recovery_failed'));
             }).finally(() => setRecoveryBusy(false));
           })} />))}
-        {children.filter(child => child.isApproved && child.dailyMood && child.lastActiveDate === localDay()).map(child => <View key={`mood-${child.id}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
+        {parentTab === 'overview' && children.filter(child => child.isApproved && child.dailyMood && child.lastActiveDate === localDay()).map(child => <View key={`mood-${child.id}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
           <Text style={{ fontSize: 34 }}>{child.dailyMood === 'wiped' ? '😴' : child.dailyMood === 'thriving' ? '🙂' : '⚡'}</Text>
           <Text style={{ color: Colors.text, flex: 1 }}>{child.name || child.nickname} · {t(`day_${child.dailyMood}`)}</Text>
         </View>)}
-        {children.flatMap(child => child.tasks.filter(task => task.helpRequested && !task.done).map(task =>
+        {parentTab === 'overview' && children.flatMap(child => child.tasks.filter(task => task.helpRequested && !task.done).map(task =>
           <View key={`${child.id}-${task.id}`} style={{ paddingVertical: 12 }}>
             <Text style={{ color: Colors.amber }}>🙋 {child.name || child.nickname} · {t('quest_help')}</Text>
             <Text style={{ color: Colors.text }}>{task.shortName || t(task.name, task.name)}</Text>
           </View>
         ))}
-        {children.flatMap(child => child.wonPrizes.filter(prize => prize.status === 'requested' && !prize.redeemed).map(prize =>
+        {parentTab === 'overview' && children.flatMap(child => child.wonPrizes.filter(prize => prize.status === 'requested' && !prize.redeemed).map(prize =>
           <View key={`${child.id}-${prize.id}`} style={{ paddingVertical: 12, gap: 8 }}>
             <Text style={{ color: Colors.text }}>🎁 {child.name || child.nickname} · {prize.prize}</Text>
             <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('prize_approve')} style={{ minHeight: 48, justifyContent: 'center' }} onPress={() => useAppStore.getState().approvePrize(child.id, prize.id)}><Text style={{ color: Colors.amber }}>✓ {t('prize_approve')}</Text></TouchableOpacity>
@@ -256,7 +281,7 @@ function ParentDashboard() {
         ))}
         {/* Pending Quest Reviews Section */}
         {pendingTaskReviews.length > 0 && (
-          <View style={styles.section}>
+          <View style={[styles.section, parentTab !== 'overview' && styles.hidden]}>
             <Text style={styles.secTitle}>{t('review_quests')}</Text>
             <View style={{ gap: 10 }}>
               {pendingTaskReviews.map(({ task, child }) => (
@@ -272,7 +297,7 @@ function ParentDashboard() {
         )}
 
         {/* Approved Child Selector Switcher Bar (Only approved kids appear here) */}
-        <View style={styles.section}>
+        <View style={[styles.section, parentTab !== 'family' && styles.hidden]}>
           <Text style={styles.secTitle}>{t('select_child_title')}</Text>
           {approvedChildren.length === 0 ? (
             <View style={styles.card}>
@@ -339,7 +364,7 @@ function ParentDashboard() {
           )}
         </View>
 
-        <View style={styles.section}>
+        <View style={[styles.section, parentTab !== 'family' && styles.hidden]}>
           <TouchableOpacity accessibilityRole="button" onPress={() => router.push('/link-account')} style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 14 }]}>
             <View style={[styles.avatar, { backgroundColor: Colors.amberDim }]}><UserPlus size={23} color={Colors.amber} /></View>
             <View style={{ flex: 1, minWidth: 0 }}>
@@ -351,7 +376,12 @@ function ParentDashboard() {
         </View>
 
         {/* Edit Epic Daily Boss Quest */}
-        <View style={styles.section}>
+        {parentTab === 'quests' && approvedChildren.length > 1 && <View accessibilityRole="tablist" style={styles.questScopeTabs}>
+          <TouchableOpacity accessibilityRole="tab" accessibilityState={{ selected: questScope === 'selected' }} onPress={() => setQuestScope('selected')} style={[styles.questScopeTab, questScope === 'selected' && styles.questScopeTabSelected]}><Text style={[styles.questScopeText, questScope === 'selected' && styles.questScopeTextSelected]}>🎮 {t('parent_this_child')}</Text></TouchableOpacity>
+          <TouchableOpacity accessibilityRole="tab" accessibilityState={{ selected: questScope === 'all' }} onPress={() => setQuestScope('all')} style={[styles.questScopeTab, questScope === 'all' && styles.questScopeTabSelected]}><Text style={[styles.questScopeText, questScope === 'all' && styles.questScopeTextSelected]}>👨‍👩‍👧‍👦 {t('parent_all_children')}</Text></TouchableOpacity>
+        </View>}
+
+        <View style={[styles.section, (parentTab !== 'quests' || questScope === 'all') && styles.hidden]}>
           <View style={styles.sectionHeading}><Text style={styles.sectionEmoji}>⚔️</Text><View style={{ flex: 1, minWidth: 0 }}><Text style={styles.sectionTitle}>{t('edit_epic_boss_title')}</Text><Text style={styles.sectionHint}>{t('edit_epic_boss_sub')}</Text></View></View>
           <View style={styles.featurePanel}>
             <View style={{ gap: 18 }}>
@@ -385,25 +415,32 @@ function ParentDashboard() {
         </View>
 
         {/* Parent Check/Uncheck Quest Verification Card */}
-        <View style={styles.section}>
+        <View style={[styles.section, parentTab !== 'quests' && styles.hidden]}>
           <View style={{ marginBottom: 12, gap: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <CheckSquare size={18} color={Colors.green} />
               <Text style={[styles.sectionTitle, { flex: 1 }]}>{t('quest_verification_title')}</Text>
             </View>
-            <TouchableOpacity testID="manage-quests-btn" onPress={() => router.push('/manage-tasks')} style={styles.viewButton}>
+            {questScope === 'selected' && <TouchableOpacity testID="manage-quests-btn" onPress={() => router.push('/manage-tasks')} style={styles.viewButton}>
               <Plus size={18} color={Colors.amber} /><Text style={styles.viewButtonText}>{t('manage_quests_btn')}</Text>
-            </TouchableOpacity>
+            </TouchableOpacity>}
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.settingsSub}>{t('quest_verification_sub', 'Tap any quest to instantly check or uncheck it for your child:')}</Text>
+            <Text style={styles.settingsSub}>{t(questScope === 'all' ? 'parent_all_tasks_title' : 'quest_verification_sub')}</Text>
             <View style={styles.questCheckList}>
-              {tasks.map((task) => (
+              {questGroups.map(group => {
+                const doneCount = group.tasks.filter(task => task.done).length;
+                return <View key={group.child.id} style={styles.childQuestGroup}>
+                  {questScope === 'all' && <TouchableOpacity accessibilityRole="button" onPress={() => { selectChild(group.child.id); setQuestScope('selected'); }} style={styles.childQuestGroupHeader}>
+                    <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} style={styles.childQuestGroupName}>{childName(group.child)}</Text><Text style={styles.childQuestGroupProgress}>{t('quest_progress', { done: doneCount, total: group.tasks.length })}</Text></View><Text style={{ color: Colors.amber, fontSize: 24 }}>›</Text>
+                  </TouchableOpacity>}
+                  {group.tasks.length === 0 ? <Text style={styles.childQuestEmpty}>{t('no_quests_yet')}</Text> : group.tasks.map((task) => (
                 <TouchableOpacity 
                   key={task.id} 
                   style={[styles.questCheckRow, task.done && styles.questCheckRowDone]}
-                  onPress={() => toggleTaskDone(task.id)}
+                  onPress={() => void handleTaskToggle(group.child.id, task)}
+                  disabled={syncingTaskId !== null}
                   activeOpacity={0.8}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
@@ -413,18 +450,22 @@ function ParentDashboard() {
                     </Text>
                   </View>
                   <View accessible accessibilityLabel={t(task.done ? 'done_status' : 'pending_status')} style={styles.checkStatusPill}>
-                    {task.done ? (
+                    {syncingTaskId === `${group.child.id}:${task.id}` ? (
+                      <ActivityIndicator accessibilityLabel={t('quest_syncing')} color={Colors.amber} />
+                    ) : task.done ? (
                       <CheckCircle2 size={26} color={Colors.green} />
                     ) : (
                       <Circle size={26} color={Colors.textMuted} />
                     )}
                   </View>
                 </TouchableOpacity>
-              ))}
+                  ))}
+                </View>;
+              })}
             </View>
 
             {/* Parent Task Control Buttons: Reset Daily / Delete All Tasks */}
-            <View style={{ gap: 10, marginTop: 14 }}>
+            {questScope === 'selected' && <View style={{ gap: 10, marginTop: 14 }}>
               <TouchableOpacity 
                 style={[styles.resetDayButton, { marginTop: 0 }]}
                 onPress={() => {
@@ -446,12 +487,12 @@ function ParentDashboard() {
                 <Trash2 size={16} color={Colors.red} />
                 <Text style={[styles.resetDayButtonText, { color: Colors.red }]}>{t('delete_all_tasks_btn', 'Delete All Tasks 🗑️')}</Text>
               </TouchableOpacity>
-            </View>
+            </View>}
           </View>
         </View>
 
         {/* Parent Check/Uncheck Awarded Winnings Card */}
-        <View onLayout={event => { sectionPositions.current.rewards = event.nativeEvent.layout.y; }} style={styles.section}>
+        <View style={[styles.section, parentTab !== 'rewards' && styles.hidden]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <Gift size={18} color={Colors.amber} />
             <Text style={[styles.secTitle, { marginBottom: 0 }]}>{t('awarded_winnings_title', 'AWARDED WINNINGS & REDEMPTIONS')}</Text>
@@ -505,13 +546,13 @@ function ParentDashboard() {
         </View>
 
         {/* Unlocked Figures & Prices Section */}
-        <View style={styles.section}>
+        <View style={[styles.section, parentTab !== 'rewards' && styles.hidden]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <ShoppingBag size={18} color={Colors.blue} />
             <Text style={[styles.secTitle, { marginBottom: 0 }]}>{t('kid_unlocked_figures_title', 'UNLOCKED FIGURES & PRICES')}</Text>
           </View>
           <View style={styles.card}>
-            <Text style={styles.settingsSub}>{t('kid_unlocked_figures_sub', 'Roblox figures purchased by your child using earned coins:')}</Text>
+            <Text style={styles.settingsSub}>{t('kid_unlocked_figures_sub', 'Fighters unlocked by your child with earned coins:')}</Text>
             
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface2, padding: 12, borderRadius: 12, marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -554,7 +595,7 @@ function ParentDashboard() {
           </View>
         </View>
 
-        <View onLayout={event => { sectionPositions.current.rewards = event.nativeEvent.layout.y; }} style={styles.section}>
+        <View style={[styles.section, parentTab !== 'rewards' && styles.hidden]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <Gift size={18} color={Colors.amber} />
             <Text style={[styles.secTitle, { marginBottom: 0 }]}>{t('prize_settings').toUpperCase()}</Text>
@@ -587,7 +628,7 @@ function ParentDashboard() {
         </View>
 
         {/* Dedicated Language Preference Section */}
-        <View style={styles.section}>
+        <View style={[styles.section, parentTab !== 'family' && styles.hidden]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: Colors.border }}>
             <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.textSecondary, fontSize: 13 }}>
               🌐 {t('language_preference', 'LANGUAGE PREFERENCE')}
@@ -597,6 +638,20 @@ function ParentDashboard() {
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
+      <View style={styles.parentTabs}>
+        {([
+          { id: 'overview' as const, key: 'parent_tab_overview', Icon: House },
+          { id: 'quests' as const, key: 'parent_tab_quests', Icon: ListChecks },
+          { id: 'rewards' as const, key: 'parent_tab_rewards', Icon: Gift },
+          { id: 'family' as const, key: 'parent_tab_family', Icon: Users },
+        ]).map(item => {
+          const selected = parentTab === item.id;
+          return <TouchableOpacity key={item.id} accessibilityRole="tab" accessibilityState={{ selected }} accessibilityLabel={t(item.key)} onPress={() => { setParentTab(item.id); page.current?.scrollTo({ y: 0, animated: false }); }} style={styles.parentTab}>
+            <item.Icon size={23} color={selected ? Colors.amber : Colors.textMuted} />
+            <Text numberOfLines={1} style={[styles.parentTabText, selected && styles.parentTabTextSelected]}>{t(item.key)}</Text>
+          </TouchableOpacity>;
+        })}
+      </View>
     </SafeAreaView>
   );
 }
@@ -611,11 +666,33 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 18,
-    paddingBottom: 60,
+    paddingBottom: 110,
     maxWidth: 560,
     width: '100%',
     alignSelf: 'center',
   },
+  hidden: { display: 'none' },
+  activeChildBar: { gap: 10, paddingBottom: 8 },
+  activeChildChip: { minWidth: 150, maxWidth: 210, minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 18, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border2 },
+  activeChildChipSelected: { backgroundColor: Colors.amberDim, borderColor: Colors.amber },
+  activeChildChipIcon: { fontSize: 24 },
+  activeChildChipName: { color: Colors.text, fontFamily: 'Nunito_800ExtraBold', fontSize: 14, maxWidth: 140 },
+  activeChildChipNameSelected: { color: Colors.amber },
+  activeChildChipStats: { color: Colors.textMuted, fontFamily: 'Nunito_700Bold', fontSize: 11, marginTop: 2 },
+  parentTabs: { position: 'absolute', left: 12, right: 12, bottom: 8, minHeight: 72, flexDirection: 'row', alignItems: 'stretch', padding: 6, borderRadius: 22, backgroundColor: '#131726', borderWidth: 1, borderColor: Colors.border2, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 12 },
+  parentTab: { flex: 1, minWidth: 0, minHeight: 58, alignItems: 'center', justifyContent: 'center', gap: 3, borderRadius: 16 },
+  parentTabText: { color: Colors.textMuted, fontFamily: 'Nunito_800ExtraBold', fontSize: 10, textAlign: 'center' },
+  parentTabTextSelected: { color: Colors.amber },
+  questScopeTabs: { flexDirection: 'row', gap: 8, padding: 5, marginBottom: 18, borderRadius: 18, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border2 },
+  questScopeTab: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, borderRadius: 14 },
+  questScopeTabSelected: { backgroundColor: Colors.amberDim, borderWidth: 1, borderColor: Colors.amber },
+  questScopeText: { color: Colors.textMuted, fontFamily: 'Nunito_800ExtraBold', fontSize: 12, textAlign: 'center' },
+  questScopeTextSelected: { color: Colors.amber },
+  childQuestGroup: { gap: 8, paddingBottom: 10 },
+  childQuestGroupHeader: { minHeight: 54, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, marginTop: 6, borderRadius: 14, backgroundColor: Colors.surface, borderLeftWidth: 4, borderLeftColor: Colors.amber },
+  childQuestGroupName: { color: Colors.text, fontFamily: 'Nunito_900Black', fontSize: 17 },
+  childQuestGroupProgress: { color: Colors.textMuted, fontFamily: 'Nunito_700Bold', fontSize: 12, marginTop: 1 },
+  childQuestEmpty: { color: Colors.textMuted, fontFamily: 'Nunito_700Bold', fontSize: 13, paddingHorizontal: 12, paddingVertical: 8 },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

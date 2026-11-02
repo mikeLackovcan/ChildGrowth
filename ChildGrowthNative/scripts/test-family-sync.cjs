@@ -102,6 +102,33 @@ check('Child-created family quests remain approval-gated when the parent refresh
   data = result.data;
 });
 
+check('Parent completion updates only the selected child and pays exactly once', () => {
+  const created = progressTransition(child, data, 'task.create', {
+    id: 'parent-direct', name: 'Pack school bag', shortName: 'Pack bag', icon: '🎒', diff: 'med', freq: 'daily', mystery: false,
+  }, parentContext);
+  const completed = progressTransition(created.profile, created.data, 'task.complete', {
+    id: 'parent-direct', expectedRevision: 0,
+  }, parentContext);
+  assert.equal(completed.data.tasks.find(task => task.id === 'parent-direct').done, true);
+  assert.ok(completed.profile.coins > created.profile.coins);
+  assert.ok(completed.profile.xp > created.profile.xp);
+
+  const repeated = progressTransition(completed.profile, completed.data, 'task.complete', {
+    id: 'parent-direct', expectedRevision: 0,
+  }, parentContext);
+  assert.equal(repeated.profile.coins, completed.profile.coins);
+  assert.equal(repeated.profile.xp, completed.profile.xp);
+  assert.deepEqual(sibling.data.tasks, []);
+
+  const undone = progressTransition(repeated.profile, repeated.data, 'task.undo', {
+    id: 'parent-direct', expectedRevision: 0,
+  }, parentContext);
+  assert.equal(undone.data.tasks.find(task => task.id === 'parent-direct').done, false);
+  assert.equal(undone.profile.coins, created.profile.coins);
+  assert.equal(undone.profile.xp, created.profile.xp);
+  data = undone.data;
+});
+
 check('Parent deletion disappears for the child and cannot affect another child', () => {
   const result = progressTransition(child, data, 'task.delete', {
     id: 'parent-quest', expectedRevision: 'parent-edit-1',

@@ -10,7 +10,7 @@ import { AVAILABLE_AVATARS } from '../../constants/fighters';
 import { WORLD_THEMES, ThemeKey } from '../../constants/theme';
 import { Screen, Button, ChoiceTabs, SceneArt, ui, palette, fighterFor } from '../../components/questblox/UI';
 export { AVAILABLE_AVATARS } from '../../constants/fighters';
-export type { RobloxAvatar } from '../../constants/fighters';
+export type { QuestbloxFighter } from '../../constants/fighters';
 
 export default function FightersScreen() {
   const { t, i18n } = useTranslation();

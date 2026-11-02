@@ -4,7 +4,7 @@ export const DEFAULT_PRIZES = [
   'Ice Cream 🍦',
   'Pick Dinner 🍕',
   'Screen Time 🎮',
-  'Robux 💰',
+  'Mystery Treat 🎁',
   'Movie Night 🎬',
   'Choose a Game 🕹️',
   'Late Bedtime 🌙',
@@ -13,7 +13,7 @@ export const DEFAULT_PRIZES = [
   'Sticker Pack 🌟',
 ];
 
-export const PRIZE_ICONS = ['🍦', '🍕', '🎮', '💰', '🎬', '🕹️', '🌙', '🛑', '⚽', '🌟'];
+export const PRIZE_ICONS = ['🍦', '🍕', '🎮', '🎁', '🎬', '🕹️', '🌙', '🛑', '⚽', '🌟'];
 export const prizeEmoji = (prize: string) => prize.match(/[\uD800-\uDBFF][\uDC00-\uDFFF]/)?.[0] || '🎁';
 export const prizeLabel = (prize: string) => prize.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]\uFE0F?/, '').trim();
 
@@ -21,7 +21,9 @@ const LEGACY_DEFAULT_PRIZES = ['Robux 💰', '1 Day Screen Time 🎮', 'Ice Crea
 
 export const restorePrizePool = (saved: unknown): string[] => {
   if (!Array.isArray(saved)) return [...DEFAULT_PRIZES];
-  const prizes = saved.filter((prize): prize is string => typeof prize === 'string');
+  const prizes = saved
+    .filter((prize): prize is string => typeof prize === 'string')
+    .map(prize => prize === 'Robux 💰' || prize === 'Robuxy 💰' ? 'Mystery Treat 🎁' : prize);
   if (prizes.length === 1) return Array.from(new Set([...prizes, ...DEFAULT_PRIZES]));
   return prizes.length === LEGACY_DEFAULT_PRIZES.length && prizes.every((prize, index) => prize === LEGACY_DEFAULT_PRIZES[index])
     ? [...DEFAULT_PRIZES]

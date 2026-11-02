@@ -2,7 +2,7 @@ import { normalizeOutfits, validOutfit, FighterOutfits } from '../utils/fighterO
 import { preserveFamilyCache } from '../lib/progressRecovery';
 import { familyCacheState } from '../utils/familyCache';
 import type { RecoveryClaim, RecoveryRequest } from '../types/recovery';
-import { enqueueProgress, flushProgress, hasQueuedProgress, progressBusy, progressGeneration, takeProgressResult, readProgressIssues, ProgressFlush, ProgressOperation } from '../lib/progressQueue';
+import { enqueueProgress, flushProgress, hasQueuedProgress, progressBusy, progressGeneration, takeProgressOutcome, readProgressIssues, ProgressFlush, ProgressOperation } from '../lib/progressQueue';
 import { progressSnapshot } from '../utils/progressSnapshot';
 import { familyAction, readFamilyStatus } from '../lib/familyAccounts';
 import { readCloudState, hasSavedCloudEdits } from '../lib/cloudState';
@@ -91,6 +91,7 @@ interface AppState {
   startQuest: (id: string) => void;
   requestQuestHelp: (id: string) => void;
   toggleTaskDone: (id: string, forceCritical?: boolean) => QuestRewardCalculation | null;
+  setChildTaskDone: (childId: string, id: string, done: boolean) => Promise<boolean>;
   postponeTask: (taskId: string, targetDateStr?: string) => void;
   unpostponeTask: (taskId: string) => void;
   claimEpicBoss: () => QuestRewardCalculation | null;
@@ -169,19 +170,24 @@ function reconcileProgress(uid: string, flushed: ProgressFlush) {
   const selected = state.role === 'parent' && state.selectedChildId ? flushed.snapshots[state.selectedChildId] : own;
   useAppStore.setState({ children, ...(selected ? progressSnapshot(selected.profile, selected.data) : {}), syncError: null });
 }
-async function serverReward(action: string, payload: Record<string, unknown> = {}, target?: string): Promise<any | null> {
+async function serverProgress(action: string, payload: Record<string, unknown> = {}, target?: string): Promise<{ completed: boolean; result: any | null }> {
   const state = useAppStore.getState(), uid = state.userId, targetUid = target || progressTarget(state);
-  if (!uid || !targetUid || auth.currentUser?.uid !== uid) return null;
+  if (!uid || !targetUid || auth.currentUser?.uid !== uid) return { completed: false, result: null };
   try {
     const operation = await enqueueProgress(uid, targetUid, action, payload);
     await useAppStore.getState().syncToServer();
-    if (useAppStore.getState().userId !== uid || auth.currentUser?.uid !== uid || (!target && progressTarget(useAppStore.getState()) !== targetUid)) return null;
-    if (useAppStore.getState().syncError) return null;
-    return takeProgressResult(uid, operation.requestId) ?? null;
+    if (useAppStore.getState().userId !== uid || auth.currentUser?.uid !== uid || (!target && progressTarget(useAppStore.getState()) !== targetUid)) return { completed: false, result: null };
+    if (useAppStore.getState().syncError) return { completed: false, result: null };
+    const outcome = takeProgressOutcome(uid, operation.requestId);
+    return { completed: outcome.completed, result: outcome.result ?? null };
   } catch {
     if (useAppStore.getState().userId === uid) useAppStore.setState({ syncError: 'family_sync_retry' });
-    return null;
+    return { completed: false, result: null };
   }
+}
+async function serverReward(action: string, payload: Record<string, unknown> = {}, target?: string): Promise<any | null> {
+  const outcome = await serverProgress(action, payload, target);
+  return outcome.completed ? outcome.result : null;
 }
 
 export const useAppStore: UseBoundStore<StoreApi<AppState>> = create<AppState>((set, get) => ({
@@ -430,6 +436,18 @@ export const useAppStore: UseBoundStore<StoreApi<AppState>> = create<AppState>((
       get().addXP(-reward.xpGain, -reward.coinGain);
       return null;
     }
+  },
+  setChildTaskDone: async (childId, id, done) => {
+    const state = get();
+    const targetChild = state.children.find(child => child.id === childId && child.isApproved === true);
+    if (state.role !== 'parent' || !targetChild) return false;
+    const task = targetChild.tasks.find(item => item.id === id);
+    if (!task || task.pendingApproval || targetChild.isSick) return false;
+    if (task.done === done) return true;
+    const outcome = await serverProgress(done ? 'task.complete' : 'task.undo', { id, expectedRevision: task.revision ?? 0 }, childId);
+    if (!outcome.completed) return false;
+    const child = get().children.find(item => item.id === childId);
+    return child?.tasks.find(item => item.id === id)?.done === done;
   },
   postponeTask: (taskId: string, targetDateStr?: string) => {
     const today = new Date();

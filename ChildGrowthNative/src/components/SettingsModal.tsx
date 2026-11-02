@@ -4,13 +4,13 @@ import { reminderAccount, syncQuestReminders } from '../lib/notifications';
 import { confirmAction } from '../lib/dialogs';
 import React, { useState } from 'react';
 import { personName } from '../utils/displayName';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Linking } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { useAppStore } from '../store/useAppStore';
 import { AVAILABLE_AVATARS } from '../constants/fighters';
-import { Bell, LogOut, Users, X, Globe, RotateCcw, ChevronRight, Unlink, Archive, Pencil, Check } from 'lucide-react-native';
+import { Bell, LogOut, Users, X, Globe, RotateCcw, ChevronRight, Unlink, Archive, Pencil, Check, ShieldCheck } from 'lucide-react-native';
 import LanguageSwitcher from './LanguageSwitcher';
 
 export default function SettingsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -100,6 +100,9 @@ export default function SettingsModal({ visible, onClose }: { visible: boolean; 
             <View style={styles.row}><Globe size={24} color="#aab8cf" /><Text style={styles.rowText}>{t('settings_language')}</Text></View>
             <LanguageSwitcher />
           </View>
+          <TouchableOpacity accessibilityRole="link" style={styles.row} onPress={() => { void Linking.openURL('https://questblox-10c14.web.app/privacy.html'); }}>
+            <ShieldCheck size={24} color="#aab8cf" /><Text style={styles.rowText}>{t('child_consent_privacy')}</Text><ChevronRight color="#aab8cf" size={20} />
+          </TouchableOpacity>
           {!!error && <Text accessibilityLiveRegion="polite" style={styles.meta}>{t('settings_failed')}</Text>}
           {busy && <Text accessibilityLiveRegion="polite" style={styles.meta}>{t('settings_wait')}</Text>}
           <View style={styles.section}>

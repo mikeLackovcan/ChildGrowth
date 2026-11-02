@@ -7,7 +7,7 @@ import { Colors } from '../../constants/theme';
 const ROW = 52;
 const pad = (value: number) => String(value).padStart(2, '0');
 function Wheel({ initial, count, start = 0, label, onChange }: { initial: number; count: number; start?: number; label: string; onChange: (value: number) => void }) {
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const initialized = useRef(false);
   const [selected, setSelected] = useState(initial);
   const select = (index: number) => { setSelected(index + start); onChange(index + start); };

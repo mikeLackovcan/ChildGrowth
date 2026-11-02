@@ -17,7 +17,7 @@ export interface AvatarSkillConfig {
 export const AVATAR_SKILL_CONFIGS: AvatarSkillConfig[] = [
   {
     id: 'roblox_noob',
-    name: 'Roblox Noob',
+    name: 'Quest Rookie',
     price: 0,
     skillName: 'Beginner Luck 🍀',
     shortBuff: '+10% Coins on Easy Quests',
@@ -27,7 +27,7 @@ export const AVATAR_SKILL_CONFIGS: AvatarSkillConfig[] = [
   },
   {
     id: 'roblox_bacon_hair',
-    name: 'Bacon Hair',
+    name: 'Ember Scout',
     price: 350,
     skillName: 'Crispy Focus 🔥',
     shortBuff: '+15% XP Boost on All Quests',
@@ -36,7 +36,7 @@ export const AVATAR_SKILL_CONFIGS: AvatarSkillConfig[] = [
   },
   {
     id: 'roblox_guest',
-    name: 'Roblox Guest',
+    name: 'Stealth Ranger',
     price: 700,
     skillName: 'Stealth Shield 🛡️',
     shortBuff: 'Auto Streak Shield Protection',
@@ -46,7 +46,7 @@ export const AVATAR_SKILL_CONFIGS: AvatarSkillConfig[] = [
   },
   {
     id: 'roblox_builderman',
-    name: 'Builderman',
+    name: 'Brick Guardian',
     price: 1400,
     skillName: 'Master Architect 🏗️',
     shortBuff: '2x Coins on Med & Hard Quests',
@@ -56,7 +56,7 @@ export const AVATAR_SKILL_CONFIGS: AvatarSkillConfig[] = [
   },
   {
     id: 'roblox_flamingo',
-    name: 'Flamingo',
+    name: 'Sundae Sage',
     price: 2100,
     skillName: 'Chill Vibe 🍨',
     shortBuff: '+20% Bonus Coins on Quests',
@@ -65,7 +65,7 @@ export const AVATAR_SKILL_CONFIGS: AvatarSkillConfig[] = [
   },
   {
     id: 'roblox_ninja',
-    name: 'Roblox Ninja',
+    name: 'Shadow Ninja',
     price: 2800,
     skillName: 'Shadow Speed ⚡',
     shortBuff: '2x Faster Boss Hold (0.75s)',
@@ -75,7 +75,7 @@ export const AVATAR_SKILL_CONFIGS: AvatarSkillConfig[] = [
   },
   {
     id: 'roblox_dominus',
-    name: 'Dominus Valkyrie',
+    name: 'Sky Valkyrie',
     price: 3500,
     skillName: 'Crown of Power 👑',
     shortBuff: '+25% XP across All Quests',
@@ -123,7 +123,7 @@ export const AVATAR_SKILL_CONFIGS: AvatarSkillConfig[] = [
   },
   {
     id: 'roblox_bloxy',
-    name: 'Golden Bloxy Champ',
+    name: 'Golden Quest Champ',
     price: 7000,
     skillName: 'Ultimate Champion 🏆',
     shortBuff: '+50% Coins & XP on ALL Quests',
@@ -150,7 +150,7 @@ export interface QuestRewardCalculation {
 
 export function getComboMultiplier(completedCount: number): { multiplier: number; label: string; color: string } {
   if (completedCount >= 3) {
-    return { multiplier: 2.0, label: '👑 2.0x ROBLOX FRENZY!', color: '#ff007f' };
+    return { multiplier: 2.0, label: '👑 2.0x QUEST FRENZY!', color: '#ff007f' };
   } else if (completedCount === 2) {
     return { multiplier: 1.5, label: '⚡ 1.5x ULTRA COMBO!', color: '#ffb300' };
   } else if (completedCount === 1) {

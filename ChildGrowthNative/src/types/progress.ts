@@ -14,6 +14,7 @@ export interface Task {
   date: string;
   icon?: string;
   startedAt?: string;
+  durationMinutes?: number;
   reminderMode?: 'notification' | 'alarm';
   reminderTime?: string; // Local HH:mm, 07:00–19:59; empty uses device default.
   requiresApproval?: boolean;

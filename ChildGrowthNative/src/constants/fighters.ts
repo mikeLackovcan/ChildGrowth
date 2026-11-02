@@ -1,4 +1,4 @@
-export interface RobloxAvatar {
+export interface QuestbloxFighter {
   id: string;
   name: string;
   price: number;
@@ -17,10 +17,10 @@ export interface RobloxAvatar {
   battleClass: string;
 }
 
-export const AVAILABLE_AVATARS: RobloxAvatar[] = [
+export const AVAILABLE_AVATARS: QuestbloxFighter[] = [
   {
     id: 'roblox_noob',
-    name: 'Roblox Noob',
+    name: 'Quest Rookie',
     price: 0,
     rarity: 'Common',
     skillName: 'Beginner Luck 🍀',
@@ -30,13 +30,13 @@ export const AVAILABLE_AVATARS: RobloxAvatar[] = [
     hp: 100,
     attack: 15,
     speed: 20,
-    battleSkill: 'Noob Punch 👊',
+    battleSkill: 'Rookie Punch 👊',
     battleSkillDesc: 'Deals 20 damage with 10% chance to stun opponent.',
     battleClass: 'Brawler 🥊'
   },
   {
     id: 'roblox_bacon_hair',
-    name: 'Bacon Hair',
+    name: 'Ember Scout',
     price: 350,
     rarity: 'Common',
     skillName: 'Crispy Focus 🔥',
@@ -52,7 +52,7 @@ export const AVAILABLE_AVATARS: RobloxAvatar[] = [
   },
   {
     id: 'roblox_guest',
-    name: 'Roblox Guest',
+    name: 'Stealth Ranger',
     price: 700,
     rarity: 'Common',
     skillName: 'Stealth Shield 🛡️',
@@ -68,7 +68,7 @@ export const AVAILABLE_AVATARS: RobloxAvatar[] = [
   },
   {
     id: 'roblox_builderman',
-    name: 'Builderman',
+    name: 'Brick Guardian',
     price: 1400,
     rarity: 'Rare',
     skillName: 'Master Architect 🏗️',
@@ -84,7 +84,7 @@ export const AVAILABLE_AVATARS: RobloxAvatar[] = [
   },
   {
     id: 'roblox_flamingo',
-    name: 'Flamingo',
+    name: 'Sundae Sage',
     price: 2100,
     rarity: 'Rare',
     skillName: 'Chill Vibe 🍨',
@@ -100,7 +100,7 @@ export const AVAILABLE_AVATARS: RobloxAvatar[] = [
   },
   {
     id: 'roblox_ninja',
-    name: 'Roblox Ninja',
+    name: 'Shadow Ninja',
     price: 2800,
     rarity: 'Rare',
     skillName: 'Shadow Speed',
@@ -116,7 +116,7 @@ export const AVAILABLE_AVATARS: RobloxAvatar[] = [
   },
   {
     id: 'roblox_dominus',
-    name: 'Dominus Valkyrie',
+    name: 'Sky Valkyrie',
     price: 3500,
     rarity: 'Epic',
     skillName: 'Crown of Power',
@@ -168,7 +168,7 @@ export const AVAILABLE_AVATARS: RobloxAvatar[] = [
     price: 5600,
     rarity: 'Legendary',
     skillName: 'Rainbow Luck ??',
-    skillDesc: '+50 Roblox Coins Bonus on Prize Wheel',
+    skillDesc: '+50 Quest Coins Bonus on Prize Wheel',
     image: require('../assets/images/roblox_unicorn.png'),
     color: '#F43F5E',
     hp: 190,
@@ -196,7 +196,7 @@ export const AVAILABLE_AVATARS: RobloxAvatar[] = [
   },
   {
     id: 'roblox_bloxy',
-    name: 'Golden Bloxy Champ',
+    name: 'Golden Quest Champ',
     price: 7000,
     rarity: 'Legendary',
     skillName: 'Ultimate Champion ??',
@@ -206,7 +206,7 @@ export const AVAILABLE_AVATARS: RobloxAvatar[] = [
     hp: 280,
     attack: 85,
     speed: 50,
-    battleSkill: 'Bloxy Smash 🏆',
+    battleSkill: 'Quest Smash 🏆',
     battleSkillDesc: 'Ultimate Champion Finisher! Deals 100 massive damage.',
     battleClass: 'Mythic Champ 🌟'
   },
