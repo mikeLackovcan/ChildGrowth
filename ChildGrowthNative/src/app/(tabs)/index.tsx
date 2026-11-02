@@ -238,7 +238,7 @@ export default function TrackerScreen() {
         </Pressable>}
         {state.rewardGoal && !state.rewardGoal.claimed && <Pressable style={styles.goalLink} onPress={() => router.push('/milestones')} accessibilityRole="button">
           <Text style={styles.goalIcon}>🎯</Text>
-          <View style={{ flex: 1 }}><Text style={styles.taskName}>{state.rewardGoal.title}</Text><Text style={styles.meta}>{t('goal_progress', { earned: Math.min(state.rewardGoal.target, Math.max(0, state.totalEarned - state.rewardGoal.startCoins)), target: state.rewardGoal.target })}</Text></View>
+          <View style={{ flex: 1 }}><Text style={styles.taskName}>{state.rewardGoal.title}</Text><Text style={styles.meta}>{t('goal_progress', { progress: Math.min(state.rewardGoal.target, Math.max(0, state.totalEarned - state.rewardGoal.startCoins)), target: state.rewardGoal.target })}</Text></View>
           <Text style={styles.linkText}>{t('view')}</Text>
         </Pressable>}
       </ScrollView>

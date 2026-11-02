@@ -10,7 +10,13 @@ const output = process.env.QUEST_UX_SCREENSHOTS || '/tmp/quest-champ-ux-check';
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
   const page = await context.newPage();
   const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
+  page.on('pageerror', error => {
+    errors.push(error.message);
+    console.error(`BROWSER ERROR: ${error.message}`);
+  });
+  page.on('console', message => {
+    if (message.type() === 'error') console.error(`BROWSER CONSOLE: ${message.text()}`);
+  });
   await page.addInitScript(() => {
     if (localStorage.getItem('quest-ux-fixture')) return;
     const now = new Date();
@@ -60,7 +66,7 @@ const output = process.env.QUEST_UX_SCREENSHOTS || '/tmp/quest-champ-ux-check';
     await page.getByLabel('Reward goal name', { exact: true }).fill('Movie night together');
     await page.getByLabel('Reward goal coin target', { exact: true }).fill('300');
     await page.getByRole('button', { name: 'Save goal', exact: true }).click();
-    await page.getByText('0 / 300 coins earned', { exact: true }).waitFor();
+    await page.getByText('0 / 300 coins earned', { exact: true }).first().waitFor();
     await page.waitForTimeout(400); await page.screenshot({ animations: "disabled", path: path.join(output, 'phone-rewards.png') });
     await page.getByRole('tab', { name: 'Shop', exact: true }).click();
     await page.getByRole('button', { name: 'Ember, 100 coins', exact: true }).waitFor();
@@ -68,6 +74,10 @@ const output = process.env.QUEST_UX_SCREENSHOTS || '/tmp/quest-champ-ux-check';
     await page.setViewportSize({ width: 800, height: 1280 });
     await page.waitForTimeout(400); await page.screenshot({ animations: "disabled", path: path.join(output, 'tablet-shop.png') });
     await page.getByRole('tab', { name: 'Quests', exact: true }).click();
+    for (const tab of ['Quests', 'My World', 'Prizes', 'Shop']) {
+      assert.equal(await page.getByRole('tab', { name: tab, exact: true }).isVisible(), true, `${tab} tab must remain visible on tablet`);
+    }
+    assert.equal(await page.getByText(/\{\{[^}]+\}\}/).count(), 0, 'Rendered UI must not expose translation placeholders');
     await page.waitForTimeout(400); await page.screenshot({ animations: "disabled", path: path.join(output, 'tablet-home.png') });
     assert.deepEqual(errors, [], 'No unhandled browser errors');
     console.log(`PASS: home, detail vs edit, completion undo, deletion undo, creation, timer resume, goal creation, mobile/tablet layout. Screenshots: ${output}`);
