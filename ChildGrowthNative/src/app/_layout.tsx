@@ -91,6 +91,7 @@ export default function RootLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="role-select" />
           <Stack.Screen name="link-account" />
+          <Stack.Screen name="claim-child" />
           <Stack.Screen name="child-onboard" />
           <Stack.Screen name="waiting" />
           <Stack.Screen name="parent-dashboard" />

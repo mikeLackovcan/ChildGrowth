@@ -95,6 +95,7 @@ function rewardState(data: any, cloud = false) {
 
 export interface ChildProfile {
   managed?: boolean;
+  managedOwner?: boolean;
   prizes?: string[];
   lastSpinDate?: string | null;
   activeTheme?: ThemeKey;
@@ -1878,6 +1879,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               const cloudChildren: ChildProfile[] = linkedRows.map(({ profile, data }) => ({
                 id: profile.uid,
                 managed: profile.managed === true,
+                managedOwner: profile.managedOwner === true,
                 name: profile.full_name || profile.nickname,
                 nickname: profile.nickname,
                 level: typeof data.level === 'number' ? data.level : 1,

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import ActionSheet from './ActionSheet';
@@ -9,6 +9,7 @@ import { useAppStore } from '../store/useAppStore';
 import { useExperienceSettings } from '../store/useExperienceSettings';
 import { requestNotificationPermissions, scheduleTaskReminders, testQuestReminder } from '../lib/notifications';
 import { disconnectManagedDevice } from '../lib/disconnectManagedDevice';
+import { listManagedGuardians } from '../lib/devicePairing';
 
 export default function SettingsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { t } = useTranslation();
@@ -23,13 +24,22 @@ export default function SettingsModal({ visible, onClose }: { visible: boolean; 
   const [deviceBusy, setDeviceBusy] = useState(false);
   const [deviceError, setDeviceError] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  useEffect(() => {
+    if (!visible || state.deviceConnection !== 'linked' || !state.userId) return;
+    void listManagedGuardians(state.userId).then(guardians => {
+      const names = guardians.map(item => item.parent_name);
+      if (names.length) useAppStore.setState({ linkedParents: names, parentEmail: names[0], approvalStatus: 'approved' });
+    }).catch(() => {});
+  }, [visible, state.deviceConnection, state.userId]);
   const close = () => { setConfirmReset(false); setConfirmDelete(false); setDeleteStatus(''); setUnlink(null); onClose(); };
   return <ActionSheet visible={visible} title={t('settings_title')} onClose={close}>
     <Text style={styles.name}>{state.fullName || state.nickname || t('hero_fallback')}</Text>
     <Pressable style={styles.familyAction} accessibilityRole="button" onPress={() => { close(); router.push('/link-account'); }}>
       <View style={styles.copy}>
-        <Text style={styles.familyTitle}>{state.deviceConnection === 'linked' ? t('family_connection') : t('family_code_action')}</Text>
-        <Text style={styles.familyHint}>{state.deviceConnection === 'linked' ? t('family_connected_hint') : t('family_code_hint')}</Text>
+        <Text style={styles.familyTitle}>{t(state.deviceConnection === 'linked' ? 'guardian_child_title' : 'family_code_action')}</Text>
+        <Text style={styles.familyHint}>{state.deviceConnection === 'linked'
+          ? t('guardian_connected_count', { count: Math.max(1, state.linkedParents.length) })
+          : t('family_code_hint')}</Text>
       </View>
       <Text style={styles.familyArrow}>›</Text>
     </Pressable>

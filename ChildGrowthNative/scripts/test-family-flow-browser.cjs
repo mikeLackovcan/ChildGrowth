@@ -79,6 +79,13 @@ async function seed(page, tag, state) {
     await parentPage.getByRole('button', { name: /Sam/ }).click();
     await parentPage.getByText('Show QR code', { exact: true }).waitFor();
     await parentPage.getByText('Lost or new phone', { exact: true }).waitFor();
+    await parentPage.getByText('Connect existing child', { exact: true }).click();
+    await parentPage.getByRole('heading', { name: 'Connect existing child', exact: true }).waitFor();
+    await parentPage.getByLabel('Child connection code', { exact: true }).fill('ABCD-EFGH-2345');
+    assert.equal(await parentPage.getByRole('button', { name: 'Connect child', exact: true }).isEnabled(), true, 'A valid child code enables parent connection');
+    await parentPage.screenshot({ animations: 'disabled', fullPage: true, path: path.join(output, 'parent-connect-child-phone.png') });
+    await parentPage.goto(routeUrl('/parent-dashboard'));
+    await parentPage.getByText('Your family', { exact: true }).waitFor();
     assert.equal(await parentPage.getByLabel('Email address').count(), 0, 'Family pairing must not ask for a child email');
     await parentPage.screenshot({ animations: 'disabled', fullPage: true, path: path.join(output, 'parent-phone.png') });
 
@@ -115,7 +122,7 @@ async function seed(page, tag, state) {
     await germanContext.close();
 
     assert.deepEqual(errors, [], 'No unhandled browser errors');
-    console.log(`PASS: parent switching, recovery controls, manual-code kid flow, logout routing, phone/tablet and German narrow layout. Screenshots: ${output}`);
+    console.log(`PASS: parent switching, recovery controls, parent claim screen, first-parent linking, logout routing, phone/tablet and German narrow layout. Screenshots: ${output}`);
   } finally {
     await browser.close();
   }

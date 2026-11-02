@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { router } from 'expo-router';
 import { Plus, RefreshCw, ScanLine, Smartphone, Trash2 } from 'lucide-react-native';
 import { useAppStore } from '../store/useAppStore';
 import { auth } from '../lib/firebase';
@@ -41,7 +42,7 @@ export default function ParentPairingSetup() {
   }
 
   async function makeCode(recovery = false) {
-    if (!selected?.managed) return;
+    if (!selected?.managed || selected.managedOwner === false) return;
     const childId = selected.id;
     if (recovery) {
       const accepted = await confirmAction(
@@ -74,6 +75,14 @@ export default function ParentPairingSetup() {
         <Text style={[styles.addButtonText, adding && styles.addButtonTextActive]}>{t('parent_add_child')}</Text>
       </Pressable>
     </View>
+
+    <Pressable accessibilityRole="button" disabled={busy} style={styles.existingChildAction} onPress={() => router.push('/claim-child' as never)}>
+      <ScanLine size={20} color={Colors.primary} />
+      <View style={styles.existingChildCopy}>
+        <Text style={styles.existingChildTitle}>{t('guardian_parent_title')}</Text>
+        <Text style={styles.existingChildHint}>{t('guardian_parent_short')}</Text>
+      </View>
+    </Pressable>
 
     {adding ? <View style={styles.createArea}>
       <Text style={styles.fieldLabel}>{t('pair_child_name')}</Text>
@@ -121,7 +130,7 @@ export default function ParentPairingSetup() {
       ><Text style={styles.primaryText}>{t(busy ? 'processing' : 'pair_create')}</Text></Pressable>
     </View> : null}
 
-    {selected?.managed ? <View style={styles.connectArea}>
+    {selected?.managed && selected.managedOwner !== false ? <View style={styles.connectArea}>
       <Text style={styles.childTitle}>{t('pair_for_child', { name: selected.name })}</Text>
       <View style={styles.steps}>
         <View style={styles.step}><View style={styles.stepIcon}><Smartphone size={21} color={Colors.primary} /></View><Text style={styles.stepText}>{t('pair_step_kid')}</Text></View>
@@ -177,6 +186,10 @@ const styles = StyleSheet.create({
   addButtonText: { flexShrink: 1, fontFamily: 'Nunito_800ExtraBold', fontSize: 15, color: Colors.primary, textAlign: 'center' },
   addButtonTextActive: { color: '#FFFFFF' },
   createArea: { paddingTop: 4 },
+  existingChildAction: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  existingChildCopy: { flex: 1, minWidth: 0 },
+  existingChildTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 16, lineHeight: 22, color: Colors.primary },
+  existingChildHint: { fontFamily: 'Nunito_600SemiBold', fontSize: 14, lineHeight: 20, color: Colors.textSecondary },
   fieldLabel: { fontFamily: 'Nunito_800ExtraBold', fontSize: 16, lineHeight: 22, color: Colors.text, marginBottom: 6, marginTop: 10 },
   input: { width: '100%', minHeight: 58, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, paddingHorizontal: 15, paddingVertical: 14, fontFamily: 'Nunito_700Bold', fontSize: 17, lineHeight: 24, color: Colors.text, textAlign: 'left', textAlignVertical: 'top' },
   heroes: { gap: 10, paddingVertical: 4, paddingRight: 10 },

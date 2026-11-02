@@ -168,7 +168,9 @@ export default function ParentDashboardScreen() {
           <View style={styles.selectedNameRow}>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text numberOfLines={2} style={styles.selectedName}>{activeChild.name}</Text>
-              <Text style={styles.selectedStatus}>{activeChild.managed ? t('parent_child_managed') : t('parent_child_connected')}</Text>
+              <Text style={styles.selectedStatus}>{activeChild.managed
+                ? t(activeChild.managedOwner === false ? 'parent_child_shared' : 'parent_child_managed')
+                : t('parent_child_connected')}</Text>
             </View>
             {!activeChild.managed ? <Pressable accessibilityRole="button" accessibilityLabel={t('remove_child_btn')} style={styles.smallIconButton} onPress={async () => {
               const childId = activeChild.id;

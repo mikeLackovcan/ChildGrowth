@@ -1,15 +1,16 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, View, Text, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ScanLine, X } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import QRCode from 'react-native-qrcode-svg';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Colors } from '../constants/theme';
 import { useAppStore } from '../store/useAppStore';
 import { connectGuestDevice } from '../lib/connectGuestDevice';
-import { releaseDeviceLink } from '../lib/devicePairing';
-import { normalizePairingCode } from '../lib/pairingCode';
+import { createGuardianCode, listManagedGuardians, releaseDeviceLink } from '../lib/devicePairing';
+import { guardianQrValue, normalizePairingCode } from '../lib/pairingCode';
 
 const errorKeys = new Set(['pair_invalid_code', 'pair_expired_code', 'pair_already_connected',
   'pair_progress_conflict', 'pair_use_child_device', 'pair_session_changed', 'pair_busy']);
@@ -23,12 +24,22 @@ export default function LinkAccountScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [scanning, setScanning] = useState(false);
+  const [guardianCode, setGuardianCode] = useState('');
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const pending = useRef(false);
   const scanLocked = useRef(false);
   const eligible = role === 'child' && (userId === 'guest-local' || deviceConnection === 'local');
+  const linked = role === 'child' && deviceConnection === 'linked' && Boolean(userId);
   const canRelease = eligible && ['pair_progress_conflict', 'pair_already_connected'].includes(error);
   const validCode = normalizePairingCode(code);
+
+  useEffect(() => {
+    if (!linked || !userId) return;
+    void listManagedGuardians(userId).then(guardians => {
+      const names = guardians.map(item => item.parent_name);
+      if (names.length) useAppStore.setState({ linkedParents: names, parentEmail: names[0], approvalStatus: 'approved' });
+    }).catch(() => {});
+  }, [linked, userId]);
 
   async function connect(candidate = code) {
     if (pending.current) return;
@@ -65,8 +76,8 @@ export default function LinkAccountScreen() {
   return <SafeAreaView style={styles.screen}>
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-      <Text accessibilityRole="header" style={styles.title}>{t('pair_child_title')}</Text>
-      <Text style={styles.hint}>{t(eligible ? 'pair_child_help' : 'pair_existing')}</Text>
+      <Text accessibilityRole="header" style={styles.title}>{t(linked ? 'guardian_child_title' : 'pair_child_title')}</Text>
+      <Text style={styles.hint}>{t(linked ? 'guardian_child_help' : eligible ? 'pair_child_help' : 'pair_existing')}</Text>
       {eligible && <>
         {Platform.OS !== 'web' && (scanning ? <View style={styles.scanner}>
           <CameraView
@@ -90,6 +101,21 @@ export default function LinkAccountScreen() {
           accessibilityLabel={t('pair_code_label')} placeholder={t('pair_code_label')} style={styles.input} />
         <Pressable accessibilityRole="button" disabled={busy || !validCode} style={[styles.button, (busy || !validCode) && styles.disabled]}
           onPress={() => void connect()}><Text style={styles.buttonText}>{t(busy ? 'processing' : 'pair_connect')}</Text></Pressable>
+      </>}
+      {linked && <>
+        {guardianCode ? <View style={styles.ticket}>
+          <View style={styles.qr} accessibilityLabel={t('guardian_qr_accessible')}>
+            <QRCode value={guardianQrValue(guardianCode)} size={210} color={Colors.text} backgroundColor="#FFFFFF" />
+          </View>
+          <Text selectable accessibilityLiveRegion="polite" style={styles.code}>{guardianCode}</Text>
+          <Text style={styles.ticketHint}>{t('pair_code_expires')}</Text>
+        </View> : <Pressable accessibilityRole="button" disabled={busy} style={[styles.scanButton, busy && styles.disabled]} onPress={async () => {
+          if (pending.current) return;
+          pending.current = true; setBusy(true); setError('');
+          try { setGuardianCode(await createGuardianCode()); }
+          catch (cause: any) { setError(errorKeys.has(cause?.message) ? cause.message : 'pair_setup_failed'); }
+          finally { pending.current = false; setBusy(false); }
+        }}><ScanLine size={23} color="#FFFFFF" /><Text style={styles.scanButtonText}>{t(busy ? 'processing' : 'guardian_show_qr')}</Text></Pressable>}
       </>}
       {error ? <Text accessibilityRole="alert" style={styles.error}>{t(error)}</Text> : null}
       {canRelease && <Pressable accessibilityRole="button" disabled={busy} style={styles.link} onPress={async () => {
@@ -124,4 +150,8 @@ const styles = StyleSheet.create({
   scanFrame: { position: 'absolute', width: 190, height: 190, borderWidth: 3, borderColor: '#FFFFFF', borderRadius: 22, alignSelf: 'center', top: 48 },
   scanClose: { position: 'absolute', top: 10, right: 10, width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.52)', alignItems: 'center', justifyContent: 'center' },
   scanText: { position: 'absolute', bottom: 12, left: 16, right: 16, color: '#FFFFFF', textAlign: 'center', fontFamily: 'Nunito_800ExtraBold', fontSize: 15 },
+  ticket: { alignItems: 'center', gap: 10, paddingVertical: 18, borderRadius: 20, backgroundColor: Colors.blueDim },
+  qr: { padding: 12, borderRadius: 16, backgroundColor: '#FFFFFF' },
+  code: { fontFamily: 'Nunito_800ExtraBold', fontSize: 28, letterSpacing: 2, color: Colors.text },
+  ticketHint: { fontFamily: 'Nunito_600SemiBold', fontSize: 14, color: Colors.textSecondary },
 });

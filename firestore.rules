@@ -11,9 +11,16 @@ service cloud.firestore {
       return accountAuth()
         && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'parent';
     }
-    function managedParent(childUid) {
+    function guardianLink(childUid, parentUid) {
+      return exists(/databases/$(database)/documents/family_guardians/$(childUid + '_' + parentUid))
+        && get(/databases/$(database)/documents/family_guardians/$(childUid + '_' + parentUid)).data.status == 'active';
+    }
+    function primaryManagedParent(childUid) {
       return parentAccount()
         && get(/databases/$(database)/documents/family_children/$(childUid)).data.parent_uid == request.auth.uid;
+    }
+    function managedParent(childUid) {
+      return primaryManagedParent(childUid) || (parentAccount() && guardianLink(childUid, request.auth.uid));
     }
     function managedParentAfter(childUid) {
       return parentAccount()
@@ -23,8 +30,9 @@ service cloud.firestore {
       return signedIn()
         && exists(/databases/$(database)/documents/family_devices/$(request.auth.uid))
         && get(/databases/$(database)/documents/family_devices/$(request.auth.uid)).data.child_uid == childUid
-        && get(/databases/$(database)/documents/family_devices/$(request.auth.uid)).data.parent_uid
-          == get(/databases/$(database)/documents/family_children/$(childUid)).data.parent_uid;
+        && (get(/databases/$(database)/documents/family_devices/$(request.auth.uid)).data.parent_uid
+          == get(/databases/$(database)/documents/family_children/$(childUid)).data.parent_uid
+          || guardianLink(childUid, get(/databases/$(database)/documents/family_devices/$(request.auth.uid)).data.parent_uid));
     }
     function approvedInvite(childUid, parentUid) {
       return exists(/databases/$(database)/documents/family_invites/$(childUid + '_' + parentUid))
@@ -51,27 +59,27 @@ service cloud.firestore {
         && request.resource.data.full_name is string
         && request.resource.data.full_name.size() > 0
         && request.resource.data.full_name.size() <= 30;
-      allow get: if (parentAccount() && resource.data.parent_uid == request.auth.uid) || boundDevice(childUid);
+      allow get: if managedParent(childUid) || boundDevice(childUid);
       allow list: if parentAccount() && resource.data.parent_uid == request.auth.uid;
       allow update: if managedParent(childUid)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['full_name'])
         && request.resource.data.full_name is string
         && request.resource.data.full_name.size() > 0
         && request.resource.data.full_name.size() <= 30;
-      allow delete: if managedParent(childUid);
+      allow delete: if primaryManagedParent(childUid);
     }
 
     match /family_progress/{childUid} {
       allow get: if managedParent(childUid) || boundDevice(childUid);
       allow create: if managedParentAfter(childUid) || boundDevice(childUid);
       allow update: if managedParent(childUid) || boundDevice(childUid);
-      allow delete: if managedParent(childUid);
+      allow delete: if primaryManagedParent(childUid);
     }
 
     match /family_codes/{code} {
       allow create: if code.matches('^[A-HJ-NP-Z2-9]{12}$')
         && request.resource.data.keys().hasOnly(['child_uid', 'parent_uid', 'expires_at', 'claimed_by'])
-        && managedParent(request.resource.data.child_uid)
+        && primaryManagedParent(request.resource.data.child_uid)
         && request.resource.data.parent_uid == request.auth.uid
         && request.resource.data.claimed_by == ''
         && request.resource.data.expires_at is timestamp
@@ -100,8 +108,54 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/family_codes/$(request.resource.data.code)).data.claimed_by == deviceUid
         && getAfter(/databases/$(database)/documents/family_codes/$(request.resource.data.code)).data.child_uid == request.resource.data.child_uid
         && getAfter(/databases/$(database)/documents/family_codes/$(request.resource.data.code)).data.parent_uid == request.resource.data.parent_uid
-        && get(/databases/$(database)/documents/family_children/$(request.resource.data.child_uid)).data.parent_uid == request.resource.data.parent_uid;
+        && (get(/databases/$(database)/documents/family_children/$(request.resource.data.child_uid)).data.parent_uid == request.resource.data.parent_uid
+          || guardianLink(request.resource.data.child_uid, request.resource.data.parent_uid));
       allow delete: if owns(deviceUid) || (parentAccount() && resource.data.parent_uid == request.auth.uid);
+    }
+
+    match /family_guardian_codes/{code} {
+      allow create: if code.matches('^[A-HJ-NP-Z2-9]{12}$')
+        && request.resource.data.keys().hasOnly(['child_uid', 'device_uid', 'expires_at', 'claimed_by'])
+        && request.resource.data.device_uid == request.auth.uid
+        && boundDevice(request.resource.data.child_uid)
+        && request.resource.data.claimed_by == ''
+        && request.resource.data.expires_at is timestamp
+        && request.resource.data.expires_at > request.time
+        && request.resource.data.expires_at <= request.time + duration.value(16, 'm');
+      allow get: if signedIn() && (owns(resource.data.device_uid) || parentAccount());
+      allow list: if (signedIn() && request.auth.token.firebase.sign_in_provider == 'anonymous'
+        && resource.data.device_uid == request.auth.uid)
+        || primaryManagedParent(resource.data.child_uid);
+      allow update: if parentAccount()
+        && resource.data.claimed_by == ''
+        && resource.data.expires_at > request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimed_by'])
+        && request.resource.data.claimed_by == request.auth.uid
+        && getAfter(/databases/$(database)/documents/family_guardians/$(resource.data.child_uid + '_' + request.auth.uid)).data.code == code;
+      allow delete: if owns(resource.data.device_uid)
+        || (parentAccount() && resource.data.claimed_by == request.auth.uid)
+        || primaryManagedParent(resource.data.child_uid);
+    }
+
+    match /family_guardians/{guardianId} {
+      allow create: if parentAccount()
+        && request.resource.data.keys().hasOnly(['child_uid', 'parent_uid', 'parent_name', 'code', 'status', 'created_at'])
+        && guardianId == request.resource.data.child_uid + '_' + request.auth.uid
+        && request.resource.data.parent_uid == request.auth.uid
+        && request.resource.data.parent_name is string
+        && request.resource.data.parent_name.size() > 0
+        && request.resource.data.parent_name.size() <= 30
+        && request.resource.data.status == 'active'
+        && get(/databases/$(database)/documents/family_guardian_codes/$(request.resource.data.code)).data.claimed_by == ''
+        && get(/databases/$(database)/documents/family_guardian_codes/$(request.resource.data.code)).data.expires_at > request.time
+        && get(/databases/$(database)/documents/family_guardian_codes/$(request.resource.data.code)).data.child_uid == request.resource.data.child_uid
+        && getAfter(/databases/$(database)/documents/family_guardian_codes/$(request.resource.data.code)).data.claimed_by == request.auth.uid;
+      allow get: if (parentAccount() && (resource.data.parent_uid == request.auth.uid
+        || primaryManagedParent(resource.data.child_uid))) || boundDevice(resource.data.child_uid);
+      allow list: if signedIn() && ((parentAccount() && resource.data.parent_uid == request.auth.uid)
+        || primaryManagedParent(resource.data.child_uid)
+        || boundDevice(resource.data.child_uid));
+      allow delete: if primaryManagedParent(resource.data.child_uid) || owns(resource.data.parent_uid);
     }
 
     match /family_invites/{inviteId} {

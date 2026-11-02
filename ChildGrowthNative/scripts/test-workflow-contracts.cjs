@@ -18,11 +18,14 @@ function loadPairingCode() {
 }
 
 test('family QR accepts only Quest Champ pairing codes', () => {
-  const { normalizePairingCode, pairingQrValue } = loadPairingCode();
+  const { normalizePairingCode, pairingQrValue, normalizeGuardianCode, guardianQrValue } = loadPairingCode();
   assert.equal(normalizePairingCode('ABCD-EFGH-2345'), 'ABCD-EFGH-2345');
   assert.equal(normalizePairingCode(pairingQrValue('ABCD-EFGH-2345')), 'ABCD-EFGH-2345');
   assert.equal(normalizePairingCode('https://example.com/?code=ABCD-EFGH-2345'), null);
   assert.equal(normalizePairingCode('ABCI-EFGH-2345'), null);
+  assert.equal(normalizeGuardianCode('ABCD-EFGH-2345'), 'ABCD-EFGH-2345');
+  assert.equal(normalizeGuardianCode(guardianQrValue('ABCD-EFGH-2345')), 'ABCD-EFGH-2345');
+  assert.equal(normalizeGuardianCode(pairingQrValue('ABCD-EFGH-2345')), null);
 });
 
 test('family QR connects immediately after one valid scan and keeps manual entry', () => {
@@ -31,6 +34,19 @@ test('family QR connects immediately after one valid scan and keeps manual entry
   assert.match(screen, /setCode\(parsed\);[\s\S]*await connect\(parsed\)/);
   assert.match(screen, /requestCameraPermission\(\)/);
   assert.match(screen, /accessibilityLabel=\{t\('pair_code_label'\)\}/);
+});
+
+test('linked children can add parents and parents can claim a child QR', () => {
+  const child = read('src/app/link-account.tsx');
+  const parent = read('src/app/claim-child.tsx');
+  const setup = read('src/components/ParentPairingSetup.tsx');
+  assert.match(child, /deviceConnection === 'linked'/);
+  assert.match(child, /createGuardianCode/);
+  assert.match(child, /guardianQrValue/);
+  assert.match(parent, /claimGuardianCode/);
+  assert.match(parent, /normalizeGuardianCode/);
+  assert.match(parent, /await useAppStore\.getState\(\)\.loadMockState\(\)/);
+  assert.match(setup, /router\.push\('\/claim-child'/);
 });
 
 test('entry flow keeps Kid mode local and cloud sign-in parent-only', () => {

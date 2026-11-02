@@ -6,6 +6,7 @@ const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@fir
 const { doc, getDoc, getDocs, collection, query, where, setDoc, updateDoc, deleteDoc, writeBatch, runTransaction, Timestamp } = require('firebase/firestore');
 let environment;
 const code = 'ABCDEFGH2345';
+const guardianCode = 'JKLMNPQR6789';
 const parent = uid => environment.authenticatedContext(uid, { firebase: { sign_in_provider: 'password' } }).firestore();
 const device = uid => environment.authenticatedContext(uid, { firebase: { sign_in_provider: 'anonymous' } }).firestore();
 
@@ -19,7 +20,7 @@ after(async () => { await environment?.cleanup(); });
 beforeEach(async () => {
   await environment.clearFirestore();
   await environment.withSecurityRulesDisabled(async context => {
-    await Promise.all(['parent-a', 'parent-b'].map(uid => setDoc(doc(context.firestore(), 'profiles', uid), { role: 'parent', nickname: uid, full_name: uid })));
+    await Promise.all(['parent-a', 'parent-b', 'parent-c'].map(uid => setDoc(doc(context.firestore(), 'profiles', uid), { role: 'parent', nickname: uid, full_name: uid })));
   });
 });
 async function createChild(id = 'child-a', owner = 'parent-a') {
@@ -42,6 +43,26 @@ async function claim(db, uid, ticketCode = code) {
     const data = ticket.data();
     tx.update(ticket.ref, { claimed_by: uid });
     tx.set(doc(db, 'family_devices', uid), { parent_uid: data.parent_uid, child_uid: data.child_uid, code: ticketCode });
+  });
+}
+async function issueGuardianCode(childDb, ticketCode = guardianCode) {
+  await assertSucceeds(setDoc(doc(childDb, 'family_guardian_codes', ticketCode), {
+    child_uid: 'child-a', device_uid: 'device-a',
+    expires_at: Timestamp.fromMillis(Date.now() + 15 * 60_000), claimed_by: '',
+  }));
+}
+async function claimGuardian(parentUid, ticketCode = guardianCode) {
+  const db = parent(parentUid);
+  return runTransaction(db, async tx => {
+    const ticketRef = doc(db, 'family_guardian_codes', ticketCode);
+    const ticket = await tx.get(ticketRef);
+    const data = ticket.data();
+    tx.update(ticketRef, { claimed_by: parentUid });
+    tx.set(doc(db, 'family_guardians', `${data.child_uid}_${parentUid}`), {
+      child_uid: data.child_uid, parent_uid: parentUid, parent_name: parentUid,
+      code: ticketCode, status: 'active', created_at: Timestamp.now(),
+    });
+    tx.set(doc(db, 'user_data', parentUid), { managed_family_enabled: true }, { merge: true });
   });
 }
 test('parent can create and query only their own child profiles', async () => {
@@ -69,6 +90,36 @@ test('atomic one-time pairing grants access only to the selected child', async (
   assert.equal((await getDoc(doc(parent('parent-a'), 'family_progress', 'child-a'))).data().coins, 50);
   await assertFails(getDoc(doc(db, 'family_progress', 'child-b')));
   await assertFails(claim(device('device-b'), 'device-b'));
+});
+
+test('one child can link multiple parents without exposing siblings or ownership controls', async () => {
+  await issueCode();
+  await createChild('child-b');
+  const childDb = device('device-a');
+  await assertSucceeds(claim(childDb, 'device-a'));
+
+  await issueGuardianCode(childDb);
+  await assertSucceeds(claimGuardian('parent-b'));
+  const secondCode = 'STUVWXYZ2345';
+  await issueGuardianCode(childDb, secondCode);
+  await assertSucceeds(claimGuardian('parent-c', secondCode));
+
+  for (const parentUid of ['parent-b', 'parent-c']) {
+    const guardian = parent(parentUid);
+    await assertSucceeds(getDoc(doc(guardian, 'family_children', 'child-a')));
+    await assertSucceeds(getDoc(doc(guardian, 'family_progress', 'child-a')));
+    await assertSucceeds(updateDoc(doc(guardian, 'family_progress', 'child-a'), { coins: parentUid === 'parent-b' ? 20 : 30 }));
+    await assertFails(getDoc(doc(guardian, 'family_progress', 'child-b')));
+    await assertFails(deleteDoc(doc(guardian, 'family_progress', 'child-a')));
+    await assertFails(deleteDoc(doc(guardian, 'family_children', 'child-a')));
+    await assertFails(setDoc(doc(guardian, 'family_codes', `CDEFGHJK${parentUid === 'parent-b' ? '2345' : '6789'}`), {
+      parent_uid: parentUid, child_uid: 'child-a', expires_at: Timestamp.fromMillis(Date.now() + 15 * 60_000), claimed_by: '',
+    }));
+  }
+  assert.equal((await getDocs(query(collection(parent('parent-b'), 'family_guardians'), where('parent_uid', '==', 'parent-b'), where('status', '==', 'active')))).size, 1);
+  assert.equal((await getDocs(query(collection(childDb, 'family_guardians'), where('child_uid', '==', 'child-a'), where('status', '==', 'active')))).size, 2);
+  await assertSucceeds(getDoc(doc(parent('parent-a'), 'family_progress', 'child-a')));
+  await assertFails(claimGuardian('parent-c'));
 });
 test('parent and paired child exchange progress while duplicate reward writes stay idempotent', async () => {
   await issueCode();
@@ -198,4 +249,22 @@ test('atomic managed profile deletion does not delete or expose a sibling', asyn
   await assertFails(setDoc(doc(device('device-a'), 'family_progress', 'child-a'), { coins: 999 }));
   await assertSucceeds(getDoc(doc(db, 'family_progress', 'child-b')));
   await assertSucceeds(updateDoc(doc(db, 'family_progress', 'child-b'), { coins: 30 }));
+});
+
+test('primary parent can remove guardian records before deleting a child profile', async () => {
+  await issueCode();
+  const childDb = device('device-a');
+  await assertSucceeds(claim(childDb, 'device-a'));
+  await issueGuardianCode(childDb);
+  await assertSucceeds(claimGuardian('parent-b'));
+  const owner = parent('parent-a');
+  const guardianRows = await assertSucceeds(getDocs(query(collection(owner, 'family_guardians'), where('child_uid', '==', 'child-a'))));
+  for (const row of guardianRows.docs) await assertSucceeds(deleteDoc(row.ref));
+  const codeRows = await assertSucceeds(getDocs(query(collection(owner, 'family_guardian_codes'), where('child_uid', '==', 'child-a'))));
+  for (const row of codeRows.docs) await assertSucceeds(deleteDoc(row.ref));
+  await assertSucceeds(deleteDoc(doc(owner, 'family_devices', 'device-a')));
+  await assertSucceeds(deleteDoc(doc(owner, 'family_codes', code)));
+  await assertSucceeds(deleteDoc(doc(owner, 'family_progress', 'child-a')));
+  await assertSucceeds(deleteDoc(doc(owner, 'family_children', 'child-a')));
+  await assertFails(getDoc(doc(parent('parent-b'), 'family_progress', 'child-a')));
 });

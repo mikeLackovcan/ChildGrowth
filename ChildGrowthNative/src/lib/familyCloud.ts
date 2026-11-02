@@ -20,6 +20,7 @@ export type CloudRole = 'parent' | 'child';
 
 export interface CloudProfile {
   managed?: boolean;
+  managedOwner?: boolean;
   uid: string;
   nickname: string;
   full_name: string;
@@ -198,7 +199,10 @@ export async function loadLinkedChildren(): Promise<Array<{ profile: CloudProfil
   const own = await getDoc(doc(db, 'user_data', uid));
   if (!own.data()?.managed_family_enabled) return legacy;
   const managed = await listManagedChildren();
-  return [...legacy, ...managed.map(row => ({ ...row, profile: { ...row.profile, managed: true } }))];
+  return [...legacy, ...managed.map(row => ({
+    ...row,
+    profile: { ...row.profile, managed: true, managedOwner: row.profile.owner === true },
+  }))];
 }
 
 /**

@@ -7,6 +7,7 @@ import { importGuestProgress } from './familyProgress';
 import { reconnectProgress } from './reconnectProgress';
 
 export interface ManagedChild {
+  owner?: boolean;
   uid: string;
   parent_uid: string;
   nickname: string;
@@ -14,10 +15,17 @@ export interface ManagedChild {
   role: 'child';
 }
 export interface DeviceLink { parent_uid: string; child_uid: string; code: string }
+export interface ManagedGuardian { child_uid: string; parent_uid: string; parent_name: string; code: string; status: 'active' }
 
 function parentUid(): string {
   if (!auth.currentUser || auth.currentUser.isAnonymous) throw new Error('pair_parent_required');
   return auth.currentUser.uid;
+}
+
+async function randomFamilyCode(): Promise<string> {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = await Crypto.getRandomBytesAsync(12);
+  return [...bytes].map(byte => alphabet[byte % 32]).join('');
 }
 
 export async function createManagedChild(name: string, heroId: string): Promise<ManagedChild> {
@@ -45,11 +53,26 @@ export async function createManagedChild(name: string, heroId: string): Promise<
 }
 
 export async function listManagedChildren(): Promise<{ profile: ManagedChild; data: Record<string, any> }[]> {
-  const snapshots = await getDocs(query(collection(db, 'family_children'), where('parent_uid', '==', parentUid())));
-  return Promise.all(snapshots.docs.map(async snapshot => ({
-    profile: snapshot.data() as ManagedChild,
-    data: (await getDoc(doc(db, 'family_progress', snapshot.id))).data() || {},
-  })));
+  const parent = parentUid();
+  const [owned, shared] = await Promise.all([
+    getDocs(query(collection(db, 'family_children'), where('parent_uid', '==', parent))),
+    getDocs(query(collection(db, 'family_guardians'), where('parent_uid', '==', parent), where('status', '==', 'active'))),
+  ]);
+  const childIds = Array.from(new Set([...owned.docs.map(row => row.id), ...shared.docs.map(row => String(row.data().child_uid))]));
+  const rows = await Promise.all(childIds.map(async childUid => {
+    const [profile, data] = await Promise.all([
+      getDoc(doc(db, 'family_children', childUid)),
+      getDoc(doc(db, 'family_progress', childUid)),
+    ]);
+    return profile.exists() ? {
+      profile: { ...(profile.data() as ManagedChild), owner: profile.data().parent_uid === parent },
+      data: data.data() || {},
+    } : null;
+  }));
+  return rows.flatMap(row => row ? [{
+    profile: row.profile as ManagedChild,
+    data: row.data as Record<string, any>,
+  }] : []);
 }
 
 export async function createPairingCode(childUid: string): Promise<string> {
@@ -57,14 +80,67 @@ export async function createPairingCode(childUid: string): Promise<string> {
   const child = await getDoc(doc(db, 'family_children', childUid));
   if (!child.exists() || child.data().parent_uid !== parent) throw new Error('pair_child_missing');
   // Twelve base32 characters provide 60 bits of random code space; not enumerable.
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const bytes = await Crypto.getRandomBytesAsync(12);
-  const code = [...bytes].map(byte => alphabet[byte % 32]).join('');
+  const code = await randomFamilyCode();
   await setDoc(doc(db, 'family_codes', code), {
     child_uid: childUid, parent_uid: parent,
     expires_at: Timestamp.fromMillis(Date.now() + 15 * 60_000), claimed_by: '',
   });
   return code.match(/.{1,4}/g)!.join('-');
+}
+
+/** A trusted linked child device creates a short-lived invitation for one additional parent. */
+export async function createGuardianCode(): Promise<string> {
+  const link = await getDeviceLink();
+  if (!auth.currentUser?.isAnonymous || !link) throw new Error('pair_use_child_device');
+  const code = await randomFamilyCode();
+  await setDoc(doc(db, 'family_guardian_codes', code), {
+    child_uid: link.child_uid,
+    device_uid: auth.currentUser.uid,
+    expires_at: Timestamp.fromMillis(Date.now() + 15 * 60_000),
+    claimed_by: '',
+  });
+  return code.match(/.{1,4}/g)!.join('-');
+}
+
+/** A signed-in parent claims a child-generated one-use invitation. */
+export async function claimGuardianCode(rawCode: string): Promise<string> {
+  const parent = parentUid();
+  const code = rawCode.replace(/[\s-]/g, '').toUpperCase();
+  if (!/^[A-HJ-NP-Z2-9]{12}$/.test(code)) throw new Error('pair_invalid_code');
+  const profile = await getDoc(doc(db, 'profiles', parent));
+  const parentName = String(profile.data()?.full_name || profile.data()?.nickname || 'Parent').slice(0, 30);
+  const ticketRef = doc(db, 'family_guardian_codes', code);
+  const childUid = await runTransaction(db, async transaction => {
+    const ticket = await transaction.get(ticketRef);
+    if (!ticket.exists()) throw new Error('pair_invalid_code');
+    const data = ticket.data();
+    if (data.claimed_by || data.expires_at.toMillis() <= Date.now()) throw new Error('pair_expired_code');
+    const guardianRef = doc(db, 'family_guardians', `${data.child_uid}_${parent}`);
+    const existingGuardian = await transaction.get(guardianRef);
+    if (existingGuardian.exists()) throw new Error('pair_already_connected');
+    transaction.update(ticketRef, { claimed_by: parent });
+    transaction.set(guardianRef, {
+      child_uid: data.child_uid, parent_uid: parent, parent_name: parentName,
+      code, status: 'active', created_at: serverTimestamp(),
+    });
+    transaction.set(doc(db, 'user_data', parent), { managed_family_enabled: true }, { merge: true });
+    return String(data.child_uid);
+  });
+  return childUid;
+}
+
+export async function listManagedGuardians(childUid: string): Promise<ManagedGuardian[]> {
+  const link = await getDeviceLink();
+  if (!link || link.child_uid !== childUid) return [];
+  const rows = await getDocs(query(collection(db, 'family_guardians'), where('child_uid', '==', childUid), where('status', '==', 'active')));
+  const primary = await getDoc(doc(db, 'family_children', childUid));
+  const ownerUid = String(primary.data()?.parent_uid || '');
+  const ownerName = String(primary.data()?.parent_name || 'Parent');
+  const guardians = rows.docs.map(row => row.data() as ManagedGuardian);
+  if (ownerUid && !guardians.some(item => item.parent_uid === ownerUid)) {
+    guardians.unshift({ child_uid: childUid, parent_uid: ownerUid, parent_name: ownerName, code: '', status: 'active' });
+  }
+  return guardians;
 }
 
 /** Revoke every old device for one child before recovering the profile on a new phone. */
@@ -110,6 +186,10 @@ export async function deleteManagedChild(childUid: string): Promise<void> {
       if (snapshot.data().child_uid === childUid) await deleteDoc(snapshot.ref);
     }
   }
+  for (const name of ['family_guardian_codes', 'family_guardians']) {
+    const snapshots = await getDocs(query(collection(db, name), where('child_uid', '==', childUid)));
+    for (const snapshot of snapshots.docs) await deleteDoc(snapshot.ref);
+  }
   // Atomic deletion closes the window in which a concurrent save could recreate progress.
   const batch = writeBatch(db);
   batch.delete(doc(db, 'family_progress', childUid));
@@ -120,12 +200,18 @@ export async function deleteManagedChild(childUid: string): Promise<void> {
 /** Remove all managed family records before deleting the parent account. */
 export async function deleteManagedFamily(): Promise<void> {
   const parent = parentUid();
+  const guardianLinks = await getDocs(query(collection(db, 'family_guardians'), where('parent_uid', '==', parent)));
+  for (const link of guardianLinks.docs) await deleteDoc(link.ref);
   for (const name of ['family_devices', 'family_codes']) {
     const snapshots = await getDocs(query(collection(db, name), where('parent_uid', '==', parent)));
     for (const snapshot of snapshots.docs) await deleteDoc(snapshot.ref);
   }
   const children = await getDocs(query(collection(db, 'family_children'), where('parent_uid', '==', parent)));
   for (const child of children.docs) {
+    const guardianCodes = await getDocs(query(collection(db, 'family_guardian_codes'), where('child_uid', '==', child.id)));
+    for (const code of guardianCodes.docs) await deleteDoc(code.ref);
+    const guardians = await getDocs(query(collection(db, 'family_guardians'), where('child_uid', '==', child.id)));
+    for (const guardian of guardians.docs) await deleteDoc(guardian.ref);
     // The child's profile supplies ownership authorization for progress deletion.
     await deleteDoc(doc(db, 'family_progress', child.id));
     await deleteDoc(child.ref);
