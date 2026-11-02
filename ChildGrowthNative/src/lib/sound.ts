@@ -3,8 +3,9 @@ import * as Haptics from 'expo-haptics';
 import { useExperienceSettings } from '../store/useExperienceSettings';
 
 const COMPLETE_SOUND = require('../../assets/audio/habi_complete.wav');
+const ALARM_SOUND = require('../../assets/audio/habi_alarm.wav');
 
-export type SoundEffect = 'coin' | 'complete' | 'levelup' | 'boss_hit' | 'spin' | 'unlock';
+export type SoundEffect = 'coin' | 'complete' | 'alarm' | 'levelup' | 'boss_hit' | 'spin' | 'unlock';
 
 let audioCtx: AudioContext | null = null;
 
@@ -34,6 +35,11 @@ export function playSound(effect: SoundEffect) {
         case 'complete':
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           break;
+        case 'alarm':
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 650);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 1350);
+          break;
         case 'levelup':
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 150);
@@ -50,15 +56,16 @@ export function playSound(effect: SoundEffect) {
       }
     } catch (e) {}
 
-    if (effect === 'complete' || effect === 'coin' || effect === 'levelup' || effect === 'unlock') {
+    if (effect === 'complete' || effect === 'alarm' || effect === 'coin' || effect === 'levelup' || effect === 'unlock') {
       try {
         const { createAudioPlayer } = require('expo-audio');
-        const player = createAudioPlayer(COMPLETE_SOUND);
-        player.volume = effect === 'coin' ? 0.32 : 0.48;
+        const player = createAudioPlayer(effect === 'alarm' ? ALARM_SOUND : COMPLETE_SOUND);
+        player.volume = effect === 'coin' ? 0.32 : effect === 'alarm' ? 0.9 : 0.48;
+        player.loop = effect === 'alarm';
         player.play();
         setTimeout(() => {
           try { player.release(); } catch (_) {}
-        }, 1200);
+        }, effect === 'alarm' ? 3000 : 1200);
       } catch (_) {}
     }
   }
@@ -97,6 +104,17 @@ export function playSound(effect: SoundEffect) {
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
         osc.start(now);
         osc.stop(now + 0.4);
+        break;
+
+      case 'alarm':
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.setValueAtTime(660, now + 0.25);
+        osc.frequency.setValueAtTime(880, now + 0.5);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+        osc.start(now);
+        osc.stop(now + 0.9);
         break;
 
       case 'levelup':

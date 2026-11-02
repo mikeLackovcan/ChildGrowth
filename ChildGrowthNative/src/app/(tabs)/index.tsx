@@ -3,7 +3,7 @@ import { AppState, Image, Pressable, ScrollView, StyleSheet, Text, View } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Check, ChevronDown, Coins, MoreHorizontal, Pencil, Play, Plus, Settings, ShieldCheck, Trash2, X } from 'lucide-react-native';
+import { Check, Coins, MoreHorizontal, Pencil, Play, Plus, Settings, ShieldCheck, Trash2, X } from 'lucide-react-native';
 import { Task, useAppStore } from '../../store/useAppStore';
 import { Colors, QUEST_BACKGROUNDS } from '../../constants/theme';
 import SettingsModal from '../../components/SettingsModal';
@@ -35,7 +35,6 @@ export default function TrackerScreen() {
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
-  const [showDone, setShowDone] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [celebration, setCelebration] = useState<number | null>(null);
   const [coinFeedback, setCoinFeedback] = useState({ amount: 0, sequence: 0 });
@@ -145,13 +144,16 @@ export default function TrackerScreen() {
   };
 
   const taskRow = (task: Task) => (
-    <View key={task.id} style={styles.taskRow}>
-      <Pressable style={styles.taskMain} accessibilityRole="button" accessibilityLabel={t('quest_open', { name: questName(task) })} onPress={() => setSelectedId(task.id)}>
-        <View style={[styles.taskIcon, simpleView && { width: 64, height: 64 }, task.done && styles.taskIconDone]}><Text style={[styles.emoji, simpleView && { fontSize: 36 }]}>{task.done ? '✓' : task.icon || '⭐'}</Text></View>
+    <View key={task.id} style={[styles.taskRow, task.done && styles.taskRowDone]}>
+      <Pressable style={styles.taskMain} accessibilityRole="button" accessibilityState={{ checked: task.done }} accessibilityLabel={t('quest_open', { name: questName(task) })} onPress={() => setSelectedId(task.id)}>
+        <View style={styles.taskIconWrap}>
+          <View style={[styles.taskIcon, simpleView && { width: 64, height: 64 }, task.done && styles.taskIconDone]}><Text style={[styles.emoji, simpleView && { fontSize: 36 }]}>{task.icon || '⭐'}</Text></View>
+          {task.done ? <View style={styles.clearedBadge}><Check size={13} strokeWidth={3.5} color="#FFFFFF" /></View> : null}
+        </View>
         <View style={styles.taskCopy}>
-          <Text style={[styles.taskName, simpleView && { fontSize: 21 }]}>{questName(task)}</Text>
+          <Text style={[styles.taskName, simpleView && { fontSize: 21 }, task.done && styles.taskNameDone]}>{questName(task)}</Text>
           <Text style={styles.taskMeta}>
-            {task.done ? t('day_done') : task.pendingApproval ? t('day_waiting') :
+            {task.done ? [t('day_cleared'), task.rewardedCoins ? t('coins_plus', { count: task.rewardedCoins }) : ''].filter(Boolean).join(' · ') : task.pendingApproval ? t('day_waiting') :
               [task.reminderEnabled ? task.reminderTime : '', task.focusDurationMinutes ? t('duration_minutes', { value: task.focusDurationMinutes }) : '', t('coins_plus', { count: calculateQuestReward(task, state.tasks, state.currentAvatar, earned).coins })].filter(Boolean).join(' · ')}
           </Text>
         </View>
@@ -221,10 +223,10 @@ export default function TrackerScreen() {
         {ready.length > 0 && <>{later.length > 0 && <Text style={styles.groupTitle}>{t('now')}</Text>}{ready.map(taskRow)}</>}
         {later.length > 0 && <><Text style={styles.groupTitle}>{t('later')}</Text>{later.map(taskRow)}</>}
         {done.length > 0 && <>
-          <Pressable accessibilityRole="button" accessibilityState={{ expanded: showDone }} style={styles.doneToggle} onPress={() => setShowDone(value => !value)}>
-            <Check size={18} color="#316327" /><Text style={styles.doneText}>{t('day_done_count', { count: done.length })}</Text><ChevronDown size={18} color={Colors.textSecondary} style={{ transform: [{ rotate: showDone ? '180deg' : '0deg' }] }} />
-          </Pressable>
-          {showDone && done.map(taskRow)}
+          <View style={styles.doneHeading} accessibilityRole="header">
+            <Check size={19} strokeWidth={3} color="#316327" /><Text style={styles.doneText}>{t('day_cleared_count', { count: done.length })}</Text>
+          </View>
+          {done.map(taskRow)}
         </>}
         <View style={styles.footerActions}>
           <Pressable style={styles.addButton} accessibilityRole="button" accessibilityLabel={t('quest_add_accessible')} onPress={() => router.push('/manage-tasks')}>
@@ -296,16 +298,20 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', backgroundColor: '#83AE2D', borderRadius: 8 },
   groupTitle: { fontFamily: 'Nunito_800ExtraBold', color: Colors.textSecondary, fontSize: 15, marginTop: 16 },
   taskRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#DFE5ED', paddingVertical: 10 },
+  taskRowDone: { borderBottomColor: '#D9E7CB' },
   taskMain: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 60, gap: 10 },
   taskCopy: { flex: 1 },
+  taskIconWrap: { position: 'relative' },
   taskIcon: { width: 44, height: 48, borderRadius: 14, backgroundColor: '#EDF3FF', justifyContent: 'center', alignItems: 'center' },
   taskIconDone: { backgroundColor: '#EDF6DB' },
+  clearedBadge: { position: 'absolute', right: -5, bottom: -4, width: 22, height: 22, borderRadius: 11, backgroundColor: '#5C8E23', borderWidth: 2, borderColor: Colors.background, alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 25, color: '#316327' },
   taskName: { fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 17 },
+  taskNameDone: { color: '#316327' },
   taskMeta: { fontFamily: 'Nunito_600SemiBold', color: Colors.textSecondary, fontSize: 12, marginTop: 4 },
   taskAction: { minWidth: 56, minHeight: 52, alignItems: 'center', justifyContent: 'center', gap: 2, marginLeft: 4 },
   actionText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: Colors.primary },
-  doneToggle: { flexDirection: 'row', gap: 8, alignItems: 'center', minHeight: 52, marginTop: 10 },
+  doneHeading: { flexDirection: 'row', gap: 8, alignItems: 'center', minHeight: 44, marginTop: 10 },
   doneText: { flex: 1, fontFamily: 'Nunito_800ExtraBold', fontSize: 15, color: '#316327' },
   footerActions: { flexDirection: 'row', alignItems: 'center', marginTop: 22, gap: 18 },
   addButton: { width: 58, height: 58, borderRadius: 20, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },

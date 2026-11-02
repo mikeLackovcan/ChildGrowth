@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const output = process.env.QUEST_UX_SCREENSHOTS || '/tmp/quest-champ-ux-check';
+const baseUrl = process.env.QUEST_APP_URL || 'http://127.0.0.1:18183';
 (async () => {
   await fs.mkdir(output, { recursive: true });
   const browser = await chromium.launch({ headless: true, channel: process.env.QUEST_BROWSER_CHANNEL || 'chrome' });
@@ -34,7 +35,7 @@ const output = process.env.QUEST_UX_SCREENSHOTS || '/tmp/quest-champ-ux-check';
     localStorage.setItem('quest-ux-fixture', 'yes');
   });
   try {
-    await page.goto('http://127.0.0.1:18183/');
+    await page.goto(`${baseUrl}/`);
     await page.getByText('Maya’s day', { exact: true }).waitFor();
     await page.waitForTimeout(400); await page.screenshot({ animations: "disabled", path: path.join(output, 'phone-home.png') });
     await page.getByRole('button', { name: 'Open Tidy toys', exact: true }).click();
@@ -43,6 +44,10 @@ const output = process.env.QUEST_UX_SCREENSHOTS || '/tmp/quest-champ-ux-check';
     await page.getByRole('button', { name: 'Close', exact: true }).click();
     await page.getByRole('button', { name: 'Complete Tidy toys', exact: true }).click();
     await page.getByText('Tidy toys ✓  +33 coins', { exact: true }).waitFor();
+    await page.getByText('Cleared today (1)', { exact: true }).waitFor();
+    const clearedTask = page.getByRole('button', { name: 'Open Tidy toys', exact: true });
+    assert.equal(await clearedTask.getByText('🧸', { exact: true }).count(), 1, 'Cleared quest must keep its original icon');
+    await page.screenshot({ animations: 'disabled', path: path.join(output, 'phone-cleared.png') });
     await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await page.getByRole('button', { name: 'Complete Tidy toys', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Options for Tidy toys', exact: true }).click();

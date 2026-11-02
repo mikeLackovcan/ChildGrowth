@@ -750,6 +750,13 @@ test('changing a running timer cancels its stale finish alert', () => {
   assert.equal(store.getState().tasks[0].activeFocusStartedAt, undefined);
   assert.ok(cancelled.includes('timer-old'));
 });
+test('focus finish uses the audible alarm effect instead of a short completion chime', () => {
+  const focus = fs.readFileSync(path.join(root, 'src/app/focus-session.tsx'), 'utf8');
+  const sound = fs.readFileSync(path.join(root, 'src/lib/sound.ts'), 'utf8');
+  assert.match(focus, /playSound\('alarm'\)/);
+  assert.match(sound, /player\.loop = effect === 'alarm'/);
+  assert.match(sound, /ALARM_SOUND/);
+});
 test('completed quests skip today but retain future dated reminders', () => {
   const now = new Date(2026, 9, 20, 8, 0);
   const plan = reminderPlan([task('a', {
@@ -810,6 +817,13 @@ test('daily wheel requires a completed day, saves one prize, and cannot repeat',
   assert.equal(store.getState().lastSpinDate, localDateKey());
   assert.equal(store.getState().claimDailyWheelPrize(), null);
   assert.equal(store.getState().wonPrizes.length, 1);
+});
+test('completed quests stay visible today with their original icon and a cleared badge', () => {
+  const home = fs.readFileSync(path.join(root, 'src/app/(tabs)/index.tsx'), 'utf8');
+  assert.match(home, /\{task\.icon \|\| '⭐'\}/, 'Completed quests must keep their own icon');
+  assert.match(home, /task\.done \? <View style=\{styles\.clearedBadge\}>/, 'Completed quests need a visual success badge');
+  assert.match(home, /\{done\.map\(taskRow\)\}/, 'Completed quests must remain visible without expanding a disclosure');
+  assert.doesNotMatch(home, /showDone|setShowDone/, 'Completed quests must not start hidden');
 });
 test('wheel prizes use a dominant picture and no more than two visible words', () => {
   assert.deepEqual(wheelPrizePresentation('1 Day Screen Time 🎮'), { icon: '🎮', label: 'Screen Time' });

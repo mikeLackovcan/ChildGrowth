@@ -25,6 +25,14 @@ test('family QR accepts only Quest Champ pairing codes', () => {
   assert.equal(normalizePairingCode('ABCI-EFGH-2345'), null);
 });
 
+test('family QR connects immediately after one valid scan and keeps manual entry', () => {
+  const screen = read('src/app/link-account.tsx');
+  assert.match(screen, /onBarcodeScanned=\{\(\{ data \}\) => void handleScan\(data\)\}/);
+  assert.match(screen, /setCode\(parsed\);[\s\S]*await connect\(parsed\)/);
+  assert.match(screen, /requestCameraPermission\(\)/);
+  assert.match(screen, /accessibilityLabel=\{t\('pair_code_label'\)\}/);
+});
+
 test('entry flow keeps Kid mode local and cloud sign-in parent-only', () => {
   const login = read('src/app/index.tsx');
   assert.match(login, /entryMode.*'choose'.*'parent'/);

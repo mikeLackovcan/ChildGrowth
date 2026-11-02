@@ -71,7 +71,10 @@ export default function FocusSessionScreen() {
   useEffect(() => {
     if (!finished || celebrated.current) return;
     celebrated.current = true;
-    playSound('complete');
+    // The native notification covers background/closed delivery. This audible,
+    // repeating in-app fallback makes the finish unmistakable while this screen
+    // remains open, even when an older Android channel was configured silently.
+    playSound('alarm');
   }, [finished]);
 
   const timeText = useMemo(() => {

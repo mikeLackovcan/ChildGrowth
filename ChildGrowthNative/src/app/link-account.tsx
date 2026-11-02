@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, View, Text, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Camera, X } from 'lucide-react-native';
+import { ScanLine, X } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -25,16 +25,18 @@ export default function LinkAccountScreen() {
   const [scanning, setScanning] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const pending = useRef(false);
+  const scanLocked = useRef(false);
   const eligible = role === 'child' && (userId === 'guest-local' || deviceConnection === 'local');
   const canRelease = eligible && ['pair_progress_conflict', 'pair_already_connected'].includes(error);
   const validCode = normalizePairingCode(code);
 
-  async function connect() {
+  async function connect(candidate = code) {
     if (pending.current) return;
     pending.current = true; setBusy(true); setError('');
     try {
-      if (!validCode) throw new Error('pair_invalid_code');
-      await connectGuestDevice(validCode);
+      const normalized = normalizePairingCode(candidate);
+      if (!normalized) throw new Error('pair_invalid_code');
+      await connectGuestDevice(normalized);
       router.replace('/(tabs)');
     } catch (cause: any) {
       setError(errorKeys.has(cause?.message) ? cause.message : 'pair_setup_failed');
@@ -45,8 +47,19 @@ export default function LinkAccountScreen() {
     if (Platform.OS === 'web') return;
     const permission = cameraPermission?.granted ? cameraPermission : await requestCameraPermission();
     if (!permission.granted) { setError('pair_camera_denied'); return; }
+    scanLocked.current = false;
     setError('');
     setScanning(true);
+  }
+
+  async function handleScan(data: string) {
+    if (scanLocked.current || pending.current) return;
+    scanLocked.current = true;
+    const parsed = normalizePairingCode(data);
+    setScanning(false);
+    if (!parsed) { setError('pair_qr_invalid'); return; }
+    setCode(parsed);
+    await connect(parsed);
   }
 
   return <SafeAreaView style={styles.screen}>
@@ -60,19 +73,16 @@ export default function LinkAccountScreen() {
             style={StyleSheet.absoluteFill}
             facing="back"
             barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-            onBarcodeScanned={({ data }) => {
-              const parsed = normalizePairingCode(data);
-              if (!parsed) { setError('pair_qr_invalid'); return; }
-              setCode(parsed); setError(''); setScanning(false);
-            }}
+            onBarcodeScanned={({ data }) => void handleScan(data)}
+            onMountError={() => { setScanning(false); setError('pair_camera_unavailable'); }}
           />
           <View pointerEvents="none" style={styles.scanFrame} />
           <Pressable accessibilityRole="button" accessibilityLabel={t('pair_scan_close')} style={styles.scanClose} onPress={() => setScanning(false)}>
             <X size={22} color="#FFFFFF" />
           </Pressable>
           <Text style={styles.scanText}>{t('pair_scan_camera')}</Text>
-        </View> : <Pressable accessibilityRole="button" style={styles.scanButton} onPress={() => void openScanner()}>
-          <Camera size={21} color={Colors.primary} /><Text style={styles.scanButtonText}>{t('pair_scan')}</Text>
+        </View> : <Pressable accessibilityRole="button" disabled={busy} style={[styles.scanButton, busy && styles.disabled]} onPress={() => void openScanner()}>
+          <ScanLine size={23} color="#FFFFFF" /><Text style={styles.scanButtonText}>{t(busy ? 'processing' : 'pair_scan')}</Text>
         </Pressable>)}
         {Platform.OS !== 'web' ? <Text style={styles.or}>{t('pair_or_code')}</Text> : null}
         <TextInput value={code} onChangeText={setCode} editable={!busy} maxLength={20}
@@ -107,8 +117,8 @@ const styles = StyleSheet.create({
   error: { fontFamily: 'Nunito_700Bold', fontSize: 15, color: '#AF332A' },
   link: { minHeight: 48, justifyContent: 'center' },
   linkText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 16, color: Colors.primary },
-  scanButton: { minHeight: 56, borderWidth: 1.5, borderColor: Colors.primary, borderRadius: 16, flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center' },
-  scanButtonText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 17, color: Colors.primary },
+  scanButton: { minHeight: 60, borderRadius: 17, flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary },
+  scanButtonText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 18, color: '#FFFFFF' },
   or: { fontFamily: 'Nunito_700Bold', fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
   scanner: { height: 300, overflow: 'hidden', borderRadius: 22, backgroundColor: Colors.text },
   scanFrame: { position: 'absolute', width: 190, height: 190, borderWidth: 3, borderColor: '#FFFFFF', borderRadius: 22, alignSelf: 'center', top: 48 },

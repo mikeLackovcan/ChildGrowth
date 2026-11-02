@@ -7,6 +7,7 @@ const path = require('node:path');
 const baseUrl = process.env.QUEST_APP_URL || 'http://127.0.0.1:18195';
 const output = process.env.QUEST_FAMILY_SCREENSHOTS || '/tmp/quest-champ-family-flow';
 const prefix = 'quest-hero-dab6b:';
+const routeUrl = route => `${baseUrl}${route}${process.env.QUEST_STATIC_HTML ? '.html' : ''}`;
 const now = new Date();
 const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
@@ -72,11 +73,11 @@ async function seed(page, tag, state) {
     const parentPage = await parentContext.newPage();
     parentPage.on('pageerror', error => errors.push(`parent: ${error.message}`));
     await seed(parentPage, 'parent-ui', parentState());
-    await parentPage.goto(`${baseUrl}/parent-dashboard`);
+    await parentPage.goto(routeUrl('/parent-dashboard'));
     await parentPage.getByText('Your family', { exact: true }).waitFor();
     await parentPage.getByRole('button', { name: /Alexandra/ }).waitFor();
     await parentPage.getByRole('button', { name: /Sam/ }).click();
-    await parentPage.getByText('Connect device', { exact: true }).waitFor();
+    await parentPage.getByText('Show QR code', { exact: true }).waitFor();
     await parentPage.getByText('Lost or new phone', { exact: true }).waitFor();
     assert.equal(await parentPage.getByLabel('Email address').count(), 0, 'Family pairing must not ask for a child email');
     await parentPage.screenshot({ animations: 'disabled', fullPage: true, path: path.join(output, 'parent-phone.png') });
@@ -92,8 +93,8 @@ async function seed(page, tag, state) {
     const childPage = await childContext.newPage();
     childPage.on('pageerror', error => errors.push(`child: ${error.message}`));
     await seed(childPage, 'kid-flow', childState());
-    await childPage.goto(`${baseUrl}/link-account`);
-    await childPage.getByText('Enter family code', { exact: true }).waitFor();
+    await childPage.goto(routeUrl('/link-account'));
+    await childPage.getByText('Connect with parent', { exact: true }).waitFor();
     await childPage.getByLabel('Pairing code', { exact: true }).fill('ABCD-EFGH-2345');
     await childPage.getByRole('button', { name: 'Connect', exact: true }).waitFor();
     assert.equal(await childPage.getByRole('button', { name: 'Connect', exact: true }).isEnabled(), true, 'A valid code enables Connect');
@@ -106,7 +107,7 @@ async function seed(page, tag, state) {
     germanPage.on('pageerror', error => errors.push(`de: ${error.message}`));
     const german = { ...parentState(), language: 'de' };
     await seed(germanPage, 'parent-ui', german);
-    await germanPage.goto(`${baseUrl}/parent-dashboard`);
+    await germanPage.goto(routeUrl('/parent-dashboard'));
     await germanPage.getByText('Deine Familie', { exact: true }).waitFor();
     const overflow = await germanPage.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
     assert.equal(overflow, false, 'German parent dashboard must not overflow horizontally at 360px');

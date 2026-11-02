@@ -12,7 +12,7 @@ async function fixture(language, platform = 'android', permission = 'granted') {
   await i18n.init({ lng: language, resources: { [language]: { translation: dictionary } } });
   const scheduled = [], categories = new Map(), channels = new Map();
   const native = {
-    AndroidImportance: { DEFAULT: 3, MAX: 5 }, AndroidNotificationVisibility: { PUBLIC: 1 }, AndroidAudioUsage: { ALARM: 4 },
+    AndroidImportance: { DEFAULT: 3, MAX: 5 }, AndroidNotificationVisibility: { PUBLIC: 1 }, AndroidAudioUsage: { ALARM: 4 }, AndroidNotificationPriority: { MAX: 'max' },
     SchedulableTriggerInputTypes: { DATE: 'date', TIME_INTERVAL: 'timeInterval', DAILY: 'daily' },
     setNotificationHandler() {},
     setNotificationChannelAsync: async (id, value) => channels.set(id, value),
@@ -55,6 +55,9 @@ for (const language of ['en', 'cs', 'es', 'de']) {
     assert.equal(f.scheduled[1].content.body, f.dictionary.notification_focus_done);
     assert.equal(f.scheduled[1].content.title,
       f.dictionary.notification_focus_title.replace('{{name}}', task.name));
+    assert.equal(f.scheduled[1].trigger.channelId, 'quest-alarms-v2');
+    assert.equal(f.scheduled[1].content.priority, 'max');
+    assert.equal(f.channels.get('quest-alarms-v2').sound, 'habi_alarm.wav');
     assert.deepEqual(f.categories.get('focus-finished-actions').map(item => item.buttonTitle),
       ['action_finish', 'action_later'].map(key => f.dictionary[key]));
     assert.equal(await f.snoozeQuestReminder(task), true);

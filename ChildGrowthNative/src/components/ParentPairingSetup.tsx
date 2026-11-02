@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { KeyRound, Plus, RefreshCw, Smartphone, Trash2, UserRound } from 'lucide-react-native';
+import { Plus, RefreshCw, ScanLine, Smartphone, Trash2 } from 'lucide-react-native';
 import { useAppStore } from '../store/useAppStore';
 import { auth } from '../lib/firebase';
 import { createManagedChild, createPairingCode, replaceChildDevice } from '../lib/devicePairing';
@@ -124,12 +124,11 @@ export default function ParentPairingSetup() {
     {selected?.managed ? <View style={styles.connectArea}>
       <Text style={styles.childTitle}>{t('pair_for_child', { name: selected.name })}</Text>
       <View style={styles.steps}>
-        <View style={styles.step}><View style={styles.stepIcon}><UserRound size={21} color={Colors.primary} /></View><Text style={styles.stepText}>{t('pair_step_select')}</Text></View>
         <View style={styles.step}><View style={styles.stepIcon}><Smartphone size={21} color={Colors.primary} /></View><Text style={styles.stepText}>{t('pair_step_kid')}</Text></View>
-        <View style={styles.step}><View style={styles.stepIcon}><KeyRound size={21} color={Colors.primary} /></View><Text style={styles.stepText}>{t('pair_step_code')}</Text></View>
+        <View style={styles.step}><View style={styles.stepIcon}><ScanLine size={22} color={Colors.primary} /></View><Text style={styles.stepText}>{t('pair_step_code')}</Text></View>
       </View>
       <Pressable accessibilityRole="button" disabled={busy} style={styles.primary} onPress={() => void makeCode(false)}>
-        <Smartphone size={20} color="#FFFFFF" /><Text style={styles.primaryText}>{t('pair_connect_device')}</Text>
+        <ScanLine size={21} color="#FFFFFF" /><Text style={styles.primaryText}>{t('pair_connect_device')}</Text>
       </Pressable>
       <Pressable accessibilityRole="button" disabled={busy} style={styles.secondaryAction} onPress={() => void makeCode(true)}>
         <RefreshCw size={19} color={Colors.primary} /><Text style={styles.secondaryText}>{t('pair_replace_device')}</Text>
@@ -137,7 +136,7 @@ export default function ParentPairingSetup() {
       {ticket?.childId === selected.id ? <View style={styles.ticket}>
         <Text style={styles.ticketLabel}>{t(ticket.recovery ? 'pair_recovery_code' : 'pair_code_label')}</Text>
         <View style={styles.qr} accessibilityLabel={t('pair_qr_accessible', { name: selected.name })}>
-          <QRCode value={pairingQrValue(ticket.code)} size={176} color={Colors.text} backgroundColor="#FFFFFF" />
+          <QRCode value={pairingQrValue(ticket.code)} size={200} color={Colors.text} backgroundColor="#FFFFFF" />
         </View>
         <Text style={styles.scanHint}>{t('pair_scan_hint')}</Text>
         <Text selectable accessibilityLiveRegion="polite" style={styles.code}>{ticket.code}</Text>

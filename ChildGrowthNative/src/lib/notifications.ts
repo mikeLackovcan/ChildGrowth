@@ -7,7 +7,9 @@ import { reminderPlan } from './reminderPlan';
 import { localDateKey } from './questSchedule';
 
 const NOTIFICATION_CHANNEL_ID = 'quest-notifications';
-const ALARM_CHANNEL_ID = 'quest-alarms';
+// Android freezes a channel's sound/importance after first creation. Version the
+// ID so existing installs receive the repaired MAX-importance alarm settings.
+const ALARM_CHANNEL_ID = 'quest-alarms-v2';
 export const QUEST_REMINDER_CATEGORY = 'quest-reminder-actions';
 export const FOCUS_FINISHED_CATEGORY = 'focus-finished-actions';
 
@@ -151,6 +153,7 @@ export async function scheduleFocusEndNotification(task: Task, seconds: number):
       title: i18n.t('notification_focus_title', { name: questName(task) }),
       body: i18n.t('notification_focus_done'),
       sound: 'habi_alarm.wav',
+      ...(Platform.OS === 'android' ? { priority: Notifications.AndroidNotificationPriority.MAX } : {}),
       categoryIdentifier: FOCUS_FINISHED_CATEGORY,
       data: { kind: 'focus-end', taskId: task.id, questDate: task.date, route: '/focus-session', focusFinished: true },
     },
