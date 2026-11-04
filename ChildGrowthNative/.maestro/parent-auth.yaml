@@ -1,0 +1,26 @@
+url: http://127.0.0.1:8082/
+---
+- launchApp:
+    clearState: true
+- assertVisible: Parent
+- tapOn: Parent
+- assertVisible: Sign in with Google
+- takeScreenshot: parent-sign-in
+- assertScreenshot:
+    path: ${'baselines/' + SCREEN + '/parent-sign-in.png'}
+    thresholdPercentage: 97
+- tapOn: Create Account
+- assertVisible: "Name"
+- takeScreenshot: parent-create-account-top
+- assertScreenshot:
+    path: ${'baselines/' + SCREEN + '/parent-create-account-top.png'}
+    thresholdPercentage: 97
+- swipe:
+    start: 50%, 85%
+    end: 50%, 20%
+    duration: 500
+- assertVisible: "Nickname"
+- takeScreenshot: parent-create-account-fields
+- assertScreenshot:
+    path: ${'baselines/' + SCREEN + '/parent-create-account-fields.png'}
+    thresholdPercentage: 97

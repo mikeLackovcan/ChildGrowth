@@ -73,7 +73,8 @@
     "test:accounts": "node ./scripts/test-account-session.cjs",
     "test:family-sync": "npm --prefix backend/functions run build && node ./scripts/test-family-sync.cjs",
     "test:progress": "node ./scripts/test-progress-queue.cjs && node ./scripts/test-progress-recovery.cjs",
-    "test:push": "node ./scripts/test-push-client.cjs"
+    "test:push": "node ./scripts/test-push-client.cjs",
+    "test:visual": "bash ./scripts/run-visual-tests.sh"
   },
   "private": true
 }

@@ -8,4 +8,5 @@ node_modules/
 *.aab
 branding-archive/
 .worktrees/
+.tools/
 ChildGrowthNative/backend/functions/lib/

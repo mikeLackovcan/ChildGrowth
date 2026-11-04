@@ -1,0 +1,41 @@
+url: http://127.0.0.1:8082/
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    text: Kid
+- assertVisible:
+    text: Parent
+- takeScreenshot: login-role-choice
+- assertScreenshot:
+    path: ${'baselines/' + SCREEN + '/login-role-choice.png'}
+    thresholdPercentage: 97
+- tapOn: Kid
+- assertVisible: Sign in with Google
+- takeScreenshot: login-child
+- assertScreenshot:
+    path: ${'baselines/' + SCREEN + '/login-child.png'}
+    thresholdPercentage: 97
+- swipe:
+    start: 50%, 85%
+    end: 50%, 20%
+    duration: 500
+- swipe:
+    start: 50%, 85%
+    end: 50%, 20%
+    duration: 500
+- assertVisible: Continue as guest
+- tapOn: Continue as guest
+- assertVisible: "TODAY.*ADVENTURE"
+- takeScreenshot: child-home
+- assertScreenshot:
+    path: ${'baselines/' + SCREEN + '/child-home.png'}
+    thresholdPercentage: 97
+- openLink:
+    link: http://127.0.0.1:8082/manage-tasks
+- assertVisible: "Quest Name:"
+- assertVisible: "1. Choose a picture"
+- takeScreenshot: add-quest
+- assertScreenshot:
+    path: ${'baselines/' + SCREEN + '/add-quest.png'}
+    thresholdPercentage: 97
