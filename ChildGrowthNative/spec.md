@@ -172,6 +172,7 @@ Before a Google Play build:
 - Verify phone, 7-inch tablet, 10-inch tablet, large text, and reduced-motion layouts.
 - A Rive dependency or new `.riv` asset requires a fresh native EAS build; Expo Go/web preview is not sufficient for final validation.
 - QR camera support likewise requires a fresh Android build. On a physical tester device verify camera denial/manual fallback, QR success, Google account chooser after logout, closed-app reminder actions, reboot persistence and Android battery-saver delivery before declaring those native requirements complete.
+- November 4 Android release hardening: QR scanning remains optional because both parent and child linking retain manual-code entry. The generated manifest explicitly marks camera-any, back camera, autofocus and flash as not required so Google Play does not exclude camera-less tablets, front-camera-only Chromebooks or external-camera devices. Production builds enable R8 minification and resource shrinking through the SDK 57 `expo-build-properties` plugin. These are native-runtime changes requiring a fresh Play build; verify the resulting AAB's feature declarations, mapping metadata, download size and startup/auth/pairing behavior before promotion.
 
 ### Local browser verification — October 24, 2026
 

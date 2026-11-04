@@ -13,6 +13,7 @@
     "expo-asset": "~57.0.20",
     "expo-audio": "~57.0.5",
     "expo-auth-session": "~57.0.16",
+    "expo-build-properties": "~57.0.22",
     "expo-camera": "~57.0.6",
     "expo-constants": "~57.0.22",
     "expo-crypto": "~57.0.4",
@@ -75,10 +76,11 @@
     "test:ux": "node --test ./scripts/test-quest-ux.cjs",
     "test:locales": "node ./scripts/test-i18n-parity.cjs && node --test ./scripts/test-notification-locales.cjs",
     "test:i18n": "npm run test:locales",
+    "test:android-config": "node ./scripts/test-android-release-config.cjs",
     "test:family": "node --test scripts/test-account-role.cjs scripts/test-device-adoption.cjs scripts/test-device-disconnect.cjs scripts/test-family-cloud-routing.cjs scripts/test-parent-layout.cjs",
     "test:family:browser": "node scripts/test-family-flow-browser.cjs",
     "test:workflow": "node --test scripts/test-workflow-contracts.cjs",
-    "test:release:local": "tsc --noEmit && npm run test:project && npm run test:workflow && npm run test:ux && npm run test:locales && npm run test:family"
+    "test:release:local": "tsc --noEmit && npm run test:android-config && npm run test:project && npm run test:workflow && npm run test:ux && npm run test:locales && npm run test:family"
   },
   "private": true
 }
