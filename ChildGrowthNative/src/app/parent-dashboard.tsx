@@ -1,6 +1,5 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { localDay, tasksForDay } from '../utils/questDay';
-import FamilyReconnect from '../components/FamilyReconnect';
 import { showMessage, confirmAction } from '../lib/dialogs';
 import React, { useRef, useState } from 'react';
 import { Image } from 'expo-image';
@@ -157,7 +156,6 @@ function ParentDashboard() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView style={styles.keyboardLayer} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView ref={page} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
-        <FamilyReconnect />
         {syncError && <Text style={{ color: Colors.amber }}>{t(syncError)}</Text>}
         {/* Header with Parent Name, Nickname and Administration Badge */}
         <View style={{ backgroundColor: '#131726', borderWidth: 1, borderColor: 'rgba(255, 184, 0, 0.25)', borderRadius: 20, padding: 18, marginBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -194,7 +192,7 @@ function ParentDashboard() {
 
         <View style={[{ paddingVertical: 16, gap: 8 }, parentTab !== 'overview' && styles.hidden]}>
           <Text accessibilityRole="header" style={{ color: Colors.text, fontFamily: 'Nunito_800ExtraBold', fontSize: 24 }}>{t('family_start_title')}</Text>
-          <Text style={{ color: Colors.textSecondary, fontSize: 16, lineHeight: 23 }}>{t(activeChild ? 'family_start_child' : 'family_start_connect', { name: activeChild ? childName(activeChild) : '' })}</Text>
+          <Text style={{ color: Colors.textSecondary, fontSize: 16, lineHeight: 23 }}>{t(activeChild ? 'family_start_child' : 'family_start_connect_code', { name: activeChild ? childName(activeChild) : '' })}</Text>
           {[
             { icon: '👨‍👩‍👧', label: 'family_start_link', action: () => router.push('/link-account'), disabled: false },
             { icon: '⭐', label: 'family_start_quests', action: () => { if (activeChild) selectChild(activeChild.id); router.push('/manage-tasks'); }, disabled: !activeChild },
@@ -308,7 +306,7 @@ function ParentDashboard() {
           {approvedChildren.length === 0 ? (
             <View style={styles.card}>
               <Text style={{ fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, textAlign: 'center', marginVertical: 8 }}>
-                {t('family_start_connect')}
+                {t('family_start_connect_code')}
               </Text>
             </View>
           ) : (
@@ -375,7 +373,7 @@ function ParentDashboard() {
             <View style={[styles.avatar, { backgroundColor: Colors.amberDim }]}><UserPlus size={23} color={Colors.amber} /></View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={[styles.childName, { fontSize: 17 }]}>{t('family_connect_child')}</Text>
-              <Text style={[styles.settingsSub, { marginBottom: 0 }]}>{t('family_connect_methods')}</Text>
+              <Text style={[styles.settingsSub, { marginBottom: 0 }]}>{t('family_connect_methods_code')}</Text>
             </View>
             <Text accessible={false} style={{ color: Colors.amber, fontSize: 28 }}>›</Text>
           </TouchableOpacity>

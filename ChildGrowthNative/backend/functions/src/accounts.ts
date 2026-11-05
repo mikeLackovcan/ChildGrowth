@@ -1,5 +1,16 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { randomBytes } from 'node:crypto';
 import { authenticated, db, digest, linkId, text } from './core';
+
+const FAMILY_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+function newFamilyCode() {
+  return [...randomBytes(8)].map(byte => FAMILY_CODE_ALPHABET[byte % FAMILY_CODE_ALPHABET.length]).join('');
+}
+
+function validFamilyCode(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-HJ-NP-Z2-9]{8}$/.test(value);
+}
 
 const friendlyWords = {
   first: ['astro', 'blaze', 'brave', 'cosmic', 'frost', 'hyper', 'lucky', 'mega', 'pixel', 'rapid', 'solar', 'turbo'],
@@ -96,6 +107,40 @@ export const updateNickname = onCall(async request => {
   });
 });
 
+// A child owns this non-identifying code. Parents can use it to request a
+// connection, but the request grants no access until the child accepts it.
+async function ensureChildConnectionCode(uid: string) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const candidate = newFamilyCode();
+    try {
+      return await db.runTransaction(async transaction => {
+        const profileRef = db.doc(`profiles/${uid}`);
+        const profileSnap = await transaction.get(profileRef);
+        const profile = profileSnap.data();
+        if (!profile || profile.role !== 'child') throw new HttpsError('permission-denied', 'CHILD_ACCOUNT_REQUIRED');
+        const current = profile.connection_code;
+        if (validFamilyCode(current)) {
+          const currentRef = db.doc(`familyCodes/${current}`);
+          const currentSnap = await transaction.get(currentRef);
+          if (!currentSnap.exists || currentSnap.data()?.uid === uid) {
+            transaction.set(currentRef, { uid, active: true });
+            return { code: current };
+          }
+        }
+        const candidateRef = db.doc(`familyCodes/${candidate}`);
+        const candidateSnap = await transaction.get(candidateRef);
+        if (candidateSnap.exists) throw new Error('FAMILY_CODE_COLLISION');
+        transaction.set(candidateRef, { uid, active: true });
+        transaction.update(profileRef, { connection_code: candidate, updated_at: new Date().toISOString() });
+        return { code: candidate };
+      });
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== 'FAMILY_CODE_COLLISION') throw error;
+    }
+  }
+  throw new HttpsError('resource-exhausted', 'FAMILY_CODE_UNAVAILABLE');
+}
+
 // A nickname may be used to find an already accepted family account, but never
 // to enumerate private profiles or read another family's email/progress.
 export const resolveFamilyAccount = onCall(async request => {
@@ -149,6 +194,7 @@ export const getFamilyStatus = onCall(async request => {
   ]);
   const profile = profileSnap.data(), data = dataSnap.data() || {};
   if (!profile || !['parent', 'child'].includes(profile.role)) throw new HttpsError('failed-precondition', 'ACCOUNT_SIGN_IN_REQUIRED');
+  const connection_code = profile.role === 'child' ? (await ensureChildConnectionCode(uid)).code : null;
   const links = (profile.role === 'parent' ? asParent : asChild).docs.map(doc => doc.data());
   const children: any[] = [], parents: string[] = [], known = new Set<string>();
   let pendingParent: string | null = null;
@@ -177,7 +223,7 @@ export const getFamilyStatus = onCall(async request => {
   }
   const oldTags = profile.role === 'parent' ? (Array.isArray(data.children) ? data.children : []).map((child: any) => child?.nickname) : [...(Array.isArray(data.linked_parents) ? data.linked_parents : []), data.parent_email];
   const familyReconnectTags = [...new Set<string>(oldTags.filter((tag: unknown): tag is string => typeof tag === 'string' && /^[a-z0-9_-]{3,24}$/.test(tag) && !known.has(tag)))];
-  return { children, linked_parents: parents, parent_email: parents[0] || pendingParent,
+  return { children, linked_parents: parents, parent_email: parents[0] || pendingParent, connection_code,
     approval_status: parents.length ? 'approved' : pendingParent ? 'pending' : null,
     pending_invitation: pendingInvitation, familyReconnectTags };
 });

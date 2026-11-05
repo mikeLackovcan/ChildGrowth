@@ -8,10 +8,23 @@ export const manageFamily = onCall(async request => {
   const uid = authenticated(request);
   const action = request.data?.action;
   if (!['invite', 'accept', 'decline', 'unlink'].includes(action)) throw new HttpsError('invalid-argument', 'INVALID_ACTION');
-  const tag = text(request.data?.otherTag, 254).toLowerCase().replace(/^@/, '');
-  const matches = await db.collection('profiles').where(tag.includes('@') ? 'email' : 'nickname', '==', tag).limit(2).get();
-  if (matches.size !== 1) throw new HttpsError('not-found', 'FAMILY_ACCOUNT_NOT_FOUND');
-  const otherId = matches.docs[0].id;
+  let otherId: string;
+  if (action === 'invite') {
+    const code = text(request.data?.connectionCode, 16).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!/^[A-HJ-NP-Z2-9]{8}$/.test(code)) throw new HttpsError('invalid-argument', 'INVALID_FAMILY_CODE');
+    const codeSnap = await db.doc(`familyCodes/${code}`).get();
+    if (!codeSnap.exists || codeSnap.data()?.active !== true || typeof codeSnap.data()?.uid !== 'string') {
+      throw new HttpsError('not-found', 'FAMILY_CODE_NOT_FOUND');
+    }
+    otherId = codeSnap.data()!.uid;
+  } else {
+    // Accepted links still use their internal account tag to respond or unlink.
+    // This value is never accepted for creating a new match.
+    const tag = text(request.data?.otherTag, 254).toLowerCase().replace(/^@/, '');
+    const matches = await db.collection('profiles').where(tag.includes('@') ? 'email' : 'nickname', '==', tag).limit(2).get();
+    if (matches.size !== 1) throw new HttpsError('not-found', 'FAMILY_ACCOUNT_NOT_FOUND');
+    otherId = matches.docs[0].id;
+  }
   if (uid === otherId) throw new HttpsError('invalid-argument', 'SELF_LINK');
 
   await db.runTransaction(async transaction => {
@@ -21,6 +34,9 @@ export const manageFamily = onCall(async request => {
     const actor = actorSnap.data(), other = otherSnap.data();
     if (!actor || !other || !['parent', 'child'].includes(actor.role) || !['parent', 'child'].includes(other.role) || actor.role === other.role) {
       throw new HttpsError('failed-precondition', 'FAMILY_ROLE_MISMATCH');
+    }
+    if (action === 'invite' && (actor.role !== 'parent' || other.role !== 'child')) {
+      throw new HttpsError('permission-denied', 'PARENT_INVITES_CHILD');
     }
     const parentUid = actor.role === 'parent' ? uid : otherId;
     const childUid = actor.role === 'child' ? uid : otherId;
@@ -53,7 +69,7 @@ export const manageFamily = onCall(async request => {
     const accepted = action === 'accept';
     const removing = action === 'decline' || action === 'unlink';
     const status = accepted ? 'accepted' : action === 'invite' ? 'pending' : action === 'decline' ? 'declined' : 'unlinked';
-    const initiatedBy = action === 'invite' ? (actor.role === 'parent' ? 'parent' : 'kid') : link?.initiatedBy;
+    const initiatedBy = action === 'invite' ? 'parent' : link?.initiatedBy;
     const summary = {
       id: childUid, name: child.full_name || child.nickname, nickname: child.nickname,
       level: accepted ? child.level ?? 1 : 1, xp: accepted ? child.xp ?? 0 : 0, coins: accepted ? child.coins ?? 0 : 0,

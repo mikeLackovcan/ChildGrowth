@@ -1,4 +1,3 @@
-import FamilyReconnect from '../FamilyReconnect';
 import { router, usePathname } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
@@ -61,7 +60,7 @@ export function Screen({ children, onSettingsChange }: { children: React.ReactNo
       {state.syncError && <Text accessibilityLiveRegion="polite" style={ui.meta}>{t(state.syncError)}</Text>}
       {state.syncError && <Button secondary label={t('sync_retry')} onPress={() => { void state.retryFamilySync(); }} />}
       {pathname !== '/sync-recovery' && (state.syncIssueCount > 0 || state.syncError === 'progress_legacy_pending') && <Button secondary label={`🗂️ ${t('recovery_title')}`} onPress={() => router.push('/sync-recovery')} />}
-      <FamilyReconnect />{children}
+      {children}
     </ScrollView>
     </KeyboardAvoidingView>
     <SettingsModal visible={settings} onClose={() => { setSettings(false); onSettingsChange?.(false); }} />

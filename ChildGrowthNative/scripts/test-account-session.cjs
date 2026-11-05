@@ -171,8 +171,8 @@ const flush = async () => { for (let i = 0; i < 30; i++) { await new Promise(res
   assert.equal(callableCalls.length, callsBeforeUnauthenticatedAction);
   auth.currentUser = user;
   const saved = JSON.stringify([...docs]);
-  await familyAction('parent', 'invite');
-  assert.deepEqual(callableCalls.at(-1), { region: 'europe-west1', endpoint: 'manageFamily', data: { otherTag: 'parent', action: 'invite' } });
+  await familyAction('ABCDEFGH', 'invite');
+  assert.deepEqual(callableCalls.at(-1), { region: 'europe-west1', endpoint: 'manageFamily', data: { connectionCode: 'ABCDEFGH', action: 'invite' } });
   assert.equal(JSON.stringify([...docs]), saved);
   callableError = Error('INVITATION_NOT_AVAILABLE');
   await assert.rejects(familyAction('parent', 'accept'), /INVITATION_NOT_AVAILABLE/);

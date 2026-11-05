@@ -1,5 +1,6 @@
 import { journeyResources } from './journey';
 import { pushResources } from './pushMessages';
+import { familyLinkResources } from './familyLink';
 // Internationalization (i18n) configuration for EN, CS, ES & DE
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
@@ -995,7 +996,7 @@ const resources = {
   }
 };
 
-for (const lang of ['en', 'cs', 'es', 'de'] as const) Object.assign(resources[lang].translation, journeyResources[lang], pushResources[lang]);
+for (const lang of ['en', 'cs', 'es', 'de'] as const) Object.assign(resources[lang].translation, journeyResources[lang], pushResources[lang], familyLinkResources[lang]);
 
 i18n
   .use(initReactI18next)

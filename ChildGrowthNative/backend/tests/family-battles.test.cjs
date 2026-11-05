@@ -17,10 +17,13 @@ test('real Firestore transactions enforce family consent and online battle autho
     await db.doc(`profiles/${uid}`).set({ nickname: uid, role, email: `${uid}@example.test`, coins: 120, current_avatar: 'roblox_noob' });
     await db.doc(`user_data/${uid}`).set({ tasks: [{ id: 'task', name: 'My private quest' }], unlocked_avatars: ['roblox_noob', 'roblox_ninja'] });
   }
+  await db.doc('familyCodes/ALCE2345').set({ uid: 'alice', active: true });
+  await db.doc('familyCodes/BBX23456').set({ uid: 'bob', active: true });
   await t.test('authentication, roles and recipient consent', async () => {
-    await rejects(() => call(manageFamily, null, { otherTag: 'alice', action: 'invite' }), 'AUTH_REQUIRED');
-    await rejects(() => call(manageFamily, 'alice', { otherTag: 'bob', action: 'invite' }), 'FAMILY_ROLE_MISMATCH');
-    await call(manageFamily, 'parent', { otherTag: 'alice', action: 'invite' });
+    await rejects(() => call(manageFamily, null, { connectionCode: 'ALCE2345', action: 'invite' }), 'AUTH_REQUIRED');
+    await rejects(() => call(manageFamily, 'parent', { otherTag: 'alice', action: 'invite' }), 'INVALID_INPUT');
+    await rejects(() => call(manageFamily, 'alice', { connectionCode: 'BBX23456', action: 'invite' }), 'FAMILY_ROLE_MISMATCH');
+    await call(manageFamily, 'parent', { connectionCode: 'ALCE2345', action: 'invite' });
     assert.deepEqual((await read('user_data', 'parent')).children[0].tasks, []);
     await rejects(() => call(manageFamily, 'parent', { otherTag: 'alice', action: 'accept' }), 'INVITATION_NOT_AVAILABLE');
     assert.equal((await read('familyLinks', linkId('parent', 'alice'))).status, 'pending');
@@ -28,8 +31,8 @@ test('real Firestore transactions enforce family consent and online battle autho
     await call(manageFamily, 'alice', { otherTag: 'parent', action: 'accept' });
     assert.equal((await read('user_data', 'parent')).children.length, 1);
     assert.deepEqual((await read('user_data', 'alice')).linked_parents, ['parent']);
-    await call(manageFamily, 'bob', { otherTag: 'parent', action: 'invite' });
-    await call(manageFamily, 'parent', { otherTag: 'bob', action: 'accept' });
+    await call(manageFamily, 'parent', { connectionCode: 'BBX23456', action: 'invite' });
+    await call(manageFamily, 'bob', { otherTag: 'parent', action: 'accept' });
     const opponents = await call(battles.listFamilyOpponents, 'alice');
     assert.deepEqual(opponents.map(item => item.uid), ['bob']);
     assert.deepEqual(Object.keys(opponents[0]).sort(), ['fighter', 'nickname', 'uid']);
@@ -74,7 +77,7 @@ test('real Firestore transactions enforce family consent and online battle autho
     assert.equal((await read('user_data', 'bob')).tasks[0].name, 'My private quest');
     assert.equal((await read('profiles', 'bob')).coins, 120);
     assert.deepEqual((await read('user_data', 'bob')).linked_parents, []);
-    await rejects(() => call(manageFamily, 'parent', { otherTag: 'bob', action: 'invite' }), 'INVITATION_COOLDOWN');
+    await rejects(() => call(manageFamily, 'parent', { connectionCode: 'BBX23456', action: 'invite' }), 'INVITATION_COOLDOWN');
     await call(battles.leaveFamilyBattle, 'alice', { battleId: id });
     assert.equal((await read('battles', id)).status, 'finished');
   });

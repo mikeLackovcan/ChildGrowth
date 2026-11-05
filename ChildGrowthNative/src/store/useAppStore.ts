@@ -116,13 +116,12 @@ interface AppState {
   
   setParentEmail: (email: string) => void;
   setApprovalStatus: (status: 'pending' | 'approved' | null) => void;
-  sendParentInvite: (parentEmail: string) => Promise<boolean>;
   acceptParentInvite: (parentTag?: string) => Promise<boolean>;
   denyParentInvite: (parentTag?: string) => Promise<boolean>;
   approveChildByParent: (childId: string) => Promise<boolean>;
   
   // Multi-Child & Multi-Parent Actions
-  addChildByNickname: (nickname: string, name?: string) => Promise<boolean>;
+  addChildByCode: (code: string) => Promise<boolean>;
   removeChild: (childId: string) => Promise<boolean>;
   removeParent: (parentNickname: string) => Promise<boolean>;
   selectChild: (childId: string) => void;
@@ -775,14 +774,6 @@ export const useAppStore: UseBoundStore<StoreApi<AppState>> = create<AppState>((
     set({ approvalStatus: status });
     get().saveMockState();
   },
-  sendParentInvite: async (parentEmail) => {
-    try {
-      await familyAction(parentEmail, 'invite');
-      set({ syncError: null });
-      await get().loadMockState();
-      return true;
-    } catch { set({ syncError: 'family_link_error' }); return false; }
-  },
   acceptParentInvite: async (parentTag) => {
     try {
       await familyAction(parentTag || get().parentEmail || '', 'accept');
@@ -807,9 +798,9 @@ export const useAppStore: UseBoundStore<StoreApi<AppState>> = create<AppState>((
       return true;
     } catch { set({ syncError: 'family_link_error' }); return false; }
   },
-  addChildByNickname: async (nickname) => {
+  addChildByCode: async (code) => {
     try {
-      await familyAction(nickname, 'invite');
+      await familyAction(code, 'invite');
       set({ syncError: null });
       await get().loadMockState();
       return true;

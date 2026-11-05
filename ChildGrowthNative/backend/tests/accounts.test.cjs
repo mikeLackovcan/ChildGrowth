@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const { test, after } = require('node:test');
 if (!process.env.FIRESTORE_EMULATOR_HOST || process.env.GCLOUD_PROJECT !== 'demo-questblox') throw Error('Use the demo-questblox emulator');
 const { db, linkId } = require('../functions/lib/backend/functions/src/core');
-const { initializeAccount, updateNickname, resolveFamilyAccount, recoverLegacyProgress } = require('../functions/lib/backend/functions/src/accounts');
+const { initializeAccount, updateNickname, resolveFamilyAccount, recoverLegacyProgress, getFamilyStatus } = require('../functions/lib/backend/functions/src/accounts');
 const call = (fn, uid, data, token = { email: `${uid}@example.test`, firebase: { sign_in_provider: 'password' } }) => fn.run({ auth: uid ? { uid, token } : undefined, data });
 const get = async uid => (await db.doc(`profiles/${uid}`).get()).data();
 after(() => db.terminate());
@@ -19,6 +19,16 @@ test('account creation and lookup protect identity and private family data', asy
     assert.equal(profile.email, 'account-child@example.test');
     assert.equal(profile.coins, 0); assert.equal(profile.current_avatar, 'roblox_noob');
     assert.deepEqual((await db.doc('user_data/account-child').get()).data().unlocked_avatars, ['roblox_noob']);
+  });
+  await t.test('only a child receives a stable non-identifying connection code', async () => {
+    const first = await call(getFamilyStatus, 'account-child', {});
+    const second = await call(getFamilyStatus, 'account-child', {});
+    assert.match(first.connection_code, /^[A-HJ-NP-Z2-9]{8}$/);
+    assert.equal(second.connection_code, first.connection_code);
+    assert.equal((await db.doc(`familyCodes/${first.connection_code}`).get()).data().uid, 'account-child');
+    await db.doc('profiles/code-parent').set({ role: 'parent', nickname: 'code_parent' });
+    await db.doc('user_data/code-parent').set({});
+    assert.equal((await call(getFamilyStatus, 'code-parent', {})).connection_code, null);
   });
   await t.test('creates friendly nicknames and safely changes old generated tags', async () => {
     await call(initializeAccount, 'friendly-child', { role: 'child', fullName: 'Alex Smith' });
