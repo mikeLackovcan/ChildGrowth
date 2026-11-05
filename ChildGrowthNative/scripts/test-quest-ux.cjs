@@ -837,6 +837,19 @@ test('completed quests stay visible today with their original icon and a cleared
   assert.match(home, /\{done\.map\(taskRow\)\}/, 'Completed quests must remain visible without expanding a disclosure');
   assert.doesNotMatch(home, /showDone|setShowDone/, 'Completed quests must not start hidden');
 });
+test('home calendar previews the next seven days beside Today without adding a tab', () => {
+  const home = fs.readFileSync(path.join(root, 'src/app/(tabs)/index.tsx'), 'utf8');
+  assert.match(home, /CalendarDays/);
+  assert.match(home, /Array\.from\(\{ length: 7 \}/);
+  assert.match(home, /state\.tasks\.filter\(task => isQuestDue\(task, date\)\)/);
+  assert.match(home, /selectedDayIndex === 0 \? <>/);
+  assert.match(home, /week_nothing_planned/);
+});
+test('home banner follows the currently equipped hero', () => {
+  const home = fs.readFileSync(path.join(root, 'src/app/(tabs)/index.tsx'), 'utf8');
+  assert.match(home, /<QuestHero id=\{state\.currentAvatar\}/);
+  assert.doesNotMatch(home, /quest-hero-source\.png/);
+});
 test('wheel prizes use a dominant picture and no more than two visible words', () => {
   assert.deepEqual(wheelPrizePresentation('1 Day Screen Time 🎮'), { icon: '🎮', label: 'Screen Time' });
   assert.deepEqual(wheelPrizePresentation('Choose a special family dinner tonight'), { icon: '🍕', label: 'Choose special' });

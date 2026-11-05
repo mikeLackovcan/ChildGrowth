@@ -92,8 +92,8 @@ async function seed(page, tag, state) {
     await parentPage.getByText('@parent-ui', { exact: true }).waitFor();
     await parentPage.getByText('Scan child QR', { exact: true }).click();
     await parentPage.getByRole('heading', { name: 'Scan child QR', exact: true }).waitFor();
-    await parentPage.getByLabel('Child code or @nickname', { exact: true }).fill('mia-champ');
-    assert.equal(await parentPage.getByRole('button', { name: 'Send connection request', exact: true }).isEnabled(), true, 'A valid child nickname enables parent connection');
+    await parentPage.getByLabel('Child family code', { exact: true }).fill('ABCD-EFGH');
+    assert.equal(await parentPage.getByRole('button', { name: 'Send connection request', exact: true }).isEnabled(), true, 'A valid child family code enables parent connection');
     await parentPage.screenshot({ animations: 'disabled', fullPage: true, path: path.join(output, 'parent-connect-child-phone.png') });
     await parentPage.goto(routeUrl('/parent-dashboard'));
     await parentPage.getByText('Your family', { exact: true }).waitFor();
@@ -127,7 +127,7 @@ async function seed(page, tag, state) {
     await accountPage.goto(routeUrl('/link-account'));
     await accountPage.getByRole('heading', { name: 'Connect your family', exact: true }).waitFor();
     await accountPage.getByLabel('QR code for a parent to connect this child account', { exact: true }).waitFor();
-    await accountPage.getByText('@mia-champ', { exact: true }).waitFor();
+    await accountPage.getByText('Parent scans this or types your code. You approve the request.', { exact: true }).waitFor();
     await accountPage.getByLabel('Parent code or @nickname', { exact: true }).fill('parent-ui');
     assert.equal(await accountPage.getByRole('button', { name: 'Send request', exact: true }).isEnabled(), true, 'A signed-in child can initiate account linking');
     await accountPage.screenshot({ animations: 'disabled', fullPage: true, path: path.join(output, 'child-account-qr-phone.png') });

@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AppState, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Check, Coins, MoreHorizontal, Pencil, Play, Plus, Settings, ShieldCheck, Trash2, X } from 'lucide-react-native';
+import { CalendarDays, Check, Coins, MoreHorizontal, Pencil, Play, Plus, Settings, ShieldCheck, Trash2, X } from 'lucide-react-native';
 import { Task, useAppStore } from '../../store/useAppStore';
 import { Colors, QUEST_BACKGROUNDS } from '../../constants/theme';
 import SettingsModal from '../../components/SettingsModal';
@@ -15,6 +15,7 @@ import { isQuestDue, isQuestLater, localDateKey } from '../../lib/questSchedule'
 import HeroCelebrationModal from '../../components/HeroCelebrationModal';
 import { playSound } from '../../lib/sound';
 import CoinFeedback from '../../components/CoinFeedback';
+import QuestHero from '../../components/QuestHero';
 import PrizeWheelModal from '../../components/PrizeWheelModal';
 import { useTranslation } from 'react-i18next';
 import { questName } from '../../lib/questTemplates';
@@ -40,6 +41,8 @@ export default function TrackerScreen() {
   const [coinFeedback, setCoinFeedback] = useState({ amount: 0, sequence: 0 });
   const [wheelPrize, setWheelPrize] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const dismissNotice = useCallback(() => setNotice(null), []);
   const background = QUEST_BACKGROUNDS[state.activeBackground] || QUEST_BACKGROUNDS.clean;
 
@@ -70,6 +73,15 @@ export default function TrackerScreen() {
   }, [state.tasks, state.currentAvatar, state.userEmail, state.role, state.language]);
 
   const tasks = state.tasks.filter(task => isQuestDue(task, now));
+  const weekDays = Array.from({ length: 7 }, (_, offset) => {
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+    return { date, tasks: state.tasks.filter(task => isQuestDue(task, date)) };
+  });
+  const selectedDay = weekDays[selectedDayIndex] || weekDays[0];
+  const locale = ({ en: 'en-US', cs: 'cs-CZ', es: 'es-ES', de: 'de-DE' } as Record<string, string>)[state.language] || 'en-US';
+  const dayTitle = selectedDayIndex === 0 ? t('world_today') : new Intl.DateTimeFormat(locale, {
+    weekday: 'long', month: 'short', day: 'numeric',
+  }).format(selectedDay.date);
   const done = tasks.filter(task => task.done);
   const remaining = tasks.filter(task => !task.done);
   const later = remaining.filter(task => isQuestLater(task, now));
@@ -219,34 +231,74 @@ export default function TrackerScreen() {
             <Text style={styles.bannerTitle}>{allDone ? t('day_you_did_it') : t('app_subtitle')}</Text>
             <Text style={styles.bannerText}>{allDone ? t('day_finished') : t('day_one')}</Text>
           </View>
-          <Image source={require('../../../assets/branding/quest-hero-source.png')} style={styles.originalHero} accessibilityLabel={t('hero_original')} resizeMode="cover" />
+          <QuestHero id={state.currentAvatar} style={styles.bannerHero} />
         </View>
         <View style={styles.progressHeading}>
-          <Text style={styles.sectionTitle}>{t('world_today')}</Text>
-          <Text style={styles.meta}>{t('day_progress', { done: done.length, total: tasks.length })}</Text>
-        </View>
-        <View style={styles.progressTrack} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: tasks.length || 1, now: done.length }}>
-          <View style={[styles.progressFill, { width: `${tasks.length ? done.length / tasks.length * 100 : 0}%` }]} />
-        </View>
-        {allDone && !hasWheelRewards && <Text style={styles.meta}>{t('day_reward_setup')}</Text>}
-        {wheelReady && <Pressable style={styles.wheelButton} accessibilityRole="button" onPress={openDailyWheel}>
-          <Text style={styles.wheelIcon}>🎡</Text><View style={{ flex: 1 }}><Text style={styles.taskName}>{t('day_spin')}</Text><Text style={styles.meta}>{t('day_reward_waiting')}</Text></View><Text style={styles.linkText}>{t('spin')}</Text>
-        </Pressable>}
-        {tasks.length === 0 && <View style={styles.empty}><Text style={styles.emptyEmoji}>🌱</Text><Text style={styles.sectionTitle}>{state.tasks.length ? t('day_quiet') : t('day_first')}</Text><Text style={styles.meta}>{state.tasks.length ? t('day_no_quests') : t('day_pick')}</Text></View>}
-        {ready.length > 0 && <>{later.length > 0 && <Text style={styles.groupTitle}>{t('now')}</Text>}{ready.map(taskRow)}</>}
-        {later.length > 0 && <><Text style={styles.groupTitle}>{t('later')}</Text>{later.map(taskRow)}</>}
-        {done.length > 0 && <>
-          <View style={styles.doneHeading} accessibilityRole="header">
-            <Check size={19} strokeWidth={3} color="#316327" /><Text style={styles.doneText}>{t('day_cleared_count', { count: done.length })}</Text>
+          <View style={styles.todayHeading}>
+            <Text style={[styles.sectionTitle, styles.dayTitle]}>{dayTitle}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: calendarOpen }}
+              accessibilityLabel={t(calendarOpen ? 'week_calendar_close' : 'week_calendar_open')}
+              style={[styles.calendarButton, calendarOpen && styles.calendarButtonOpen]}
+              onPress={() => {
+                setCalendarOpen(open => {
+                  if (open) setSelectedDayIndex(0);
+                  return !open;
+                });
+              }}
+            ><CalendarDays size={21} color={Colors.primary} /></Pressable>
           </View>
-          {done.map(taskRow)}
-        </>}
-        <View style={styles.footerActions}>
-          <Pressable style={styles.addButton} accessibilityRole="button" accessibilityLabel={t('quest_add_accessible')} onPress={() => router.push('/manage-tasks')}>
-            <Plus size={26} color="#FFFFFF" />
-          </Pressable>
-          <Pressable style={styles.manageLink} accessibilityRole="button" onPress={() => router.push('/quest-list')}><Text style={styles.linkText}>{t('quest_all')}</Text></Pressable>
+          <Text style={styles.meta}>{selectedDayIndex === 0
+            ? t('day_progress', { done: done.length, total: tasks.length })
+            : t('week_quest_count', { count: selectedDay.tasks.length })}</Text>
         </View>
+        {calendarOpen && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekStrip} accessibilityLabel={t('week_calendar_accessible')}>
+          {weekDays.map((day, index) => {
+            const selectedDayButton = index === selectedDayIndex;
+            return <Pressable
+              key={localDateKey(day.date)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: selectedDayButton }}
+              accessibilityLabel={new Intl.DateTimeFormat(locale, { weekday: 'long', month: 'long', day: 'numeric' }).format(day.date)}
+              style={[styles.weekDay, selectedDayButton && styles.weekDaySelected]}
+              onPress={() => setSelectedDayIndex(index)}
+            >
+              <Text style={[styles.weekDayName, selectedDayButton && styles.weekDayTextSelected]}>{index === 0 ? t('week_today') : new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(day.date)}</Text>
+              <Text style={[styles.weekDayNumber, selectedDayButton && styles.weekDayTextSelected]}>{day.date.getDate()}</Text>
+              <View style={[styles.weekCount, selectedDayButton && styles.weekCountSelected]}><Text style={[styles.weekCountText, selectedDayButton && styles.weekDayTextSelected]}>{day.tasks.length}</Text></View>
+            </Pressable>;
+          })}
+        </ScrollView>}
+        {selectedDayIndex === 0 ? <>
+          <View style={styles.progressTrack} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: tasks.length || 1, now: done.length }}>
+            <View style={[styles.progressFill, { width: `${tasks.length ? done.length / tasks.length * 100 : 0}%` }]} />
+          </View>
+          {allDone && !hasWheelRewards && <Text style={styles.meta}>{t('day_reward_setup')}</Text>}
+          {wheelReady && <Pressable style={styles.wheelButton} accessibilityRole="button" onPress={openDailyWheel}>
+            <Text style={styles.wheelIcon}>🎡</Text><View style={{ flex: 1 }}><Text style={styles.taskName}>{t('day_spin')}</Text><Text style={styles.meta}>{t('day_reward_waiting')}</Text></View><Text style={styles.linkText}>{t('spin')}</Text>
+          </Pressable>}
+          {tasks.length === 0 && <View style={styles.empty}><Text style={styles.emptyEmoji}>🌱</Text><Text style={styles.sectionTitle}>{state.tasks.length ? t('day_quiet') : t('day_first')}</Text><Text style={styles.meta}>{state.tasks.length ? t('day_no_quests') : t('day_pick')}</Text></View>}
+          {ready.length > 0 && <>{later.length > 0 && <Text style={styles.groupTitle}>{t('now')}</Text>}{ready.map(taskRow)}</>}
+          {later.length > 0 && <><Text style={styles.groupTitle}>{t('later')}</Text>{later.map(taskRow)}</>}
+          {done.length > 0 && <>
+            <View style={styles.doneHeading} accessibilityRole="header">
+              <Check size={19} strokeWidth={3} color="#316327" /><Text style={styles.doneText}>{t('day_cleared_count', { count: done.length })}</Text>
+            </View>
+            {done.map(taskRow)}
+          </>}
+          <View style={styles.footerActions}>
+            <Pressable style={styles.addButton} accessibilityRole="button" accessibilityLabel={t('quest_add_accessible')} onPress={() => router.push('/manage-tasks')}>
+              <Plus size={26} color="#FFFFFF" />
+            </Pressable>
+            <Pressable style={styles.manageLink} accessibilityRole="button" onPress={() => router.push('/quest-list')}><Text style={styles.linkText}>{t('quest_all')}</Text></Pressable>
+          </View>
+        </> : <View style={styles.plannedList}>
+          {selectedDay.tasks.length ? selectedDay.tasks.map(task => <View key={task.id} style={styles.plannedRow}>
+            <View style={styles.plannedIcon}><Text style={styles.emoji}>{task.icon || '⭐'}</Text></View>
+            <View style={styles.taskCopy}><Text style={styles.taskName}>{questName(task)}</Text><Text style={styles.taskMeta}>{[task.reminderEnabled ? task.reminderTime : '', task.focusDurationMinutes ? t('duration_minutes', { value: task.focusDurationMinutes }) : ''].filter(Boolean).join(' · ') || t('week_any_time')}</Text></View>
+          </View>) : <View style={styles.empty}><Text style={styles.emptyEmoji}>🌤️</Text><Text style={styles.sectionTitle}>{t('week_nothing_planned')}</Text></View>}
+        </View>}
         {buildOpportunity && <Pressable style={styles.goalLink} accessibilityRole="button" onPress={() => { setBuildOpportunity(null); router.push('/world'); }}>
           <Text style={styles.goalIcon}>{WORLD_BUILDINGS[buildOpportunity].icon}</Text>
           <Text style={[styles.linkText, { flex: 1 }]}>{t('world_ready_to_build', { item: t(WORLD_BUILDINGS[buildOpportunity].nameKey) })}</Text>
@@ -306,10 +358,26 @@ const styles = StyleSheet.create({
   bannerCopy: { flex: 1 },
   bannerTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 23, lineHeight: 27, color: Colors.text },
   bannerText: { fontFamily: 'Nunito_600SemiBold', fontSize: 14, color: Colors.textSecondary, marginTop: 6 },
-  originalHero: { width: 98, height: 98, borderRadius: 49 },
+  bannerHero: { width: 98, height: 98 },
   progressHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  todayHeading: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dayTitle: { flexShrink: 1 },
+  calendarButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  calendarButtonOpen: { backgroundColor: Colors.blueDim },
   sectionTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 22, color: Colors.text },
   meta: { fontFamily: 'Nunito_600SemiBold', fontSize: 14, color: Colors.textSecondary },
+  weekStrip: { gap: 7, paddingTop: 10, paddingBottom: 12 },
+  weekDay: { width: 52, minHeight: 72, borderRadius: 17, alignItems: 'center', justifyContent: 'center', gap: 1, backgroundColor: '#F2F5F9' },
+  weekDaySelected: { backgroundColor: Colors.primary },
+  weekDayName: { fontFamily: 'Nunito_800ExtraBold', fontSize: 11, color: Colors.textSecondary, textTransform: 'capitalize' },
+  weekDayNumber: { fontFamily: 'Nunito_800ExtraBold', fontSize: 18, color: Colors.text },
+  weekDayTextSelected: { color: '#FFFFFF' },
+  weekCount: { minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: '#DCE5F2' },
+  weekCountSelected: { backgroundColor: 'rgba(255,255,255,0.22)' },
+  weekCountText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 10, color: Colors.textSecondary },
+  plannedList: { borderTopWidth: 1, borderTopColor: Colors.border },
+  plannedRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: 1, borderBottomColor: Colors.border, paddingVertical: 9 },
+  plannedIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.blueDim },
   progressTrack: { height: 8, backgroundColor: '#E1E8EF', borderRadius: 8, marginTop: 10, marginBottom: 12, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: '#83AE2D', borderRadius: 8 },
   groupTitle: { fontFamily: 'Nunito_800ExtraBold', color: Colors.textSecondary, fontSize: 15, marginTop: 16 },

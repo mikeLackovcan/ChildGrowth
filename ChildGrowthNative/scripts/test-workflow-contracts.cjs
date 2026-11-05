@@ -49,6 +49,18 @@ test('linked children can add parents and parents can claim a child QR', () => {
   assert.match(setup, /router\.push\('\/claim-child'/);
 });
 
+test('typed child family code creates a request the child can accept or decline', () => {
+  const childLink = read('src/app/link-account.tsx');
+  const parentLink = read('src/app/claim-child.tsx');
+  const childHome = read('src/app/(tabs)/index.tsx');
+  assert.match(childLink, /ensureFamilyAccountCode/);
+  assert.match(childLink, /family_child_code_label/);
+  assert.match(parentLink, /normalizeFamilyAccountCode\(code\)/);
+  assert.match(parentLink, /createFamilyInvite\(target, 'parent'/);
+  assert.match(childHome, /family_invite_accept/);
+  assert.match(childHome, /family_invite_decline/);
+});
+
 test('entry flow keeps Kid mode local and cloud sign-in parent-only', () => {
   const login = read('src/app/index.tsx');
   assert.match(login, /entryMode.*'choose'.*'parent'/);

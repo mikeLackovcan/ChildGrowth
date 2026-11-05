@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Colors } from '../constants/theme';
 import { claimGuardianCode } from '../lib/devicePairing';
 import { createFamilyInvite } from '../lib/familyCloud';
-import { normalizeFamilyNickname, normalizeGuardianCode, parseFamilyAccountQr } from '../lib/pairingCode';
+import { normalizeFamilyAccountCode, normalizeFamilyNickname, normalizeGuardianCode, parseFamilyAccountQr } from '../lib/pairingCode';
 import { useAppStore } from '../store/useAppStore';
 
 const errorKeys = new Set(['pair_invalid_code', 'pair_expired_code', 'pair_already_connected', 'pair_parent_required',
@@ -28,7 +28,7 @@ export default function ClaimChildScreen() {
   const eligible = role === 'parent' && Boolean(userEmail);
   const scannedAccount = parseFamilyAccountQr(code);
   const childNickname = scannedAccount?.role === 'child' ? scannedAccount.nickname : normalizeFamilyNickname(code);
-  const validCode = normalizeGuardianCode(code) || childNickname;
+  const validCode = normalizeGuardianCode(code) || normalizeFamilyAccountCode(code) || childNickname;
 
   async function connect(candidate = code, targetUid?: string) {
     if (pending.current || !eligible) return;

@@ -12,7 +12,8 @@ function fixture({ anonymous = false, link = null, managed = false } = {}) {
     ['user_data/parent-a', { managed_family_enabled: managed }],
     ['family_progress/child-a', { coins: 70 }],
     ['profiles/parent-a', { role: 'parent', nickname: 'parent-a', full_name: 'Parent A' }],
-    ['profiles/child-account', { role: 'child', nickname: 'mia-champ', full_name: 'Mia' }],
+    ['profiles/child-account', { role: 'child', nickname: 'mia-champ', full_name: 'Mia', family_code: 'ABCDEFGH' }],
+    ['family_account_codes/ABCDEFGH', { uid: 'child-account', role: 'child' }],
   ]);
   const snapshot = ref => ({ id: ref.split('/').pop(), ref, exists: () => documents.has(ref), data: () => documents.get(ref) });
   const mocks = {
@@ -23,6 +24,7 @@ function fixture({ anonymous = false, link = null, managed = false } = {}) {
       deleteManagedFamily: async () => { events.push('managed-cleanup'); },
     },
     'firebase/auth': { deleteUser: async () => { events.push('auth-delete'); } },
+    'expo-crypto': { getRandomBytesAsync: async length => new Uint8Array(length) },
     'firebase/firestore': {
       doc: (_db, name, id) => name + '/' + id,
       collection: (_db, name) => name,
@@ -93,6 +95,15 @@ test('scanned account QR links by stable UID even when its visible nickname is s
   assert.equal(invite.child_nickname, 'mia-champ');
   assert.equal(invite.parent_uid, 'parent-a');
   assert.ok(f.reads.includes('profiles/child-account'));
+  assert.ok(f.writes.some(item => item.ref === 'family_invites/child-account_parent-a'));
+});
+
+test('typed child family code resolves to an approval-based account invite', async () => {
+  const f = fixture();
+  const invite = await f.api.createFamilyInvite('ABCD-EFGH', 'parent');
+  assert.equal(invite.child_uid, 'child-account');
+  assert.equal(invite.status, 'pending');
+  assert.ok(f.reads.includes('family_account_codes/ABCDEFGH'));
   assert.ok(f.writes.some(item => item.ref === 'family_invites/child-account_parent-a'));
 });
 

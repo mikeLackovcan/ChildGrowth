@@ -26,6 +26,29 @@ test('parent and child QR identities cannot be confused with device codes', () =
   assert.equal(pairing.normalizeGuardianCode(parent), null);
 });
 
+test('family QR accepts Android and legacy Quest Champ URL variants', () => {
+  const expected = { role: 'child', nickname: 'mia', uid: 'abc123_FirebaseUid' };
+  assert.deepEqual(pairing.parseFamilyAccountQr('questhero://family/?role=child&nickname=mia&uid=abc123_FirebaseUid'), expected);
+  assert.deepEqual(pairing.parseFamilyAccountQr('questhero:///family?nickname=mia&uid=abc123_FirebaseUid&role=child'), expected);
+  assert.deepEqual(pairing.parseFamilyAccountQr('questchamp://family/child?nickname=mia&uid=abc123_FirebaseUid'), expected);
+  assert.deepEqual(pairing.parseFamilyAccountQr('https://quest-hero-dab6b.web.app/family?role=child&nickname=mia&uid=abc123_FirebaseUid'), expected);
+  assert.equal(pairing.normalizePairingCode('questhero://pair/?code=ABCD-EFGH-2345'), 'ABCD-EFGH-2345');
+  assert.equal(pairing.normalizeGuardianCode('questhero:///guardian?code=ABCD-EFGH-2345'), 'ABCD-EFGH-2345');
+});
+
+test('the visible child nickname works as the manual family code', () => {
+  const qr = pairing.familyAccountQrValue('child', 'Mia Champ', 'abc123_FirebaseUid');
+  const child = pairing.parseFamilyAccountQr(qr);
+  assert.equal(pairing.normalizeFamilyNickname(`@${child.nickname}`), child.nickname);
+});
+
+test('child family codes are short, readable and distinct from device codes', () => {
+  assert.equal(pairing.normalizeFamilyAccountCode('ABCD-EFGH'), 'ABCD-EFGH');
+  assert.equal(pairing.normalizeFamilyAccountCode('abcd efgh'), 'ABCD-EFGH');
+  assert.equal(pairing.normalizeFamilyAccountCode('ABCD-EFGH-2345'), null);
+  assert.equal(pairing.normalizeFamilyAccountCode('ABCI-EFGH'), null);
+});
+
 test('family nickname accepts visible account codes and rejects unsafe input', () => {
   assert.equal(pairing.normalizeFamilyNickname('@Alex.Quest_2'), 'alex.quest_2');
   assert.equal(pairing.normalizeFamilyNickname('a'), null);

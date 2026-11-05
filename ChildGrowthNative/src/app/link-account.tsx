@@ -10,11 +10,12 @@ import { Colors } from '../constants/theme';
 import { useAppStore } from '../store/useAppStore';
 import { connectGuestDevice } from '../lib/connectGuestDevice';
 import { createGuardianCode, listManagedGuardians, releaseDeviceLink } from '../lib/devicePairing';
-import { createFamilyInvite } from '../lib/familyCloud';
+import { createFamilyInvite, ensureFamilyAccountCode } from '../lib/familyCloud';
 import {
   familyAccountQrValue,
   guardianQrValue,
   normalizeFamilyNickname,
+  normalizeFamilyAccountCode,
   normalizePairingCode,
   parseFamilyAccountQr,
 } from '../lib/pairingCode';
@@ -36,6 +37,7 @@ export default function LinkAccountScreen() {
   const [guardianCode, setGuardianCode] = useState('');
   const [accountInput, setAccountInput] = useState('');
   const [notice, setNotice] = useState('');
+  const [familyCode, setFamilyCode] = useState('');
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const pending = useRef(false);
   const scanLocked = useRef(false);
@@ -52,6 +54,15 @@ export default function LinkAccountScreen() {
   const validParentNickname = scannedAccount?.role === 'parent'
     ? scannedAccount.nickname
     : normalizeFamilyNickname(accountInput);
+
+  useEffect(() => {
+    let active = true;
+    if (!registeredChild) { setFamilyCode(''); return () => { active = false; }; }
+    void ensureFamilyAccountCode().then(value => {
+      if (active) setFamilyCode(value);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [registeredChild, userId]);
 
   useEffect(() => {
     if (!linked || !userId) return;
@@ -153,7 +164,10 @@ export default function LinkAccountScreen() {
           <View style={styles.qr} accessibilityLabel={t('family_child_qr_accessible')}>
             <QRCode value={familyAccountQrValue('child', nickname, userId)} size={210} color={Colors.text} backgroundColor="#FFFFFF" />
           </View>
-          <Text selectable style={styles.accountCode}>@{nickname}</Text>
+          {familyCode ? <>
+            <Text style={styles.ticketLabel}>{t('family_child_code_label')}</Text>
+            <Text selectable accessibilityLabel={t('family_child_code_accessible', { code: familyCode })} style={styles.accountCode}>{familyCode}</Text>
+          </> : null}
           <Text style={styles.ticketHint}>{t('family_child_qr_help')}</Text>
         </View>
         <Text style={styles.or}>{t('family_or_scan_parent')}</Text>

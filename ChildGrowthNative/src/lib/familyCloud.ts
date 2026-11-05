@@ -7,11 +7,13 @@ import {
   getDoc,
   getDocs,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
   where,
 } from 'firebase/firestore';
+import * as Crypto from 'expo-crypto';
 import { deleteUser } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { deleteManagedFamily, getDeviceLink, listManagedChildren } from './devicePairing';
@@ -19,6 +21,7 @@ import { deleteManagedFamily, getDeviceLink, listManagedChildren } from './devic
 export type CloudRole = 'parent' | 'child';
 
 export interface CloudProfile {
+  family_code?: string;
   managed?: boolean;
   managedOwner?: boolean;
   uid: string;
@@ -26,6 +29,8 @@ export interface CloudProfile {
   full_name: string;
   role: CloudRole;
 }
+
+const FAMILY_ACCOUNT_CODE_PATTERN = /^[A-HJ-NP-Z2-9]{8}$/;
 
 export interface FamilyInvite {
   id: string;
@@ -42,6 +47,21 @@ function cleanNickname(value: string): string {
   return value.trim().toLowerCase().replace(/^@/, '');
 }
 
+function cleanFamilyCode(value: string): string | null {
+  const clean = value.trim().replace(/[\s-]/g, '').toUpperCase();
+  return FAMILY_ACCOUNT_CODE_PATTERN.test(clean) ? clean : null;
+}
+
+function formatFamilyCode(value: string): string {
+  return value.match(/.{1,4}/g)!.join('-');
+}
+
+async function randomFamilyAccountCode(): Promise<string> {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = await Crypto.getRandomBytesAsync(8);
+  return [...bytes].map(byte => alphabet[byte % 32]).join('');
+}
+
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Sign in to connect family accounts.');
@@ -55,6 +75,48 @@ export async function findProfileByNickname(nickname: string): Promise<CloudProf
   if (result.empty) return null;
   const snapshot = result.docs[0];
   return { uid: snapshot.id, ...(snapshot.data() as Omit<CloudProfile, 'uid'>) };
+}
+
+export async function findProfileByFamilyCode(value: string): Promise<CloudProfile | null> {
+  const code = cleanFamilyCode(value);
+  if (!code) return null;
+  const codeSnapshot = await getDoc(doc(db, 'family_account_codes', code));
+  if (!codeSnapshot.exists()) return null;
+  const uid = String(codeSnapshot.data().uid || '');
+  if (!/^[A-Za-z0-9_-]{6,128}$/.test(uid)) return null;
+  const profileSnapshot = await getDoc(doc(db, 'profiles', uid));
+  if (!profileSnapshot.exists()) return null;
+  const profile = { uid: profileSnapshot.id, ...(profileSnapshot.data() as Omit<CloudProfile, 'uid'>) };
+  return profile.role === 'child' ? profile : null;
+}
+
+/** Returns a stable, non-secret child code used only to address an approval request. */
+export async function ensureFamilyAccountCode(): Promise<string> {
+  await auth.authStateReady();
+  const uid = currentUid();
+  const profileRef = doc(db, 'profiles', uid);
+  const profileSnapshot = await getDoc(profileRef);
+  if (!profileSnapshot.exists()) throw new Error('family_profile_not_ready');
+  const profile = profileSnapshot.data() as Omit<CloudProfile, 'uid'>;
+  if (profile.role !== 'child') throw new Error('family_wrong_role');
+  const existing = cleanFamilyCode(profile.family_code || '');
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const code = attempt === 0 && existing ? existing : await randomFamilyAccountCode();
+    try {
+      await runTransaction(db, async transaction => {
+        const codeRef = doc(db, 'family_account_codes', code);
+        const codeSnapshot = await transaction.get(codeRef);
+        if (codeSnapshot.exists() && codeSnapshot.data().uid !== uid) throw new Error('family_code_collision');
+        transaction.set(codeRef, { uid, role: 'child' });
+        transaction.set(profileRef, { family_code: code, updated_at: serverTimestamp() }, { merge: true });
+      });
+      return formatFamilyCode(code);
+    } catch (cause: any) {
+      if (cause?.message !== 'family_code_collision') throw cause;
+    }
+  }
+  throw new Error('family_profile_not_ready');
 }
 
 export async function saveCloudProfile(input: Omit<CloudProfile, 'uid'>): Promise<void> {
@@ -107,6 +169,7 @@ export async function createFamilyInvite(targetNickname: string, ownRole: CloudR
       target = { uid: targetSnapshot.id, ...(targetSnapshot.data() as Omit<CloudProfile, 'uid'>) };
     }
   }
+  if (!target) target = await findProfileByFamilyCode(targetNickname);
   if (!target) target = await findProfileByNickname(targetNickname);
   if (!target) throw new Error('family_account_not_found');
   if (target.uid === uid) throw new Error('family_same_account');
@@ -221,7 +284,10 @@ export async function deleteOwnCloudAccount(): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error('Sign in again before deleting this account.');
   const uid = user.uid;
-  const ownData = await getDoc(doc(db, 'user_data', uid));
+  const [ownData, ownProfile] = await Promise.all([
+    getDoc(doc(db, 'user_data', uid)),
+    getDoc(doc(db, 'profiles', uid)),
+  ]);
   if (ownData.data()?.managed_family_enabled) await deleteManagedFamily();
   const inviteSnapshots = await getDocs(query(
     collection(db, 'family_invites'),
@@ -229,6 +295,9 @@ export async function deleteOwnCloudAccount(): Promise<void> {
   ));
   await Promise.all([
     ...inviteSnapshots.docs.map((snapshot) => deleteDoc(snapshot.ref)),
+    ...(cleanFamilyCode(String(ownProfile.data()?.family_code || ''))
+      ? [deleteDoc(doc(db, 'family_account_codes', cleanFamilyCode(String(ownProfile.data()?.family_code))!))]
+      : []),
     deleteDoc(doc(db, 'profiles', uid)),
     deleteDoc(doc(db, 'user_data', uid)),
   ]);
