@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import { ScrollView, View, Text, Pressable, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../../store/useAppStore';
 import { AVAILABLE_AVATARS } from '../../constants/fighters';
 import { WORLD_THEMES } from '../../constants/theme';
@@ -12,13 +12,14 @@ import SettingsModal from '../SettingsModal';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { personName } from '../../utils/displayName';
 import { QuestbloxIcon } from './QuestbloxBrand';
+import { QrCode } from 'lucide-react-native';
 
 export const palette = { bg: '#0e1422', panel: '#192235', ink: '#f6f7fd', muted: '#aab8cf', line: '#2b3950', gold: '#ffc857', green: '#88e4bb' };
 export const fighterFor = (id: string) => AVAILABLE_AVATARS.find(f => f.id === id) || AVAILABLE_AVATARS[0];
 export function SceneArt({ source, centered = false, prominent = false }: { source: number; centered?: boolean; prominent?: boolean }) {
   const fadeId = React.useId().replace(/:/g, '');
   return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-    <Image source={source} contentFit={centered ? "contain" : "cover"} contentPosition="center" style={{ position: 'absolute', right: 0, width: centered ? '100%' : prominent ? '62%' : '70%', height: '100%' }} />
+    <Image source={source} contentFit={centered || prominent ? "contain" : "cover"} contentPosition="center" style={{ position: 'absolute', right: 0, width: centered ? '100%' : prominent ? '62%' : '70%', height: '100%' }} />
     <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
       <Defs>
         <LinearGradient id={`${fadeId}side`} x1="0" y1="0" x2="1" y2="0">
@@ -39,18 +40,22 @@ export function Screen({ children, onSettingsChange }: { children: React.ReactNo
   const { t } = useTranslation();
   const state = useAppStore();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
+  const scrollRef = React.useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [settings, setSettings] = useState(false);
+  React.useEffect(() => { scrollRef.current?.scrollTo({ y: 0, animated: false }); }, [pathname]);
   const fullName = state.fullName?.trim();
   const nickname = state.nickname?.trim();
   const displayName = personName(fullName, nickname, t('profile_champion'));
   return <SafeAreaView edges={['top', 'left', 'right']} style={[ui.safe, state.activeTheme !== 'classic' && { backgroundColor: WORLD_THEMES[state.activeTheme].background }]}>
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-    <ScrollView contentContainerStyle={ui.page} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
+    <ScrollView key={pathname} ref={scrollRef} contentContainerStyle={[ui.page, { paddingBottom: Math.max(30, insets.bottom + 30) }]} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}>
       <View style={ui.row}>
         <Pressable accessibilityRole="button" accessibilityLabel={t('profile_open')} onPress={() => { setSettings(true); onSettingsChange?.(true); }} style={[ui.row, { flex: 1 }]}>
           <QuestbloxIcon size={46} />
           <View style={{ flex: 1 }}><Text style={ui.brand}>Questblox</Text><Text numberOfLines={1} style={ui.meta}>{displayName} · {t('profile_level', { level: state.level })}</Text></View>
         </Pressable>
+        {pathname === '/' && state.role === 'child' && <Pressable testID="connect-parent-home-btn" accessibilityRole="button" accessibilityLabel={t('family_connect_parent')} onPress={() => router.push({ pathname: '/link-account', params: { qr: 'show' } })} style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: palette.gold, alignItems: 'center', justifyContent: 'center' }}><QrCode size={24} color={palette.bg} /></Pressable>}
         <Text accessibilityLabel={t('coin_count', { count: state.coins })} style={ui.balance}>🪙 {state.coins.toLocaleString()}</Text>
       </View>
       {state.syncError && <Text accessibilityLiveRegion="polite" style={ui.meta}>{t(state.syncError)}</Text>}

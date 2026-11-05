@@ -49,9 +49,9 @@ const task = { id: 'brush', name: 'Brush teeth', icon: '🪥', freq: 'daily', da
 let count = 0;
 async function test(name, fn) { await fn(); count++; console.log(`✓ ${name}`); }
 (async () => {
-  await test('Quiet-hour and malformed times are rejected', () => {
-    for (const time of ['06:59', '20:00', '24:00', '18:99', 'abc']) assert.equal(validReminderTime(time), false);
-    assert.equal(validReminderTime('07:00'), true); assert.equal(validReminderTime('19:59'), true);
+  await test('All 24 hours are allowed and malformed times are rejected', () => {
+    for (const time of ['24:00', '18:99', '7:00', 'abc']) assert.equal(validReminderTime(time), false);
+    for (const time of ['00:00', '06:59', '07:00', '19:59', '20:00', '23:59']) assert.equal(validReminderTime(time), true);
   });
   await test('Same-time quests group; own time overrides default; past times excluded', () => {
     const plan = reminderPlan([task, { ...task, id: 'read' }, { ...task, id: 'early', reminderTime: '08:00' }], '18:00', localDay(now), false, now);
@@ -120,6 +120,7 @@ async function test(name, fn) { await fn(); count++; console.log(`✓ ${name}`);
     assert.equal((await foregroundHandler.handleNotification(notification)).shouldShowBanner, false);
     responseListener({ notification }); assert.equal(opened.length, 0);
     data.recipient = 'child';
+    assert.equal((await foregroundHandler.handleNotification(notification)).shouldShowBanner, true);
     responseListener({ notification });
     assert.deepEqual(opened, [{ screen: 'battle', id: 'safe-id' }]);
     auth.currentUser = null;

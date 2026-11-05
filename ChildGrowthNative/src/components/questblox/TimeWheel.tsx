@@ -44,7 +44,7 @@ export default function TimeWheel({ value, onChange, label, optional = false, di
         <Text style={styles.label}>{t('time_scroll')}</Text>
         <Text style={[styles.label, { marginTop: 6 }]}>{t('reminder_hours')}</Text>
         <View style={{ flexDirection: 'row', gap: 20, marginVertical: 18 }}>
-          <Wheel initial={draft.current[0]} count={13} start={7} label={t('time_hour')} onChange={hour => { draft.current[0] = hour; }} />
+          <Wheel initial={draft.current[0]} count={24} label={t('time_hour')} onChange={hour => { draft.current[0] = hour; }} />
           <Wheel initial={draft.current[1]} count={60} label={t('time_minute')} onChange={minute => { draft.current[1] = minute; }} />
         </View>
         {optional && <Pressable accessibilityRole="button" onPress={() => { onChange(''); setOpen(false); }} style={styles.action}><Text style={styles.label}>{t('time_use_default')}</Text></Pressable>}

@@ -2,15 +2,6 @@ export function validZone(zone: unknown): zone is string {
   if (typeof zone !== 'string' || zone.length > 80) return false;
   try { new Intl.DateTimeFormat('en', { timeZone: zone }).format(); return true; } catch { return false; }
 }
-export function quietUntil(time: number, zone: string): number {
-  const formatter = new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: 'numeric', hourCycle: 'h23' });
-  // Walk actual instants, so DST transitions do not create invalid local times.
-  for (let next = time; next <= time + 25 * 3600000; next += 60000) {
-    const hour = Number(formatter.format(new Date(next)));
-    if (hour >= 7 && hour < 20) return next;
-  }
-  return time + 24 * 3600000;
-}
 export function retryAt(time: number, attempts: number): number {
   return time + Math.min(60 * 60 * 1000, 30000 * 2 ** Math.min(attempts, 7));
 }

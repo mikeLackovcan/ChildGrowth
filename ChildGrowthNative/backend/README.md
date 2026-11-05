@@ -44,7 +44,7 @@ before publication.
 - Localized parent approval/help/reward alerts and family battle updates. Generic
   lock-screen messages contain no child names or quest/reward descriptions.
 - Device opt-in, token rotation, account checks, notification navigation, and
-  20:00–07:00 local quiet hours that account for daylight-saving changes.
+  immediate family alerts at any hour.
 - App lobby and live battle subscription in `src/app/family-battle.tsx`.
   All new interface strings are in English, Czech, Spanish and German.
 
@@ -183,7 +183,7 @@ No new AAB or OTA update was published as part of this deployment.
   server status, and old child-onboarding links redirect to the real invitation
   form; the demo approval/navigation behavior has been removed.
 - Verify Android FCM credentials and real device delivery, including cold-start
-  notification taps, denied permissions, logout, quiet hours and token rotation.
+  notification taps, denied permissions, logout, nighttime delivery and token rotation.
 - Indexes and callable functions are deployed. Test authenticated HTTP calls and
   live battles with two devices and parent/child accounts.
 - Check the four-language layouts on small screens and build the Android bundle

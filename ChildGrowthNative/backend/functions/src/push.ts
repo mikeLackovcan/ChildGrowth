@@ -4,7 +4,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { authenticated, db, digest, linkId, queueNotice, text } from './core';
 import { pushText, pushLanguages } from '../../../src/i18n/pushMessages';
-import { familyChanges, quietUntil, retryAt, validZone } from './pushPolicy';
+import { familyChanges, retryAt, validZone } from './pushPolicy';
 
 const day = 86400000;
 export const registerPushDevice = onCall(async request => {
@@ -128,8 +128,6 @@ export async function processPushJob(id: string, transport: PushTransport = expo
     }
     const receipt = !!job.ticketId;
     if (!receipt) {
-      const next = quietUntil(time, device.timeZone);
-      if (next > time) { transaction.update(ref, { status: 'pending', nextAttemptAt: Timestamp.fromMillis(next) }); return null; }
       if (job.attempts >= 5 || (quota?.count || 0) >= 40) {
         transaction.update(ref, { status: 'limited', nextAttemptAt: FieldValue.delete() }); return null;
       }

@@ -28,9 +28,9 @@ node scripts/serve-visual-export.cjs >.maestro/visual-server.log 2>&1 &
 server_pid=$!
 trap 'kill "$server_pid" 2>/dev/null || true' EXIT
 
-for _ in {1..30}; do
+for _ in {1..120}; do
   if curl --silent --fail http://127.0.0.1:8082/ >/dev/null; then break; fi
-  sleep 0.2
+  sleep 0.5
 done
 curl --silent --fail http://127.0.0.1:8082/ >/dev/null
 

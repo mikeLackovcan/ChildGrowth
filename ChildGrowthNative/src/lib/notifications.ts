@@ -102,9 +102,8 @@ export async function observeQuestNotifications(onOpen: (taskId?: string) => voi
     const s = useAppStore.getState();
     const prefs = useReminderStore.getState().accounts[reminderAccount()] || defaultReminders;
     if (data?.questbloxPush === true) {
-      const hour = new Date().getHours();
       const show = !!prefs.familyAlerts && auth.currentUser?.uid === s.userId && !!pushDestination(data, s.userId, s.role) &&
-        (s.role === 'parent' || !s.isSick) && hour >= 7 && hour < 20;
+        (s.role === 'parent' || !s.isSick);
       return { shouldShowBanner: show, shouldShowList: show, shouldPlaySound: show && prefs.sound, shouldSetBadge: false };
     }
     const show = data?.questReminder === true && data.account === reminderAccount() && s.role === 'child' && !s.isSick &&

@@ -5,7 +5,7 @@ const backendRequire = require('node:module').createRequire(require('node:path')
 const { Timestamp } = backendRequire('firebase-admin/firestore');
 const { db, digest, linkId } = require('../functions/lib/backend/functions/src/core');
 const { registerPushDevice, unregisterPushDevice, enqueueFamilyChanges, fanOutNotice, processPushJob, cleanupPushRecords } = require('../functions/lib/backend/functions/src/push');
-const { quietUntil, validZone, familyChanges } = require('../functions/lib/backend/functions/src/pushPolicy');
+const { validZone, familyChanges } = require('../functions/lib/backend/functions/src/pushPolicy');
 const { pushText } = require('../functions/lib/src/i18n/pushMessages');
 const call = (fn, uid, data) => fn.run({ auth: uid ? { uid } : undefined, data });
 const get = async (collection, id) => (await db.doc(`${collection}/${id}`).get()).data();
@@ -14,11 +14,9 @@ const time = Date.now();
 const daytimeZone = Array.from({ length: 25 }, (_, index) => `Etc/GMT${index - 12 >= 0 ? '+' : ''}${index - 12}`)
   .find(zone => validZone(zone) && Number(new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: 'numeric', hourCycle: 'h23' }).format(new Date(time))) === 12);
 
-test('quiet hours follow local time and daylight saving', () => {
-  assert.equal(quietUntil(Date.parse('2026-10-24T18:00:00Z'), 'Europe/Prague'), Date.parse('2026-10-25T06:00:00Z'));
-  assert.equal(quietUntil(Date.parse('2026-03-28T19:00:00Z'), 'Europe/Prague'), Date.parse('2026-03-29T05:00:00Z'));
-  assert.equal(quietUntil(Date.parse('2026-10-23T10:00:00Z'), 'Europe/Prague'), Date.parse('2026-10-23T10:00:00Z'));
+test('push time zones are validated', () => {
   assert.equal(validZone('not/a/timezone'), false);
+  assert.equal(validZone('Europe/Prague'), true);
   assert.ok(daytimeZone);
 });
 test('daily reset is not a rejection and notification languages are complete', () => {
@@ -90,14 +88,14 @@ test('push registration, outbox, receipts and retries use real Firestore with a 
     assert.equal(job.status, 'pending'); assert.equal(job.attempts, 1);
     assert.ok(job.nextAttemptAt.toMillis() > Date.now());
   });
-  await t.test('quiet hours defer without sending; stale requests are cancelled', async () => {
+  await t.test('nighttime alerts send immediately; stale requests are cancelled', async () => {
     const nightZone = Array.from({ length: 25 }, (_, index) => `Etc/GMT${index - 12 >= 0 ? '+' : ''}${index - 12}`)
-      .find(zone => validZone(zone) && quietUntil(Date.now(), zone) > Date.now() + 3600000);
+      .find(zone => validZone(zone) && (() => { const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: 'numeric', hourCycle: 'h23' }).format()); return hour < 7 || hour >= 20; })());
     await db.doc(`pushDevices/${deviceId}`).update({ timeZone: nightZone });
     await makeJob('push-night');
     let calls = 0;
-    await processPushJob('push-night', async () => { calls++; });
-    assert.equal(calls, 0); assert.equal((await get('pushJobs', 'push-night')).attempts, 0);
+    await processPushJob('push-night', async operation => { calls++; assert.equal(operation, 'send'); return { data: [{ status: 'ok', id: 'night-ticket' }] }; });
+    assert.equal(calls, 1); assert.equal((await get('pushJobs', 'push-night')).status, 'receipt');
     await db.doc(`pushDevices/${deviceId}`).update({ timeZone: daytimeZone });
     await db.doc(`user_data/${child}`).set(before);
     await makeJob('push-stale');

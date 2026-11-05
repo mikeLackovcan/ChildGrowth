@@ -60,8 +60,7 @@ object QuestAlarms {
   }
   @Synchronized fun snooze(c: Context, item: JSONObject) {
     val at = System.currentTimeMillis() + 5 * 60000
-    val hour = java.util.Calendar.getInstance().apply { timeInMillis = at }.get(java.util.Calendar.HOUR_OF_DAY)
-    if (hour !in 7..19 || !allowed(c)) return
+    if (!allowed(c)) return
     item.put("at", at).put("snoozed", true)
     save(c, items(c).filter { it.getString("id") != item.getString("id") } + item)
     schedule(c, item)

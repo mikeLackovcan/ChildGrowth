@@ -31,6 +31,31 @@ url: http://127.0.0.1:8082/
 - assertScreenshot:
     path: ${'baselines/' + SCREEN + '/child-home.png'}
     thresholdPercentage: 97
+- tapOn:
+    id: "View quest: Brush Teeth.*"
+- swipe:
+    start: 50%, 85%
+    end: 50%, 30%
+    duration: 450
+- takeScreenshot: quest-active
+- assertScreenshot:
+    path: ${'baselines/' + SCREEN + '/quest-active.png'}
+    thresholdPercentage: 97
+- swipe:
+    start: 50%, 25%
+    end: 50%, 90%
+    duration: 450
+- swipe:
+    start: 50%, 25%
+    end: 50%, 90%
+    duration: 450
+- tapOn:
+    id: Connect parent
+- assertVisible: "Sign in to connect with your family.*"
+- takeScreenshot: family-connect-guest
+- assertScreenshot:
+    path: ${'baselines/' + SCREEN + '/family-connect-guest.png'}
+    thresholdPercentage: 97
 - openLink:
     link: http://127.0.0.1:8082/manage-tasks
 - assertVisible: "Quest Name:"

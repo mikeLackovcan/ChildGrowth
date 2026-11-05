@@ -27,7 +27,7 @@ Validation: 19 isolated checks passed, TypeScript passed, Android bundle exporte
 Still requires real-device notification/background and two-account sync testing.
 
 Reminder scope: local notifications, not server push or repeating alarm-clock alerts.
-Quiet hours 20:00–07:00. Opening the app refreshes up to seven days of scheduled
+Reminder times support the full day, from 00:00 to 23:59. Opening the app refreshes up to seven days of scheduled
 reminders (maximum 60 alerts). Rest mode pauses scheduling; completed/pending-review
 chores are excluded. Android settings may delay or silence notifications.
 

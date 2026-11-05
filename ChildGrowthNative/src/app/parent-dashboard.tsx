@@ -4,7 +4,7 @@ import FamilyReconnect from '../components/FamilyReconnect';
 import { showMessage, confirmAction } from '../lib/dialogs';
 import React, { useRef, useState } from 'react';
 import { Image } from 'expo-image';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard } from 'react-native';
 import { Redirect, router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { RecoveryReview } from '../components/questblox/RecoveryReview';
@@ -71,7 +71,13 @@ function ParentDashboard() {
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [syncingTaskId, setSyncingTaskId] = useState<string | null>(null);
   const [parentTab, setParentTab] = useState<'overview' | 'quests' | 'rewards' | 'family'>('overview');
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [questScope, setQuestScope] = useState<'selected' | 'all'>('selected');
+  React.useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   const approvedChildren = children.filter(c => c.isApproved === true);
   const pendingChildren = children.filter(c => c.isApproved !== true);
@@ -638,7 +644,7 @@ function ParentDashboard() {
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
-      <View style={styles.parentTabs}>
+      {!keyboardVisible && <View style={styles.parentTabs}>
         {([
           { id: 'overview' as const, key: 'parent_tab_overview', Icon: House },
           { id: 'quests' as const, key: 'parent_tab_quests', Icon: ListChecks },
@@ -651,7 +657,7 @@ function ParentDashboard() {
             <Text numberOfLines={1} style={[styles.parentTabText, selected && styles.parentTabTextSelected]}>{t(item.key)}</Text>
           </TouchableOpacity>;
         })}
-      </View>
+      </View>}
     </SafeAreaView>
   );
 }

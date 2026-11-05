@@ -48,6 +48,13 @@
           "enableBackgroundPlayback": false
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Questblox to scan a child’s family QR code.",
+          "recordAudioAndroid": false
+        }
+      ],
       "expo-asset",
       "expo-font",
       "expo-image",

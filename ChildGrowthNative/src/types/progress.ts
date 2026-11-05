@@ -16,7 +16,7 @@ export interface Task {
   startedAt?: string;
   durationMinutes?: number;
   reminderMode?: 'notification' | 'alarm';
-  reminderTime?: string; // Local HH:mm, 07:00–19:59; empty uses device default.
+  reminderTime?: string; // Local HH:mm, 00:00–23:59; empty uses device default.
   requiresApproval?: boolean;
   pendingApproval?: boolean;
   pendingSubmissionId?: string;

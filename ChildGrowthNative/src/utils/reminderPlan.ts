@@ -1,7 +1,7 @@
 import type { Task } from '../store/useAppStore';
 import { localDay, tasksForDay } from './questDay';
 
-export const validReminderTime = (value: string) => /^(0[7-9]|1[0-9]):[0-5][0-9]$/.test(value);
+export const validReminderTime = (value: string) => /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/.test(value);
 export interface ReminderSlot { at: number; taskIds: string[] }
 // One alert per time slot, at most 60 pending alerts (also fits iOS's limit).
 export function reminderPlan(tasks: Task[], time: string, lastActiveDate: string | null, isSick: boolean, now = new Date()): ReminderSlot[] {
