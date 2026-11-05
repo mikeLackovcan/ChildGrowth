@@ -5,6 +5,16 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app, auth } from './firebase';
 import { hasQueuedProgress } from './progressQueue';
 import { restoredAccount } from '../utils/accountState';
+import type { Task } from '../types/progress';
+
+export function mergeOfflineTasks(localTasks: Task[] = [], cloudTasks: Task[] = []) {
+  const merged = new Map(localTasks.filter(task => task?.id).map(task => [task.id, task]));
+  // The server may contain changes made from another family member's phone.
+  // Keep unsynced local-only quests, but let the latest cloud copy win whenever
+  // both snapshots contain the same quest.
+  cloudTasks.filter(task => task?.id).forEach(task => merged.set(task.id, task));
+  return [...merged.values()];
+}
 
 export async function accountDocumentId(tag: string): Promise<string> {
   const uid = auth.currentUser?.uid;
@@ -48,7 +58,7 @@ export async function restoreAuthenticatedAccount(user: { uid: string; email: st
     if (local?.userId === user.uid) {
       checkAccount();
       return restoredAccount({ ...profile, coins: local.coins, xp: local.xp, level: local.level, current_avatar: local.currentAvatar },
-        { ...local, won_prizes: local.wonPrizes, unlocked_avatars: local.unlockedAvatars, ...family },
+        { ...local, tasks: mergeOfflineTasks(local.tasks, (data as any).tasks), won_prizes: local.wonPrizes, unlocked_avatars: local.unlockedAvatars, ...family },
         { uid: user.uid, email, name: user.displayName || chosenNick, nickname: chosenNick, role });
     }
   }

@@ -1027,6 +1027,24 @@ export const useAppStore: UseBoundStore<StoreApi<AppState>> = create<AppState>((
                 set({ userEmail: null, userId: null, nickname: null, fullName: null, role: null });
                 return;
               }
+              try {
+                const restored = await restoreAuthenticatedAccount(
+                  auth.currentUser,
+                  parsed.role === 'parent' ? 'parent' : 'child',
+                  parsed.nickname,
+                );
+                // A fresh app launch must include changes made on another family
+                // member's phone. restoreAuthenticatedAccount also merges any
+                // unsynced local-only quests before this cloud state is shown.
+                if (get().userEmail || get().nickname || auth.currentUser?.uid !== parsed.userId) return;
+                i18n.changeLanguage(lang);
+                set({ ...restored, language: lang });
+                if (restored.role === 'parent' && restored.children.length) get().selectChild(restored.children[0].id);
+                await get().saveMockState();
+                return;
+              } catch {
+                set({ syncError: 'family_sync_retry' });
+              }
             }
             if (parsed.userId !== 'guest-local') {
               try { await Promise.all([readCloudState('profiles', parsed.userId), readCloudState('user_data', parsed.userId)]); } catch { set({ syncError: 'family_sync_retry' }); }
@@ -1149,13 +1167,15 @@ export const useAppStore: UseBoundStore<StoreApi<AppState>> = create<AppState>((
           return { ...child, id: childUid, ...progressSnapshot(p.data() || {}, d.data() || {}) };
         })) : family.children;
         if (get().userId !== uid || auth.currentUser?.uid !== uid || generation !== progressGeneration(uid) || progressBusy()) return;
-        const selected = children.find(child => child.id === get().selectedChildId) || children.find(child => child.isApproved);
+        const selected = get().role === 'parent'
+          ? children.find(child => child.id === get().selectedChildId) || children.find(child => child.isApproved)
+          : undefined;
         const own = progressSnapshot(profile, data);
         set({ ...own, children, familyVerifiedUid: uid, familyReconnectTags: family.familyReconnectTags, linkedParents: data.linked_parents || [],
           parentEmail: data.parent_email || null, approvalStatus: data.approval_status || null,
           pendingInvitation: data.pending_invitation || null,
           selectedChildId: selected?.id || null });
-        if (selected) get().selectChild(selected.id);
+        if (get().role === 'parent' && selected) get().selectChild(selected.id);
         const tag = (get().nickname || '').toLowerCase().replace(/^@/, '');
         if (tag) await AsyncStorage.setItem(`mockState_${tag}`, JSON.stringify(get()));
       }

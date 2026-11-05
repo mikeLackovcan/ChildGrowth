@@ -119,7 +119,29 @@ const flush = async () => { for (let i = 0; i < 30; i++) { await new Promise(res
   assert.equal(JSON.stringify([...docs]), before);
   console.log('✓ Failed profile restoration does not overwrite cloud progress or expose a partial session');
   failRead = false;
-  const { restoreAuthenticatedAccount } = load('lib/accountSession');
+  const { restoreAuthenticatedAccount, mergeOfflineTasks } = load('lib/accountSession');
+  const mergedTasks = mergeOfflineTasks(
+    [{ id: 'local-only', name: 'Local draft', done: false }, { id: 'shared', name: 'Stale copy', done: false }],
+    [{ id: 'shared', name: 'Parent update', done: true }, { id: 'cloud-only', name: 'Cloud quest', done: true }],
+  );
+  assert.deepEqual(mergedTasks.map(task => [task.id, task.done]), [
+    ['local-only', false], ['shared', true], ['cloud-only', true],
+  ]);
+  console.log('✓ Offline restore keeps local-only quests while parent cloud updates win for shared and cloud-only quests');
+  const completedOnParentPhone = { id: 'parent-completed', name: 'Pack bag', done: true, diff: 'easy', freq: 'daily', mystery: false, date: localDay() };
+  docs.get('user_data/verified-uid').tasks = [completedOnParentPhone];
+  docs.get('user_data/verified-uid').children = [{ id: 'stale-family-entry', nickname: 'stale', isApproved: true, tasks: [] }];
+  memory.set('active_user_tag', 'original-nick');
+  memory.set('mockState_original-nick', JSON.stringify({
+    userId: user.uid, userEmail: user.email, fullName: user.displayName, nickname: 'original-nick', role: 'child',
+    tasks: [], children: [], linkedParents: [], lastActiveDate: localDay(),
+  }));
+  auth.currentUser = user;
+  store.setState({ userId: null, userEmail: null, fullName: null, nickname: null, role: null, tasks: [] });
+  await store.getState().loadMockState();
+  await store.getState().loadMockState();
+  assert.equal(store.getState().tasks.find(task => task.id === 'parent-completed')?.done, true);
+  console.log('✓ Fresh launch and background refresh keep the child’s cloud quest instead of selecting a family entry');
   const pending = { id: 'family-task', name: 'Read', ownerRole: 'parent', diff: 'easy', freq: 'daily', mystery: false, done: false, pendingApproval: true, requiresApproval: true, date: localDay() };
   docs.get('user_data/verified-uid').tasks = [pending];
   const parent = { uid: 'parent-uid', email: 'parent@example.test', displayName: 'Parent' };
@@ -191,5 +213,5 @@ const flush = async () => { for (let i = 0; i < 30; i++) { await new Promise(res
   await store.getState().loadMockState();
   assert.equal(store.getState().userId, user.uid); assert.equal(store.getState().nickname, 'fresh-child'); assert.equal(store.getState().coins, 42);
   console.log('✓ A delayed cache load cannot replace a newer signed-in account');
-  console.log('10 account/client checks passed against Firebase doubles. Family transaction invariants run separately against the Firestore emulator.');
+  console.log('12 account/client checks passed against Firebase doubles. Family transaction invariants run separately against the Firestore emulator.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
