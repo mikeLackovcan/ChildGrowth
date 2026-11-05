@@ -101,12 +101,12 @@ export async function loadOwnCloudData(expectedChildUid?: string): Promise<Recor
 export async function createFamilyInvite(targetNickname: string, ownRole: CloudRole): Promise<FamilyInvite> {
   const uid = currentUid();
   const target = await findProfileByNickname(targetNickname);
-  if (!target) throw new Error(`No Quest Champ account found for @${cleanNickname(targetNickname)}.`);
-  if (target.uid === uid) throw new Error('Choose a different family account.');
-  if (target.role === ownRole) throw new Error(`@${target.nickname} must use a ${ownRole === 'child' ? 'parent' : 'child'} profile.`);
+  if (!target) throw new Error('family_account_not_found');
+  if (target.uid === uid) throw new Error('family_same_account');
+  if (target.role === ownRole) throw new Error('family_wrong_role');
 
   const ownProfileSnapshot = await getDoc(doc(db, 'profiles', uid));
-  if (!ownProfileSnapshot.exists()) throw new Error('Your cloud profile is not ready yet.');
+  if (!ownProfileSnapshot.exists()) throw new Error('family_profile_not_ready');
   const own = ownProfileSnapshot.data() as Omit<CloudProfile, 'uid'>;
   const childUid = ownRole === 'child' ? uid : target.uid;
   const parentUid = ownRole === 'parent' ? uid : target.uid;

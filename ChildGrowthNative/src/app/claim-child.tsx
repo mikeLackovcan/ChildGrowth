@@ -7,10 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Colors } from '../constants/theme';
 import { claimGuardianCode } from '../lib/devicePairing';
-import { normalizeGuardianCode } from '../lib/pairingCode';
+import { createFamilyInvite } from '../lib/familyCloud';
+import { normalizeFamilyNickname, normalizeGuardianCode, parseFamilyAccountQr } from '../lib/pairingCode';
 import { useAppStore } from '../store/useAppStore';
 
-const errorKeys = new Set(['pair_invalid_code', 'pair_expired_code', 'pair_already_connected', 'pair_parent_required']);
+const errorKeys = new Set(['pair_invalid_code', 'pair_expired_code', 'pair_already_connected', 'pair_parent_required',
+  'family_account_not_found', 'family_same_account', 'family_wrong_role', 'family_profile_not_ready']);
 
 export default function ClaimChildScreen() {
   const { t } = useTranslation();
@@ -24,20 +26,28 @@ export default function ClaimChildScreen() {
   const pending = useRef(false);
   const scanLocked = useRef(false);
   const eligible = role === 'parent' && Boolean(userEmail);
-  const validCode = normalizeGuardianCode(code);
+  const scannedAccount = parseFamilyAccountQr(code);
+  const childNickname = scannedAccount?.role === 'child' ? scannedAccount.nickname : normalizeFamilyNickname(code);
+  const validCode = normalizeGuardianCode(code) || childNickname;
 
   async function connect(candidate = code) {
     if (pending.current || !eligible) return;
     pending.current = true; setBusy(true); setError('');
     try {
       const normalized = normalizeGuardianCode(candidate);
-      if (!normalized) throw new Error('pair_invalid_code');
-      const childUid = await claimGuardianCode(normalized);
+      if (normalized) {
+        await claimGuardianCode(normalized);
+      } else {
+        const scanned = parseFamilyAccountQr(candidate);
+        const target = scanned?.role === 'child' ? scanned.nickname : normalizeFamilyNickname(candidate);
+        if (!target) throw new Error('family_child_qr_invalid');
+        await createFamilyInvite(target, 'parent');
+      }
       await useAppStore.getState().loadMockState();
-      useAppStore.getState().selectChild(childUid);
       router.replace('/parent-dashboard');
     } catch (cause: any) {
-      setError(errorKeys.has(cause?.message) ? cause.message : 'pair_setup_failed');
+      const key = cause?.message;
+      setError(errorKeys.has(key) || key === 'family_child_qr_invalid' ? key : 'pair_setup_failed');
     } finally { pending.current = false; setBusy(false); }
   }
 
@@ -53,18 +63,24 @@ export default function ClaimChildScreen() {
   async function handleScan(data: string) {
     if (scanLocked.current || pending.current) return;
     scanLocked.current = true;
-    const parsed = normalizeGuardianCode(data);
     setScanning(false);
-    if (!parsed) { setError('guardian_qr_invalid'); return; }
-    setCode(parsed);
-    await connect(parsed);
+    const account = parseFamilyAccountQr(data);
+    if (account?.role === 'child') {
+      setCode(account.nickname);
+      await connect(account.nickname);
+      return;
+    }
+    const parsedCode = normalizeGuardianCode(data);
+    if (!parsedCode) { setError('family_child_qr_invalid'); return; }
+    setCode(parsedCode);
+    await connect(parsedCode);
   }
 
   return <SafeAreaView style={styles.screen} edges={['top', 'right', 'bottom', 'left']}>
     <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
         <Text accessibilityRole="header" style={styles.title}>{t('guardian_parent_title')}</Text>
-        <Text style={styles.hint}>{t(eligible ? 'guardian_parent_help' : 'guardian_parent_required')}</Text>
+        <Text style={styles.hint}>{t(eligible ? 'family_parent_connect_help' : 'guardian_parent_required')}</Text>
         {eligible && <>
           {Platform.OS !== 'web' && (scanning ? <View style={styles.scanner}>
             <CameraView
@@ -87,16 +103,16 @@ export default function ClaimChildScreen() {
             value={code}
             onChangeText={setCode}
             editable={!busy}
-            maxLength={20}
+            maxLength={80}
             autoCapitalize="characters"
             autoCorrect={false}
-            accessibilityLabel={t('guardian_code_label')}
-            placeholder={t('guardian_code_label')}
+            accessibilityLabel={t('family_child_identity_label')}
+            placeholder={t('family_child_identity_label')}
             placeholderTextColor={Colors.textMuted}
             style={styles.input}
           />
           <Pressable accessibilityRole="button" disabled={busy || !validCode} style={[styles.button, (busy || !validCode) && styles.disabled]} onPress={() => void connect()}>
-            <Text style={styles.buttonText}>{t(busy ? 'processing' : 'guardian_connect')}</Text>
+            <Text style={styles.buttonText}>{t(busy ? 'processing' : 'family_connect_child')}</Text>
           </Pressable>
         </>}
         {error ? <Text accessibilityRole="alert" style={styles.error}>{t(error)}</Text> : null}
@@ -111,7 +127,7 @@ export default function ClaimChildScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
   fill: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 520, alignSelf: 'center', padding: 24, gap: 20 },
+  content: { flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 520, alignSelf: 'center', padding: 24, paddingBottom: 48, gap: 20 },
   title: { fontFamily: 'Nunito_800ExtraBold', fontSize: 28, lineHeight: 35, color: Colors.text },
   hint: { fontFamily: 'Nunito_600SemiBold', fontSize: 16, lineHeight: 24, color: Colors.textSecondary },
   input: { minHeight: 60, borderBottomWidth: 1, borderColor: Colors.border, fontFamily: 'Nunito_800ExtraBold', fontSize: 24, color: Colors.text },

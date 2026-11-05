@@ -77,7 +77,7 @@
     "test:locales": "node ./scripts/test-i18n-parity.cjs && node --test ./scripts/test-notification-locales.cjs",
     "test:i18n": "npm run test:locales",
     "test:android-config": "node ./scripts/test-android-release-config.cjs",
-    "test:family": "node --test scripts/test-account-role.cjs scripts/test-device-adoption.cjs scripts/test-device-disconnect.cjs scripts/test-family-cloud-routing.cjs scripts/test-parent-layout.cjs",
+    "test:family": "node --test scripts/test-account-role.cjs scripts/test-device-adoption.cjs scripts/test-device-disconnect.cjs scripts/test-family-cloud-routing.cjs scripts/test-pairing-code.cjs scripts/test-parent-layout.cjs",
     "test:family:browser": "node scripts/test-family-flow-browser.cjs",
     "test:workflow": "node --test scripts/test-workflow-contracts.cjs",
     "test:release:local": "tsc --noEmit && npm run test:android-config && npm run test:project && npm run test:workflow && npm run test:ux && npm run test:locales && npm run test:family"

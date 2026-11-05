@@ -187,6 +187,19 @@ export default function TrackerScreen() {
           </View>
         </View>
         <Text style={styles.greeting}>{t('day_name', { name: firstName })}</Text>
+        {state.role === 'child' && state.userId !== 'guest-local' && state.deviceConnection !== 'linked'
+          && state.linkedParents.length === 0 && state.approvalStatus !== 'pending' ? <Pressable
+            accessibilityRole="button"
+            style={styles.familyConnect}
+            onPress={() => router.push('/link-account')}
+          >
+            <View style={styles.familyConnectIcon}><ShieldCheck size={22} color={Colors.primary} /></View>
+            <View style={styles.taskCopy}>
+              <Text style={styles.inviteTitle}>{t('family_connect_home_title')}</Text>
+              <Text style={styles.inviteSender}>{t('family_connect_home_hint')}</Text>
+            </View>
+            <Text style={styles.familyArrow}>›</Text>
+          </Pressable> : null}
         {state.approvalStatus === 'pending' && state.parentEmail ? <View style={styles.familyInvite}>
           <View style={styles.inviteHeading}><ShieldCheck size={24} color={Colors.primary} /><View style={{ flex: 1 }}>
             <Text style={styles.inviteTitle}>{t('family_invite_title')}</Text>
@@ -278,6 +291,9 @@ const styles = StyleSheet.create({
   iconButton: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   greeting: { fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 30, marginBottom: 14 },
   familyInvite: { borderBottomWidth: 1, borderBottomColor: Colors.border, paddingBottom: 18, marginBottom: 20 },
+  familyConnect: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 10, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  familyConnectIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.blueDim },
+  familyArrow: { fontFamily: 'Nunito_800ExtraBold', fontSize: 28, color: Colors.primary },
   inviteHeading: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   inviteTitle: { fontFamily: 'Nunito_800ExtraBold', color: Colors.text, fontSize: 18 },
   inviteSender: { fontFamily: 'Nunito_600SemiBold', color: Colors.textSecondary, fontSize: 14, lineHeight: 20, marginTop: 2 },

@@ -14,11 +14,12 @@ import { Colors } from '../constants/theme';
 import { deleteChildProfile } from '../lib/deleteChildProfile';
 import ReadableTextInput from './ReadableTextInput';
 import QRCode from 'react-native-qrcode-svg';
-import { pairingQrValue } from '../lib/pairingCode';
+import { familyAccountQrValue, pairingQrValue } from '../lib/pairingCode';
 
 export default function ParentPairingSetup() {
   const { t } = useTranslation();
   const role = useAppStore(state => state.role);
+  const parentNickname = useAppStore(state => state.nickname);
   const children = useAppStore(state => state.children);
   const selected = useAppStore(state => state.children.find(child => child.id === state.selectedChildId));
   const [adding, setAdding] = useState(children.length === 0);
@@ -28,6 +29,7 @@ export default function ParentPairingSetup() {
   const [error, setError] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
+  const [showParentQr, setShowParentQr] = useState(false);
   const [ticket, setTicket] = useState<{ childId: string; code: string; recovery?: boolean } | null>(null);
   if (role !== 'parent') return null;
 
@@ -83,6 +85,30 @@ export default function ParentPairingSetup() {
         <Text style={styles.existingChildHint}>{t('guardian_parent_short')}</Text>
       </View>
     </Pressable>
+
+    {parentNickname ? <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: showParentQr }}
+        disabled={busy}
+        style={styles.existingChildAction}
+        onPress={() => setShowParentQr(value => !value)}
+      >
+        <ScanLine size={20} color={Colors.primary} />
+        <View style={styles.existingChildCopy}>
+          <Text style={styles.existingChildTitle}>{t('family_parent_qr_title')}</Text>
+          <Text style={styles.existingChildHint}>{t('family_parent_qr_help')}</Text>
+        </View>
+      </Pressable>
+      {showParentQr ? <View style={styles.ticket}>
+        <Text style={styles.ticketLabel}>{t('family_parent_qr_title')}</Text>
+        <View style={styles.qr} accessibilityLabel={t('family_parent_qr_accessible')}>
+          <QRCode value={familyAccountQrValue('parent', parentNickname)} size={200} color={Colors.text} backgroundColor="#FFFFFF" />
+        </View>
+        <Text selectable style={styles.accountCode}>@{parentNickname}</Text>
+        <Text style={styles.scanHint}>{t('family_parent_qr_child_step')}</Text>
+      </View> : null}
+    </> : null}
 
     {adding ? <View style={styles.createArea}>
       <Text style={styles.fieldLabel}>{t('pair_child_name')}</Text>
@@ -213,6 +239,7 @@ const styles = StyleSheet.create({
   scanHint: { fontFamily: 'Nunito_700Bold', fontSize: 14, lineHeight: 20, color: Colors.textSecondary, textAlign: 'center', marginTop: 10, paddingHorizontal: 18 },
   ticketLabel: { fontFamily: 'Nunito_800ExtraBold', fontSize: 15, color: Colors.textSecondary },
   code: { fontFamily: 'Nunito_800ExtraBold', fontSize: 30, letterSpacing: 2, color: Colors.text, marginTop: 5 },
+  accountCode: { fontFamily: 'Nunito_800ExtraBold', fontSize: 24, color: Colors.text, marginTop: 5 },
   ticketHint: { fontFamily: 'Nunito_600SemiBold', fontSize: 14, lineHeight: 20, color: Colors.textSecondary, marginTop: 5 },
   dangerAction: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8 },
   danger: { flexShrink: 1, fontFamily: 'Nunito_700Bold', fontSize: 15, lineHeight: 22, color: '#AF332A', textAlign: 'center' },

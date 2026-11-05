@@ -55,6 +55,14 @@ function childState() {
   };
 }
 
+function registeredChildState() {
+  return {
+    ...childState(),
+    userEmail: 'mia@test.local', userId: 'kid-account', nickname: 'mia-champ', fullName: 'Mia',
+    deviceConnection: null,
+  };
+}
+
 async function seed(page, tag, state) {
   await page.addInitScript(({ prefix, tag, state }) => {
     localStorage.setItem(`${prefix}active_user_tag`, tag);
@@ -79,10 +87,13 @@ async function seed(page, tag, state) {
     await parentPage.getByRole('button', { name: /Sam/ }).click();
     await parentPage.getByText('Show QR code', { exact: true }).waitFor();
     await parentPage.getByText('Lost or new phone', { exact: true }).waitFor();
+    await parentPage.getByText('Let your child scan', { exact: true }).click();
+    await parentPage.getByLabel('Parent QR code for a child to connect', { exact: true }).waitFor();
+    await parentPage.getByText('@parent-ui', { exact: true }).waitFor();
     await parentPage.getByText('Connect existing child', { exact: true }).click();
     await parentPage.getByRole('heading', { name: 'Connect existing child', exact: true }).waitFor();
-    await parentPage.getByLabel('Child connection code', { exact: true }).fill('ABCD-EFGH-2345');
-    assert.equal(await parentPage.getByRole('button', { name: 'Connect child', exact: true }).isEnabled(), true, 'A valid child code enables parent connection');
+    await parentPage.getByLabel('Child code or @nickname', { exact: true }).fill('mia-champ');
+    assert.equal(await parentPage.getByRole('button', { name: 'Send connection request', exact: true }).isEnabled(), true, 'A valid child nickname enables parent connection');
     await parentPage.screenshot({ animations: 'disabled', fullPage: true, path: path.join(output, 'parent-connect-child-phone.png') });
     await parentPage.goto(routeUrl('/parent-dashboard'));
     await parentPage.getByText('Your family', { exact: true }).waitFor();
@@ -109,6 +120,35 @@ async function seed(page, tag, state) {
     await childPage.screenshot({ animations: 'disabled', fullPage: true, path: path.join(output, 'child-code-phone.png') });
     await childContext.close();
 
+    const accountContext = await browser.newContext({ viewport: { width: 360, height: 740 }, deviceScaleFactor: 1 });
+    const accountPage = await accountContext.newPage();
+    accountPage.on('pageerror', error => errors.push(`child-account: ${error.message}`));
+    await seed(accountPage, 'mia-champ', registeredChildState());
+    await accountPage.goto(routeUrl('/link-account'));
+    await accountPage.getByRole('heading', { name: 'Connect your family', exact: true }).waitFor();
+    await accountPage.getByLabel('QR code for a parent to connect this child account', { exact: true }).waitFor();
+    await accountPage.getByText('@mia-champ', { exact: true }).waitFor();
+    await accountPage.getByLabel('Parent code or @nickname', { exact: true }).fill('parent-ui');
+    assert.equal(await accountPage.getByRole('button', { name: 'Send request', exact: true }).isEnabled(), true, 'A signed-in child can initiate account linking');
+    await accountPage.screenshot({ animations: 'disabled', fullPage: true, path: path.join(output, 'child-account-qr-phone.png') });
+    await accountPage.goto(routeUrl('/'));
+    await accountPage.getByText('Connect my family', { exact: true }).waitFor();
+    await accountContext.close();
+
+    for (const [language, title] of Object.entries({
+      en: 'Connect your family', cs: 'Propojit rodinu', es: 'Conecta a tu familia', de: 'Familie verbinden',
+    })) {
+      const localeContext = await browser.newContext({ viewport: { width: 320, height: 700 }, deviceScaleFactor: 1 });
+      const localePage = await localeContext.newPage();
+      localePage.on('pageerror', error => errors.push(`${language}-child-account: ${error.message}`));
+      await seed(localePage, `mia-${language}`, { ...registeredChildState(), nickname: `mia-${language}`, language });
+      await localePage.goto(routeUrl('/link-account'));
+      await localePage.getByRole('heading', { name: title, exact: true }).waitFor();
+      const overflow = await localePage.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+      assert.equal(overflow, false, `${language} child QR must not overflow at 320px`);
+      await localeContext.close();
+    }
+
     const germanContext = await browser.newContext({ viewport: { width: 360, height: 740 }, deviceScaleFactor: 1 });
     const germanPage = await germanContext.newPage();
     germanPage.on('pageerror', error => errors.push(`de: ${error.message}`));
@@ -122,7 +162,7 @@ async function seed(page, tag, state) {
     await germanContext.close();
 
     assert.deepEqual(errors, [], 'No unhandled browser errors');
-    console.log(`PASS: parent switching, recovery controls, parent claim screen, first-parent linking, logout routing, phone/tablet and German narrow layout. Screenshots: ${output}`);
+    console.log(`PASS: parent switching, bidirectional account QR linking, recovery controls, parent claim screen, first-parent linking, logout routing, phone/tablet and German narrow layout. Screenshots: ${output}`);
   } finally {
     await browser.close();
   }

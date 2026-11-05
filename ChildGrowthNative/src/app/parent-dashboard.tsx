@@ -194,7 +194,7 @@ export default function ParentDashboardScreen() {
           <View style={styles.attentionIcon}><UserPlus size={22} color={Colors.amber} /></View>
           <View style={styles.rowCopy}>
             <Text style={styles.rowTitle}>{child.name}</Text>
-            <Text style={styles.rowMeta}>{t('kid_requested_link_notice', { name: child.name, nickname: child.nickname })}</Text>
+            <Text style={styles.rowMeta}>{t(child.initiatedBy === 'parent' ? 'parent_waiting_child_approval' : 'kid_requested_link_notice', { name: child.name, nickname: child.nickname })}</Text>
           </View>
           {child.initiatedBy !== 'parent' ? <View style={styles.reviewActions}>
             <Pressable accessibilityRole="button" accessibilityLabel={t('family_invite_accept')} style={styles.approveCircle} onPress={() => {
