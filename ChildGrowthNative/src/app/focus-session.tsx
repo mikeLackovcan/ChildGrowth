@@ -139,10 +139,14 @@ export default function FocusSessionScreen() {
           </TouchableOpacity>
         ) : (
           <>
-            <TouchableOpacity accessibilityRole="button" style={styles.finishButton} onPress={leave}>
-              <Text style={styles.finishText}>{t('timer_keep')}</Text>
+            <TouchableOpacity accessibilityRole="button" style={styles.finishButton} onPress={finishQuest}>
+              <Check size={22} color={Colors.text} strokeWidth={3} />
+              <Text style={styles.finishText}>{t('timer_done_now')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity accessibilityRole="button" style={styles.quietButton} onPress={stopSession}>
+            <TouchableOpacity accessibilityRole="button" style={styles.quietButton} onPress={leave}>
+              <Text style={styles.quietText}>{t('timer_keep')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity accessibilityRole="button" style={[styles.quietButton, styles.stopButton]} onPress={stopSession}>
               <Text style={styles.quietText}>{t('timer_stop')}</Text>
             </TouchableOpacity>
           </>
@@ -166,5 +170,6 @@ const styles = StyleSheet.create({
   finishButton: { minWidth: 220, minHeight: 58, marginTop: 28, paddingHorizontal: 24, borderRadius: 19, backgroundColor: '#CBF250', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
   finishText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 17, color: Colors.text },
   quietButton: { marginTop: 28, paddingHorizontal: 22, paddingVertical: 14 },
+  stopButton: { marginTop: 2 },
   quietText: { fontFamily: 'Nunito_700Bold', fontSize: 14, color: Colors.textSecondary },
 });

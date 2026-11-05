@@ -19,6 +19,7 @@ import { familyAccountQrValue, pairingQrValue } from '../lib/pairingCode';
 export default function ParentPairingSetup() {
   const { t } = useTranslation();
   const role = useAppStore(state => state.role);
+  const parentUserId = useAppStore(state => state.userId);
   const parentNickname = useAppStore(state => state.nickname);
   const children = useAppStore(state => state.children);
   const selected = useAppStore(state => state.children.find(child => child.id === state.selectedChildId));
@@ -103,7 +104,7 @@ export default function ParentPairingSetup() {
       {showParentQr ? <View style={styles.ticket}>
         <Text style={styles.ticketLabel}>{t('family_parent_qr_title')}</Text>
         <View style={styles.qr} accessibilityLabel={t('family_parent_qr_accessible')}>
-          <QRCode value={familyAccountQrValue('parent', parentNickname)} size={200} color={Colors.text} backgroundColor="#FFFFFF" />
+          <QRCode value={familyAccountQrValue('parent', parentNickname, parentUserId)} size={200} color={Colors.text} backgroundColor="#FFFFFF" />
         </View>
         <Text selectable style={styles.accountCode}>@{parentNickname}</Text>
         <Text style={styles.scanHint}>{t('family_parent_qr_child_step')}</Text>

@@ -750,6 +750,18 @@ test('changing a running timer cancels its stale finish alert', () => {
   assert.equal(store.getState().tasks[0].activeFocusStartedAt, undefined);
   assert.ok(cancelled.includes('timer-old'));
 });
+test('a running focus task can finish early and cancels its remaining alarm', () => {
+  reset({ tasks: [task('a', { focusDurationMinutes: 30, activeFocusStartedAt: new Date().toISOString(), focusNotificationId: 'timer-early' })] });
+  const result = store.getState().completeTask('a');
+  assert.equal(result.completed, true);
+  assert.equal(store.getState().tasks[0].done, true);
+  assert.equal(store.getState().tasks[0].activeFocusStartedAt, undefined);
+  assert.equal(store.getState().tasks[0].focusNotificationId, undefined);
+  assert.ok(cancelled.includes('timer-early'));
+  const focus = fs.readFileSync(path.join(root, 'src/app/focus-session.tsx'), 'utf8');
+  assert.match(focus, /t\('timer_done_now'\)/);
+  assert.match(focus, /onPress=\{finishQuest\}/);
+});
 test('focus finish uses the audible alarm effect instead of a short completion chime', () => {
   const focus = fs.readFileSync(path.join(root, 'src/app/focus-session.tsx'), 'utf8');
   const sound = fs.readFileSync(path.join(root, 'src/lib/sound.ts'), 'utf8');

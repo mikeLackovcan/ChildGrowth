@@ -173,6 +173,7 @@
   "timer_web": "Preview: keep this page open to hear the finish sound.",
   "timer_alerts_off": "Phone alerts are off. Keep the app open, or allow notifications in Settings.",
   "timer_send": "Send to parent",
+  "timer_done_now": "Done now",
   "timer_keep": "Keep timer running",
   "timer_stop": "Stop for now",
   "duration_minutes": "{{value}} min",

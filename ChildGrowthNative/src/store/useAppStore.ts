@@ -1,4 +1,4 @@
-import { loadAccountRole } from '../lib/accountRole';
+import { loadAccountIdentity, loadAccountRole } from '../lib/accountRole';
 import { authErrorKey } from '../lib/authMessages';
 import { normalizeBrandState, normalizeAvatarId } from '../lib/brandMigration';
 import { starterTasks, STARTER_HERO_IDS } from '../lib/questTemplates';
@@ -1579,18 +1579,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
       const user = userCredential.user;
 
-      const meta = user.displayName ? { full_name: user.displayName, nickname: user.displayName } : {};
-      const restoredRole = await loadAccountRole(user.uid);
+      const identity = await loadAccountIdentity(user.uid);
+      const canonicalNickname = identity.nickname || userTag;
 
       set({
         userEmail: user.email || cleanEmail,
         userId: user.uid,
-        fullName: meta.full_name || userTag,
-        nickname: meta.nickname || userTag,
-        role: restoredRole
+        fullName: identity.fullName || user.displayName || userTag,
+        nickname: canonicalNickname,
+        role: identity.role,
       });
 
-      await AsyncStorage.setItem('active_user_tag', userTag);
+      await AsyncStorage.setItem('active_user_tag', canonicalNickname);
       await get().loadMockState();
       return { success: true, message: i18n.t('auth_signed_in') };
     } catch (err: any) {
@@ -1610,23 +1610,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       const user = userCredential.user;
       const email = user.email || '';
       const fallbackNickname = (email.split('@')[0] || 'hero').toLowerCase().replace(/[^a-z0-9_-]/g, '');
-      const chosenRole = await loadAccountRole(user.uid);
+      const identity = await loadAccountIdentity(user.uid);
+      const canonicalNickname = identity.nickname || fallbackNickname;
+      const canonicalFullName = identity.fullName || user.displayName || canonicalNickname;
 
       set({
         userEmail: email,
         userId: user.uid,
-        fullName: user.displayName || fallbackNickname,
-        nickname: fallbackNickname,
-        role: chosenRole,
+        fullName: canonicalFullName,
+        nickname: canonicalNickname,
+        role: identity.role,
       });
 
-      await AsyncStorage.setItem(`user_role_${fallbackNickname}`, chosenRole || 'child');
-      await AsyncStorage.setItem('active_user_tag', fallbackNickname);
+      await AsyncStorage.setItem(`user_role_${canonicalNickname}`, identity.role);
+      await AsyncStorage.setItem('active_user_tag', canonicalNickname);
       if (CLOUD_SYNC_ENABLED) {
         await saveCloudProfile({
-          full_name: user.displayName || fallbackNickname,
-          nickname: fallbackNickname,
-          role: chosenRole || 'child',
+          full_name: canonicalFullName,
+          nickname: canonicalNickname,
+          role: identity.role,
         });
         await saveOwnCloudData({});
       }

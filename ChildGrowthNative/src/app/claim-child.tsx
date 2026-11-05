@@ -30,7 +30,7 @@ export default function ClaimChildScreen() {
   const childNickname = scannedAccount?.role === 'child' ? scannedAccount.nickname : normalizeFamilyNickname(code);
   const validCode = normalizeGuardianCode(code) || childNickname;
 
-  async function connect(candidate = code) {
+  async function connect(candidate = code, targetUid?: string) {
     if (pending.current || !eligible) return;
     pending.current = true; setBusy(true); setError('');
     try {
@@ -41,7 +41,7 @@ export default function ClaimChildScreen() {
         const scanned = parseFamilyAccountQr(candidate);
         const target = scanned?.role === 'child' ? scanned.nickname : normalizeFamilyNickname(candidate);
         if (!target) throw new Error('family_child_qr_invalid');
-        await createFamilyInvite(target, 'parent');
+        await createFamilyInvite(target, 'parent', targetUid || scanned?.uid);
       }
       await useAppStore.getState().loadMockState();
       router.replace('/parent-dashboard');
@@ -67,7 +67,7 @@ export default function ClaimChildScreen() {
     const account = parseFamilyAccountQr(data);
     if (account?.role === 'child') {
       setCode(account.nickname);
-      await connect(account.nickname);
+      await connect(account.nickname, account.uid);
       return;
     }
     const parsedCode = normalizeGuardianCode(data);

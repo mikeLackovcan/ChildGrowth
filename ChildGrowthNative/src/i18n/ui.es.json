@@ -173,6 +173,7 @@
   "timer_web": "Vista previa: deja esta página abierta para oír el sonido final.",
   "timer_alerts_off": "Las alertas están desactivadas. Deja la app abierta o permite notificaciones en Ajustes.",
   "timer_send": "Enviar a un adulto",
+  "timer_done_now": "Hecho ahora",
   "timer_keep": "Dejar el temporizador activo",
   "timer_stop": "Parar por ahora",
   "duration_minutes": "{{value}} min",

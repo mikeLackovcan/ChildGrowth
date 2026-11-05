@@ -11,6 +11,8 @@ function fixture({ anonymous = false, link = null, managed = false } = {}) {
   const documents = new Map([
     ['user_data/parent-a', { managed_family_enabled: managed }],
     ['family_progress/child-a', { coins: 70 }],
+    ['profiles/parent-a', { role: 'parent', nickname: 'parent-a', full_name: 'Parent A' }],
+    ['profiles/child-account', { role: 'child', nickname: 'mia-champ', full_name: 'Mia' }],
   ]);
   const snapshot = ref => ({ id: ref.split('/').pop(), ref, exists: () => documents.has(ref), data: () => documents.get(ref) });
   const mocks = {
@@ -82,6 +84,16 @@ test('parent saves route by explicit managed-profile identity', async () => {
   assert.deepEqual(f.writes.map(item => item.ref), [
     'user_data/parent-a', 'user_data/legacy-child', 'family_progress/child-a',
   ]);
+});
+
+test('scanned account QR links by stable UID even when its visible nickname is stale', async () => {
+  const f = fixture();
+  const invite = await f.api.createFamilyInvite('old-child-name', 'parent', 'child-account');
+  assert.equal(invite.child_uid, 'child-account');
+  assert.equal(invite.child_nickname, 'mia-champ');
+  assert.equal(invite.parent_uid, 'parent-a');
+  assert.ok(f.reads.includes('profiles/child-account'));
+  assert.ok(f.writes.some(item => item.ref === 'family_invites/child-account_parent-a'));
 });
 
 test('existing parents do not query undeployed managed collections', async () => {

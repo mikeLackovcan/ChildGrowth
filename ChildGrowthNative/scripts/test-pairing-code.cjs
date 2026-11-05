@@ -14,9 +14,9 @@ mod._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
 const pairing = mod.exports;
 
 test('family account QR preserves role and normalized nickname', () => {
-  const value = pairing.familyAccountQrValue('child', '@Mia-Champ');
-  assert.equal(value, 'questhero://family?role=child&nickname=mia-champ');
-  assert.deepEqual(pairing.parseFamilyAccountQr(value), { role: 'child', nickname: 'mia-champ' });
+  const value = pairing.familyAccountQrValue('child', '@Mia-Champ', 'abc123_FirebaseUid');
+  assert.equal(value, 'questhero://family?role=child&nickname=mia-champ&uid=abc123_FirebaseUid');
+  assert.deepEqual(pairing.parseFamilyAccountQr(value), { role: 'child', nickname: 'mia-champ', uid: 'abc123_FirebaseUid' });
 });
 
 test('parent and child QR identities cannot be confused with device codes', () => {
@@ -31,4 +31,5 @@ test('family nickname accepts visible account codes and rejects unsafe input', (
   assert.equal(pairing.normalizeFamilyNickname('a'), null);
   assert.equal(pairing.normalizeFamilyNickname('bad/account'), null);
   assert.equal(pairing.parseFamilyAccountQr('questhero://family?role=child&nickname=%E0%A4%A'), null);
+  assert.equal(pairing.parseFamilyAccountQr('questhero://family?role=child&nickname=mia&uid=bad%2Fuid'), null);
 });

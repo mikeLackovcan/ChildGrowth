@@ -1,5 +1,6 @@
 const CODE_PATTERN = /^[A-HJ-NP-Z2-9]{12}$/;
 const ACCOUNT_NICKNAME_PATTERN = /^[^@/?#&\u0000-\u001F\u007F]{2,30}$/u;
+const ACCOUNT_UID_PATTERN = /^[A-Za-z0-9_-]{6,128}$/;
 
 export type FamilyAccountRole = 'child' | 'parent';
 
@@ -38,12 +39,13 @@ export function normalizeFamilyNickname(value: string): string | null {
   return ACCOUNT_NICKNAME_PATTERN.test(clean) ? clean : null;
 }
 
-export function familyAccountQrValue(role: FamilyAccountRole, nickname: string): string {
+export function familyAccountQrValue(role: FamilyAccountRole, nickname: string, uid?: string | null): string {
   const normalized = normalizeFamilyNickname(nickname) || nickname.trim().replace(/^@/, '').toLowerCase();
-  return `questhero://family?role=${role}&nickname=${encodeURIComponent(normalized)}`;
+  const identity = uid && ACCOUNT_UID_PATTERN.test(uid) ? `&uid=${encodeURIComponent(uid)}` : '';
+  return `questhero://family?role=${role}&nickname=${encodeURIComponent(normalized)}${identity}`;
 }
 
-export function parseFamilyAccountQr(value: string): { role: FamilyAccountRole; nickname: string } | null {
+export function parseFamilyAccountQr(value: string): { role: FamilyAccountRole; nickname: string; uid?: string } | null {
   if (!/^questhero:\/\/family\?/i.test(value.trim())) return null;
   const roleMatch = value.match(/[?&]role=(child|parent)(?:&|$)/i);
   const nicknameMatch = value.match(/[?&]nickname=([^&#]+)/i);
@@ -53,5 +55,12 @@ export function parseFamilyAccountQr(value: string): { role: FamilyAccountRole; 
   catch { return null; }
   const nickname = normalizeFamilyNickname(decoded);
   if (!nickname) return null;
-  return { role: roleMatch[1].toLowerCase() as FamilyAccountRole, nickname };
+  const uidMatch = value.match(/[?&]uid=([^&#]+)/i);
+  let uid: string | undefined;
+  if (uidMatch) {
+    try { uid = decodeURIComponent(uidMatch[1]); }
+    catch { return null; }
+    if (!ACCOUNT_UID_PATTERN.test(uid)) return null;
+  }
+  return { role: roleMatch[1].toLowerCase() as FamilyAccountRole, nickname, ...(uid ? { uid } : {}) };
 }

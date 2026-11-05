@@ -74,14 +74,14 @@ export default function LinkAccountScreen() {
     } finally { pending.current = false; setBusy(false); }
   }
 
-  async function inviteParent(candidate = accountInput) {
+  async function inviteParent(candidate = accountInput, targetUid?: string) {
     if (pending.current || !registeredChild) return;
     pending.current = true; setBusy(true); setError(''); setNotice('');
     try {
       const scanned = parseFamilyAccountQr(candidate);
       const target = scanned?.role === 'parent' ? scanned.nickname : normalizeFamilyNickname(candidate);
       if (!target) throw new Error('family_parent_qr_invalid');
-      await createFamilyInvite(target, 'child');
+      await createFamilyInvite(target, 'child', targetUid || scanned?.uid);
       useAppStore.setState({ parentEmail: target, approvalStatus: 'pending' });
       setAccountInput(target);
       setNotice('family_invite_sent');
@@ -108,7 +108,7 @@ export default function LinkAccountScreen() {
       const account = parseFamilyAccountQr(data);
       if (!account || account.role !== 'parent') { setError('family_parent_qr_invalid'); return; }
       setAccountInput(account.nickname);
-      await inviteParent(account.nickname);
+      await inviteParent(account.nickname, account.uid);
       return;
     }
     const parsed = normalizePairingCode(data);
@@ -151,7 +151,7 @@ export default function LinkAccountScreen() {
         <View style={styles.accountTicket}>
           <Text style={styles.ticketLabel}>{t('family_child_qr_title')}</Text>
           <View style={styles.qr} accessibilityLabel={t('family_child_qr_accessible')}>
-            <QRCode value={familyAccountQrValue('child', nickname)} size={210} color={Colors.text} backgroundColor="#FFFFFF" />
+            <QRCode value={familyAccountQrValue('child', nickname, userId)} size={210} color={Colors.text} backgroundColor="#FFFFFF" />
           </View>
           <Text selectable style={styles.accountCode}>@{nickname}</Text>
           <Text style={styles.ticketHint}>{t('family_child_qr_help')}</Text>

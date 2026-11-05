@@ -98,9 +98,16 @@ export async function loadOwnCloudData(expectedChildUid?: string): Promise<Recor
   return snapshot.exists() ? snapshot.data() : null;
 }
 
-export async function createFamilyInvite(targetNickname: string, ownRole: CloudRole): Promise<FamilyInvite> {
+export async function createFamilyInvite(targetNickname: string, ownRole: CloudRole, targetUid?: string): Promise<FamilyInvite> {
   const uid = currentUid();
-  const target = await findProfileByNickname(targetNickname);
+  let target: CloudProfile | null = null;
+  if (targetUid && /^[A-Za-z0-9_-]{6,128}$/.test(targetUid)) {
+    const targetSnapshot = await getDoc(doc(db, 'profiles', targetUid));
+    if (targetSnapshot.exists()) {
+      target = { uid: targetSnapshot.id, ...(targetSnapshot.data() as Omit<CloudProfile, 'uid'>) };
+    }
+  }
+  if (!target) target = await findProfileByNickname(targetNickname);
   if (!target) throw new Error('family_account_not_found');
   if (target.uid === uid) throw new Error('family_same_account');
   if (target.role === ownRole) throw new Error('family_wrong_role');

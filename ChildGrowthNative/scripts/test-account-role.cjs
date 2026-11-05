@@ -20,7 +20,7 @@ function fixture({ cloud = null, cached = null, offline = false, switchAccount =
         reads.push(ref);
         if (switchAccount) auth.currentUser = { uid: 'account-b' };
         if (offline) throw new Error('offline');
-        return { exists: () => cloud !== null, data: () => ({ role: cloud }) };
+        return { exists: () => cloud !== null, data: () => typeof cloud === 'object' ? cloud : ({ role: cloud }) };
       },
     },
   };
@@ -41,6 +41,10 @@ test('fresh-device parent login restores its cloud role and caches by UID', asyn
 });
 test('existing legacy child account keeps its recorded cloud role', async () => {
   assert.equal(await fixture({ cloud: 'child' }).loadAccountRole('account-a'), 'child');
+});
+test('login restores the canonical cloud nickname used by family QR linking', async () => {
+  const identity = await fixture({ cloud: { role: 'child', nickname: 'mia-champ', full_name: 'Mia Champ' } }).loadAccountIdentity('account-a');
+  assert.deepEqual(identity, { role: 'child', nickname: 'mia-champ', fullName: 'Mia Champ' });
 });
 test('new accounts default to parent; offline recovery uses only UID-scoped cached role', async () => {
   assert.equal(await fixture().loadAccountRole('account-a'), 'parent');

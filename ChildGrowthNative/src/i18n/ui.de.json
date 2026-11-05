@@ -173,6 +173,7 @@
   "timer_web": "Vorschau: Lass diese Seite offen, um den Abschlusston zu hören.",
   "timer_alerts_off": "Handy-Hinweise sind aus. Lass die App offen oder erlaube Benachrichtigungen in den Einstellungen.",
   "timer_send": "An Eltern senden",
+  "timer_done_now": "Jetzt fertig",
   "timer_keep": "Timer weiterlaufen lassen",
   "timer_stop": "Für jetzt stoppen",
   "duration_minutes": "{{value}} Min.",
