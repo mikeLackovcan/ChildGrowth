@@ -11,7 +11,6 @@ import { useAppStore } from '../store/useAppStore';
 import { connectGuestDevice } from '../lib/connectGuestDevice';
 import { createGuardianCode, listManagedGuardians, releaseDeviceLink } from '../lib/devicePairing';
 import { createFamilyInvite } from '../lib/familyCloud';
-import { auth } from '../lib/firebase';
 import {
   familyAccountQrValue,
   guardianQrValue,
@@ -40,8 +39,11 @@ export default function LinkAccountScreen() {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const pending = useRef(false);
   const scanLocked = useRef(false);
+  // Store identity is already hydrated before this screen opens. Do not depend on
+  // Firebase's transient currentUser value here: it can briefly be null on a cold
+  // launch and incorrectly send a signed-in child into the guest camera flow.
   const registeredChild = role === 'child' && Boolean(userId && nickname) && userId !== 'guest-local'
-    && deviceConnection !== 'linked' && auth.currentUser?.isAnonymous !== true;
+    && deviceConnection !== 'linked';
   const eligible = role === 'child' && !registeredChild && (userId === 'guest-local' || deviceConnection === 'local');
   const linked = role === 'child' && deviceConnection === 'linked' && Boolean(userId);
   const canRelease = eligible && ['pair_progress_conflict', 'pair_already_connected'].includes(error);

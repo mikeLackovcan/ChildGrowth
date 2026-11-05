@@ -87,11 +87,11 @@ async function seed(page, tag, state) {
     await parentPage.getByRole('button', { name: /Sam/ }).click();
     await parentPage.getByText('Show QR code', { exact: true }).waitFor();
     await parentPage.getByText('Lost or new phone', { exact: true }).waitFor();
-    await parentPage.getByText('Let your child scan', { exact: true }).click();
+    await parentPage.getByRole('button', { name: /Show my parent QR/ }).waitFor();
     await parentPage.getByLabel('Parent QR code for a child to connect', { exact: true }).waitFor();
     await parentPage.getByText('@parent-ui', { exact: true }).waitFor();
-    await parentPage.getByText('Connect existing child', { exact: true }).click();
-    await parentPage.getByRole('heading', { name: 'Connect existing child', exact: true }).waitFor();
+    await parentPage.getByText('Scan child QR', { exact: true }).click();
+    await parentPage.getByRole('heading', { name: 'Scan child QR', exact: true }).waitFor();
     await parentPage.getByLabel('Child code or @nickname', { exact: true }).fill('mia-champ');
     assert.equal(await parentPage.getByRole('button', { name: 'Send connection request', exact: true }).isEnabled(), true, 'A valid child nickname enables parent connection');
     await parentPage.screenshot({ animations: 'disabled', fullPage: true, path: path.join(output, 'parent-connect-child-phone.png') });

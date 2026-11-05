@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
-import { Plus, RefreshCw, ScanLine, Smartphone, Trash2 } from 'lucide-react-native';
+import { Plus, QrCode, RefreshCw, ScanLine, Smartphone, Trash2 } from 'lucide-react-native';
 import { useAppStore } from '../store/useAppStore';
 import { auth } from '../lib/firebase';
 import { createManagedChild, createPairingCode, replaceChildDevice } from '../lib/devicePairing';
@@ -29,7 +29,7 @@ export default function ParentPairingSetup() {
   const [error, setError] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
-  const [showParentQr, setShowParentQr] = useState(false);
+  const [showParentQr, setShowParentQr] = useState(true);
   const [ticket, setTicket] = useState<{ childId: string; code: string; recovery?: boolean } | null>(null);
   if (role !== 'parent') return null;
 
@@ -94,7 +94,7 @@ export default function ParentPairingSetup() {
         style={styles.existingChildAction}
         onPress={() => setShowParentQr(value => !value)}
       >
-        <ScanLine size={20} color={Colors.primary} />
+        <QrCode size={20} color={Colors.primary} />
         <View style={styles.existingChildCopy}>
           <Text style={styles.existingChildTitle}>{t('family_parent_qr_title')}</Text>
           <Text style={styles.existingChildHint}>{t('family_parent_qr_help')}</Text>
