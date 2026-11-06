@@ -51,7 +51,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Questblox to scan a child’s family QR code.",
+          "cameraPermission": "Allow Questblox to scan a child\u2019s family QR code.",
           "recordAudioAndroid": false
         }
       ],
@@ -59,7 +59,8 @@
       "expo-font",
       "expo-image",
       "expo-web-browser",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "./plugins/withOptionalCamera"
     ],
     "experiments": {
       "typedRoutes": true,

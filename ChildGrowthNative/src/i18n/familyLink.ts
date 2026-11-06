@@ -1,5 +1,7 @@
 // Every row contains English, Czech, Spanish and German, in that order.
 export const familyLinkMessages = {
+  family_camera_unavailable: ['Camera unavailable. Type your child’s code instead.', 'Fotoaparát není dostupný. Zadej kód dítěte.', 'Cámara no disponible. Escribe el código de tu hijo.', 'Kamera nicht verfügbar. Gib den Kinder-Code ein.'],
+
   family_code_connected: ['Already connected ✓', 'Už jste propojeni ✓', 'Ya estáis conectados ✓', 'Bereits verbunden ✓'],
   family_link_error: ['Could not connect. Check the child code and internet connection.', 'Propojení se nezdařilo. Zkontroluj kód dítěte a internet.', 'No se pudo conectar. Revisa el código infantil e internet.', 'Verbindung fehlgeschlagen. Prüfe den Kinder-Code und das Internet.'],
 

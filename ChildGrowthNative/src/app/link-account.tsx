@@ -170,7 +170,7 @@ export default function LinkAccountScreen() {
         <View style={styles.scannerHeader}><Text style={styles.scannerTitle}>{t('family_scan_child_qr')}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('online_back')} onPress={() => setScannerOpen(false)} style={styles.close}><X size={25} color={palette.ink} /></Pressable></View>
         <Text style={styles.scannerHint}>{t('family_scan_child_qr_hint')}</Text>
         <View style={styles.cameraShell}>
-          <CameraView style={StyleSheet.absoluteFill} facing="back" barcodeScannerSettings={{ barcodeTypes: ['qr'] }} onBarcodeScanned={scanned ? undefined : scanChild} />
+          <CameraView onMountError={() => { setScannerOpen(false); setError('family_camera_unavailable'); }} style={StyleSheet.absoluteFill} facing="back" barcodeScannerSettings={{ barcodeTypes: ['qr'] }} onBarcodeScanned={scanned ? undefined : scanChild} />
           <View pointerEvents="none" style={styles.scanFrame} />
         </View>
         {!!error && <Text accessibilityLiveRegion="polite" style={styles.error}>{t(error)}</Text>}

@@ -34,3 +34,5 @@
 Initial OTA published: 446f7c4e-f6fc-40e0-b852-469510e6a184 (runtime 84a0ab2902193c6c3743b17b5d214bf3fb134502). Android version 15 build: 1c0cf3bb-1cf5-415f-8524-70971784d786. Follow-up OTA and Play submission verification pending.
 
 Browser checks: morning routine assigned successfully to the disposable test child; two tasks appeared. German routine form reviewed at 360×640 without horizontal overflow.
+
+Final OTA: 97f4b904-9d6b-485a-ae35-106ab79abe51, commit 3736bbe, same runtime as Android version 15. Backend applyProgress/getFamilyStatus/manageFamily deployed successfully. Live disposable-account checks passed: existing link reports accepted, 23:59 accepted, child Undo reverses exact coins, temporary quest removed. EAS Submit lacks a Google service-account key; Play Console upload is in progress.
