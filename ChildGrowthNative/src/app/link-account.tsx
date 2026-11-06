@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Modal } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, Modal, AppState } from 'react-native';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Camera, CheckCircle2, KeyRound, QrCode, RefreshCw, ShieldCheck, Users, X } from 'lucide-react-native';
@@ -7,7 +7,8 @@ import QRCode from 'react-native-qrcode-svg';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore } from '../store/useAppStore';
-import { auth } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { readChildConnectionCode } from '../lib/familyAccounts';
 import { Screen, Button, ui, palette } from '../components/questblox/UI';
 import { childCodeFromQr, childQrValue, formatFamilyCode, normalizeFamilyCode } from '../utils/familyQr';
@@ -17,6 +18,8 @@ export default function LinkAccountScreen() {
   const uid = useAppStore(state => state.userId);
   const role = useAppStore(state => state.role);
   const addChildByCode = useAppStore(state => state.addChildByCode);
+  const invitation = useAppStore(state => state.pendingInvitation);
+  const [retryCode, setRetryCode] = useState(0);
   const [code, setCode] = useState('');
   const [childCode, setChildCode] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -41,7 +44,23 @@ export default function LinkAccountScreen() {
       if (active) setLoadingCode(false);
     });
     return () => { active = false; };
-  }, [guest, role, uid]);
+  }, [guest, role, uid, retryCode]);
+
+  useEffect(() => {
+    if (guest || !uid) return;
+    let disposed = false, running = false;
+    const refresh = async () => {
+      if (disposed || running || useAppStore.getState().userId !== uid) return;
+      running = true;
+      try { await useAppStore.getState().loadMockState(); }
+      finally { running = false; }
+    };
+    const stop = onSnapshot(doc(db, 'user_data', uid), () => { void refresh(); }, () => {});
+    const timer = setInterval(() => { if (AppState.currentState === 'active') void refresh(); }, 15000);
+    const listener = AppState.addEventListener('change', value => { if (value === 'active') void refresh(); });
+    void refresh();
+    return () => { disposed = true; stop(); clearInterval(timer); listener.remove(); };
+  }, [guest, uid]);
 
   const openScanner = async () => {
     setError(''); setScanned(false);
@@ -85,6 +104,18 @@ export default function LinkAccountScreen() {
     finally { sending.current = false; setBusy(false); }
   };
 
+  const respond = async (accept: boolean) => {
+    if (sending.current || !invitation || invitation.sentByMe) return;
+    sending.current = true; setBusy(true); setError('');
+    try {
+      const state = useAppStore.getState();
+      const ok = await (accept ? state.acceptParentInvite(invitation.nickname) : state.denyParentInvite(invitation.nickname));
+      if (!ok) setError('family_link_error');
+      else if (accept) router.replace('/(tabs)');
+    } catch { setError('family_link_error'); }
+    finally { sending.current = false; setBusy(false); }
+  };
+
   const changeCode = (value: string) => {
     const clean = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
     setCode(clean.length > 4 ? `${clean.slice(0, 4)}-${clean.slice(4)}` : clean);
@@ -102,11 +133,17 @@ export default function LinkAccountScreen() {
     {!!error && <Text accessibilityLiveRegion="polite" style={styles.error}>{t(error)}</Text>}
     {sent && <View accessibilityLiveRegion="polite" style={styles.success}><CheckCircle2 size={22} color={palette.green} /><Text style={styles.successText}>{t('family_code_sent')}</Text></View>}
     {guest ? <Button disabled={busy} label={t(busy ? 'settings_wait' : 'auth_signin')} onPress={() => { void openSignIn(); }} /> : role === 'child' ? <>
+      {invitation && !invitation.sentByMe && <View style={ui.card}>
+        <Text style={ui.heading}>{invitation.name}</Text>
+        <Text style={ui.text}>{t('family_invite_received', { name: invitation.name })}</Text>
+        <Button disabled={busy} label={`✓ ${t('family_accept')}`} onPress={() => { void respond(true); }} />
+        <Button secondary disabled={busy} label={`✕ ${t('family_decline')}`} onPress={() => { void respond(false); }} />
+      </View>}
+      {error === 'family_code_load_error' && <Button disabled={loadingCode} label={t('sync_retry')} onPress={() => setRetryCode(value => value + 1)} />}
       {loadingCode && <Text accessibilityLiveRegion="polite" style={styles.loading}>{t('family_code_loading')}</Text>}
       {!!ownQr && <View testID="child-family-qr" style={styles.qrPanel}>
         <View style={styles.qrPaper}><QRCode value={ownQr} size={210} quietZone={8} color="#0e1422" backgroundColor="#ffffff" /></View>
         <View style={styles.codePill}><KeyRound size={22} color={palette.gold} /><Text selectable style={styles.codeText}>{formatFamilyCode(childCode)}</Text></View>
-        <Text style={styles.qrHelp}>{t('family_code_child_intro')}</Text>
       </View>}
     </> : <>
       <Pressable testID="scan-child-qr-btn" accessibilityRole="button" accessibilityLabel={t('family_scan_child_qr')} onPress={() => { void openScanner(); }} style={styles.scanButton}>

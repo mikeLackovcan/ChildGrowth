@@ -1,3 +1,4 @@
+import RoutinePicker from '../components/questblox/RoutinePicker';
 import QuestAlertChoice from '../components/questblox/QuestAlertChoice';
 import TaskMicrophone from '../components/questblox/TaskMicrophone';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -171,6 +172,7 @@ export default function ManageTasksScreen() {
 
         <TouchableOpacity accessibilityRole="button" onPress={() => router.push('/reminders')} style={{ paddingVertical: 12 }}><Text style={{ color: Colors.amber }}>🔔 {t('notifications_title')}</Text></TouchableOpacity>
         {!!reminderError && <Text accessibilityLiveRegion="polite" style={{ color: Colors.amber }}>{reminderError}</Text>}
+        <RoutinePicker />
         {/* Add Quest Section */}
         <View style={styles.section}>
             <Text style={styles.stepTitle}>{t('quest_name_label')}</Text>

@@ -1,5 +1,29 @@
 // Every row contains English, Czech, Spanish and German, in that order.
 export const familyLinkMessages = {
+  sync_working: ['Saving changes…', 'Ukládám změny…', 'Guardando cambios…', 'Änderungen werden gespeichert…'],
+  routine_title: ['✨ Quick routines', '✨ Rychlé rutiny', '✨ Rutinas rápidas', '✨ Schnelle Routinen'],
+  routine_morning: ['☀️ Morning', '☀️ Ráno', '☀️ Mañana', '☀️ Morgen'],
+  routine_afternoon: ['🎒 After school', '🎒 Po škole', '🎒 Después de clase', '🎒 Nach der Schule'],
+  routine_bedtime: ['🌙 Bedtime', '🌙 Před spaním', '🌙 Antes de dormir', '🌙 Schlafenszeit'],
+  routine_children: ['Choose children', 'Vyber děti', 'Elige a los niños', 'Kinder auswählen'],
+  routine_assign: ['Add routine', 'Přidat rutinu', 'Añadir rutina', 'Routine hinzufügen'],
+  routine_added: ['✓ Routine added', '✓ Rutina přidána', '✓ Rutina añadida', '✓ Routine hinzugefügt'],
+
+  goal_choose: ['🎯 Save for this fighter', '🎯 Šetřit na bojovníka', '🎯 Ahorrar para este luchador', '🎯 Für diesen Kämpfer sparen'],
+  goal_selected: ['✓ My goal', '✓ Můj cíl', '✓ Mi objetivo', '✓ Mein Ziel'],
+
+  collection_saved: ['Saved', 'Uložené', 'Guardados', 'Gesammelt'],
+  collection_requested: ['Requested', 'Vyžádané', 'Pedidos', 'Angefragt'],
+  collection_given: ['Given', 'Předané', 'Entregados', 'Erhalten'],
+  collection_empty: ['No prizes here yet', 'Zatím tu nejsou odměny', 'Aún no hay premios aquí', 'Hier sind noch keine Preise'],
+
+  readiness_title: ['On this phone', 'Na tomto telefonu', 'En este móvil', 'Auf diesem Handy'],
+  readiness_notifications_on: ['Notifications allowed', 'Oznámení povolena', 'Notificaciones permitidas', 'Benachrichtigungen erlaubt'],
+  readiness_notifications_off: ['Allow notifications in settings', 'Povol oznámení v nastavení', 'Permite las notificaciones en ajustes', 'Benachrichtigungen in den Einstellungen erlauben'],
+  readiness_alarm_on: ['Exact alarms allowed', 'Přesné budíky povoleny', 'Alarmas exactas permitidas', 'Genaue Alarme erlaubt'],
+  readiness_alarm_off: ['Allow exact alarms', 'Povol přesné budíky', 'Permitir alarmas exactas', 'Genaue Alarme erlauben'],
+  readiness_update: ['Update the app for alarms', 'Pro budíky aktualizuj aplikaci', 'Actualiza la app para usar alarmas', 'App für Alarme aktualisieren'],
+
   family_code_parent_title: ['Connect your child', 'Propojit dítě', 'Conectar a tu hijo', 'Kind verbinden'],
   family_code_parent_intro: ['Scan the QR on your child’s phone or type their code.', 'Naskenuj QR z telefonu dítěte nebo zadej jeho kód.', 'Escanea el QR del móvil de tu hijo o escribe su código.', 'Scanne den QR-Code auf dem Handy deines Kindes oder gib seinen Code ein.'],
   family_code_child_title: ['My family code', 'Můj rodinný kód', 'Mi código familiar', 'Mein Familiencode'],

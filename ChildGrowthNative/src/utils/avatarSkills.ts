@@ -257,7 +257,8 @@ export interface NextAvatarGoal {
 
 export function getNextLockedAvatar(
   unlockedAvatars: string[],
-  currentCoins: number
+  currentCoins: number,
+  preferredId?: string
 ): NextAvatarGoal | null {
   const normalizedUnlocked = new Set(
     unlockedAvatars.map((id) => (id === 'default' || id === 'questblox_hero' ? 'roblox_noob' : id))
@@ -265,7 +266,7 @@ export function getNextLockedAvatar(
   normalizedUnlocked.add('roblox_noob');
   normalizedUnlocked.add('roblox_noob');
 
-  const nextLocked = AVATAR_SKILL_CONFIGS.find(
+  const nextLocked = AVATAR_SKILL_CONFIGS.find(avatar => avatar.id === preferredId && avatar.price > 0 && !normalizedUnlocked.has(avatar.id)) || AVATAR_SKILL_CONFIGS.find(
     (avatar) => avatar.price > 0 && !normalizedUnlocked.has(avatar.id)
   );
 

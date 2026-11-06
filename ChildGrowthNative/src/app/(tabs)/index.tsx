@@ -1,3 +1,4 @@
+import { useFighterGoal } from '../../store/useFighterGoal';
 import { fighterImage } from '../../constants/fighterImages';
 import QuestCelebration from '../../components/questblox/QuestCelebration';
 import { canManageQuest } from '../../utils/accountState';
@@ -19,6 +20,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 
 export default function QuestsScreen() {
   const s = useAppStore();
+  const preferredGoal = useFighterGoal(state => state.goals[s.userId || 'guest-local']);
   const { t, i18n } = useTranslation();
   const [editingRevision, setEditingRevision] = useState<string | number>(0);
   const [editingQuest, setEditingQuest] = useState<string | null>(null);
@@ -66,7 +68,7 @@ export default function QuestsScreen() {
   const done = tasks.filter(task => task.done).length;
   const allDone = tasks.every(task => task.done && !task.pendingApproval);
   const epicDone = s.epicClaimedDate === today;
-  const goal = getNextLockedAvatar(s.unlockedAvatars, s.coins);
+  const goal = getNextLockedAvatar(s.unlockedAvatars, s.coins, preferredGoal);
   const goalFighter = fighterFor(goal?.id || s.currentAvatar);
   const epicReward = calculateQuestReward(s.epicBossXP || 35, 'boss', s.currentAvatar, false, done);
   const completed = done + Number(epicDone);
@@ -119,12 +121,13 @@ export default function QuestsScreen() {
             <View style={{ position: 'absolute', left: -34, top: 18, width: 22, height: 22, borderRadius: 11, backgroundColor: task.done ? palette.green : task.id === nextTaskId ? palette.gold : palette.bg, borderWidth: 1, borderColor: task.done ? palette.green : task.id === nextTaskId ? palette.gold : palette.line, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: task.done || task.id === nextTaskId ? palette.bg : palette.muted, fontSize: 11 }}>{task.done ? '✓' : index + 1}</Text></View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Pressable accessibilityRole="button" accessibilityLabel={t(task.done ? 'quest_view_completed' : task.pendingApproval ? 'quest_view_pending' : 'quest_view', { name: t(task.name, task.name) })} accessibilityState={{ expanded: expanded || detailsTask === task.id }} onPress={() => {
-              if (task.done || task.pendingApproval || expanded) setDetailsTask(detailsTask === task.id ? null : task.id);
+              if (expanded) { setSelectedTask(null); setDetailsTask(null); }
+              else if (task.done || task.pendingApproval) setDetailsTask(detailsTask === task.id ? null : task.id);
               else { setSelectedTask(task.id); setDetailsTask(null); }
             }} style={[ui.row, { gap: 12, flex: 1, minWidth: 0 }]}>
-              <View accessible={false} style={{ width: expanded ? 96 : 82, height: expanded ? 96 : 82, alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ position: 'absolute', width: expanded ? 86 : 72, height: expanded ? 86 : 72, borderRadius: 43, backgroundColor: `${visual.color}15` }} />
-                <Text style={{ fontSize: expanded ? 70 : 58, lineHeight: expanded ? 88 : 74 }}>{visual.icon}</Text>
+              <View accessible={false} style={{ width: expanded ? 96 : 60, height: expanded ? 96 : 60, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ position: 'absolute', width: expanded ? 86 : 56, height: expanded ? 86 : 56, borderRadius: 43, backgroundColor: `${visual.color}15` }} />
+                <Text style={{ fontSize: expanded ? 70 : 44, lineHeight: expanded ? 88 : 56 }}>{visual.icon}</Text>
                 {task.done && <View style={{ position: 'absolute', right: 0, bottom: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: palette.green, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: palette.bg }}>✓</Text></View>}
               </View>
               <View style={{ flex: 1, gap: 5 }}>
@@ -137,7 +140,8 @@ export default function QuestsScreen() {
                   <Text accessibilityLabel={t('quest_reward_amount', { coins: reward.coinGain, xp: reward.xpGain })} style={ui.meta}>🪙 {reward.coinGain}  ·  ✨ {reward.xpGain}</Text>}
               </View>
             </Pressable>
-            {editingQuest !== task.id && canManageQuest(task, s.role, s.linkedParents) && <View style={{ width: 44, alignSelf: 'center' }}>
+            {!timed && !task.done && !task.pendingApproval && !expanded && <Pressable accessibilityRole="button" accessibilityLabel={t('quest_mark_done')} onPress={() => completeTask(task)} style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: palette.gold, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 26, color: palette.bg }}>✓</Text></Pressable>}
+            {(expanded || detailsTask === task.id) && editingQuest !== task.id && canManageQuest(task, s.role, s.linkedParents) && <View style={{ width: 44, alignSelf: 'center' }}>
               <Pressable accessibilityRole="button" accessibilityLabel={t('quest_edit', { name: t(task.name, task.name) })}
                 onPress={() => { setQuestName(t(task.name, task.name)); setEditingRevision(task.revision ?? 0); setEditingQuest(task.id); }}
                 style={({ pressed }) => ({ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : 1 })}>
@@ -190,8 +194,8 @@ export default function QuestsScreen() {
             <SceneArt source={fighterFor('roblox_dragon').image} />
             <View style={{ width: '66%', gap: 8, paddingBottom: 12 }}><Text style={{ fontSize: 58, lineHeight: 68 }}>{s.epicBossTask === defaultEpicTask ? '🧠' : '⭐'}</Text><Text style={[ui.heading, epicDone && { color: palette.muted, textDecorationLine: 'line-through' }]}>{epicTaskName}</Text>{s.epicBossTask === defaultEpicTask && !epicDone && <Text style={ui.meta}>⏱ {t('quest_minutes', { count: 30 })}</Text>}{epicDone ? <View accessible accessibilityLabel={t('completed_stamp')} style={{ alignSelf: 'flex-start', borderWidth: 2, borderColor: palette.green, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, transform: [{ rotate: '-4deg' }] }}><Text style={[ui.label, { color: palette.green }]}>{t('completed_stamp')}</Text></View> : <Text style={ui.meta}>🪙 {epicReward.coinGain} · {epicReward.xpGain} XP</Text>}</View>
           </View>
-          {!epicDone && <Button disabled={!allDone} label={allDone ? (epicOpen ? `✓ ${t('quest_complete_action')}` : `${t('quest_start')} →`) : `🔒 ${t('quest_first')}`} onPress={() => {
-            if (!epicOpen) { setEpicOpen(true); return; }
+          {!epicDone && <Button disabled={!allDone} label={allDone ? (epicOpen || s.epicBossTask !== defaultEpicTask ? `✓ ${t('quest_mark_done')}` : `${t('quest_start')} →`) : `🔒 ${t('quest_first')}`} onPress={() => {
+            if (s.epicBossTask === defaultEpicTask && !epicOpen) { setEpicOpen(true); return; }
             const reward = s.claimEpicBoss();
             if (reward) setMessage(t('quest_spin_ready', { coins: reward.coinGain }));
           }} />}

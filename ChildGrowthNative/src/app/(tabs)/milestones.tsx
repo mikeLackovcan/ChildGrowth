@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, Easing, AccessibilityInfo, TextInput, Modal, Pressable } from 'react-native';
 import { useAppStore, WonPrize } from '../../store/useAppStore';
 import { canSpin, localDay, tasksForDay } from '../../utils/questDay';
-import { Screen, Button, ui, palette } from '../../components/questblox/UI';
+import { Screen, Button, ChoiceTabs, ui, palette } from '../../components/questblox/UI';
 import { DEFAULT_PRIZES, PRIZE_ICONS, prizeEmoji, prizeLabel } from '../../constants/prizes';
 
 export default function RewardsScreen() {
@@ -22,6 +22,7 @@ export default function RewardsScreen() {
   const [result, setResult] = useState<WonPrize | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [collection, setCollection] = useState<'saved' | 'requested' | 'given'>('saved');
   const [draft, setDraft] = useState('');
   const [newPrizeName, setNewPrizeName] = useState('');
   const [newPrizeIcon, setNewPrizeIcon] = useState(PRIZE_ICONS[0]);
@@ -92,12 +93,14 @@ export default function RewardsScreen() {
       </View>}
     </>}
     <View style={{ gap: 16 }}><Text style={ui.heading}>{t('wheel_prizes')}</Text>
-      {s.wonPrizes.filter(p => !spinning || p.id !== s.wonPrizes[0]?.id).map(prize => <View key={prize.id} style={{ gap: 6 }}>
+      <ChoiceTabs choices={['saved', 'requested', 'given'].map(key => t(`collection_${key}`))} selected={t(`collection_${collection}`)} onSelect={value => setCollection((['saved', 'requested', 'given'] as const).find(key => t(`collection_${key}`) === value) || 'saved')} />
+      {!s.wonPrizes.some(p => collection === 'given' ? p.redeemed : !p.redeemed && (collection === 'requested' ? p.status === 'requested' : p.status !== 'requested')) && <Text style={ui.meta}>{t('collection_empty')}</Text>}
+      {s.wonPrizes.filter(p => (collection === 'given' ? p.redeemed : !p.redeemed && (collection === 'requested' ? p.status === 'requested' : p.status !== 'requested')) && (!spinning || p.id !== s.wonPrizes[0]?.id)).map(prize => <View key={prize.id} style={{ gap: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><Text style={{ fontSize: 40 }}>{prizeEmoji(prize.prize)}</Text><Text style={[ui.heading, { flex: 1 }]}>{prizeLabel(prize.prize)}</Text></View>
         <Text style={ui.meta}>{new Date(prize.date).toLocaleDateString(i18n.language)} · {prize.redeemed ? t('prize_claimed') : prize.status === 'requested' ? t('prize_requested') : t('prize_agreed')}</Text>
         {!prize.redeemed && <View style={{ flexDirection: 'row', gap: 10 }}>
           {s.linkedParents.length && s.role !== 'parent' && prize.status !== 'approved'
-            ? <Pressable accessibilityRole="button" accessibilityLabel={t(prize.status === 'requested' ? 'prize_requested' : 'prize_request')} disabled={prize.status === 'requested'} onPress={() => s.requestPrize(prize.id)} style={{ flex: 1, minHeight: 62, borderRadius: 16, backgroundColor: palette.panel, borderWidth: 1, borderColor: palette.line, alignItems: 'center', justifyContent: 'center', gap: 2, opacity: prize.status === 'requested' ? 0.55 : 1 }}><Text style={{ fontSize: 25 }}>🙋</Text><Text style={ui.meta}>{t(prize.status === 'requested' ? 'prize_requested' : 'prize_request')}</Text></Pressable>
+            ? <Pressable accessibilityRole="button" accessibilityLabel={t(prize.status === 'requested' ? 'prize_requested' : 'prize_request')} disabled={prize.status === 'requested'} onPress={() => { s.requestPrize(prize.id); setCollection('requested'); }} style={{ flex: 1, minHeight: 62, borderRadius: 16, backgroundColor: palette.panel, borderWidth: 1, borderColor: palette.line, alignItems: 'center', justifyContent: 'center', gap: 2, opacity: prize.status === 'requested' ? 0.55 : 1 }}><Text style={{ fontSize: 25 }}>🙋</Text><Text style={ui.meta}>{t(prize.status === 'requested' ? 'prize_requested' : 'prize_request')}</Text></Pressable>
             : <Pressable accessibilityRole="button" accessibilityLabel={t('prize_claim')} onPress={() => s.togglePrizeRedeemed(prize.id)} style={{ flex: 1, minHeight: 62, borderRadius: 16, backgroundColor: palette.gold, alignItems: 'center', justifyContent: 'center', gap: 2 }}><Text style={{ fontSize: 25 }}>🎁</Text><Text style={[ui.meta, { color: palette.bg }]}>{t('prize_claim')}</Text></Pressable>}
           {s.role !== 'parent' && !s.linkedParents.length && <Pressable accessibilityRole="button" accessibilityLabel={t('prize_show_parent')} onPress={() => setPresentingPrize(prize)} style={{ flex: 1, minHeight: 62, borderRadius: 16, backgroundColor: palette.panel, borderWidth: 1, borderColor: palette.gold, alignItems: 'center', justifyContent: 'center', gap: 2 }}><Text style={{ fontSize: 25 }}>👨‍👩‍👧</Text><Text style={ui.meta}>{t('prize_show_parent')}</Text></Pressable>}
         </View>}

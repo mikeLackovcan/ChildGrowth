@@ -1,8 +1,9 @@
+import * as Notifications from 'expo-notifications';
 import { questDevice } from '../lib/questDevice';
 import TimeWheel from '../components/questblox/TimeWheel';
 import { useTranslation } from 'react-i18next';
-import React, { useState } from 'react';
-import { Text, View, Switch, Platform, Linking } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Text, View, Switch, Platform, Linking, AppState } from 'react-native';
 import { router, Redirect } from 'expo-router';
 import { Screen, Button, ui, palette } from '../components/questblox/UI';
 import { useAppStore } from '../store/useAppStore';
@@ -27,6 +28,20 @@ function AccountReminders() {
   const [sound, setSound] = useState(saved.sound);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [permissions, setPermissions] = useState<{ notifications: boolean; alarms: boolean } | null>(null);
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    let active = true;
+    const check = async () => {
+      try {
+        const [notification, alarms] = await Promise.all([Notifications.getPermissionsAsync(), questDevice?.canAlarm() ?? Promise.resolve(false)]);
+        if (active) setPermissions({ notifications: notification.granted, alarms });
+      } catch { if (active) setPermissions(null); }
+    };
+    void check();
+    const listener = AppState.addEventListener('change', value => { if (value === 'active') void check(); });
+    return () => { active = false; listener.remove(); };
+  }, [busy]);
   const sameAccount = () => useAppStore.getState().userId === uid && useAppStore.getState().userEmail?.toLowerCase() === account;
   const supported = Platform.OS !== 'web' && role === 'child' && !!account;
   async function enable() {
@@ -46,6 +61,11 @@ function AccountReminders() {
     <Text style={{ fontSize: 52 }}>🔔</Text><Text style={ui.title}>{t('notifications_title')}</Text>
     {role === 'child' && <Text style={ui.text}>{t('reminder_subtitle')}</Text>}
     {Platform.OS === 'web' && <Text style={ui.meta}>{t('notification_native')}</Text>}
+    {permissions && <View style={{ gap: 8 }}>
+      <Text style={ui.heading}>{t('readiness_title')}</Text>
+      <Text style={ui.text}>{permissions.notifications ? '✓' : '⚠'} {t(permissions.notifications ? 'readiness_notifications_on' : 'readiness_notifications_off')}</Text>
+      {Platform.OS === 'android' && <Text style={ui.text}>{permissions.alarms ? '✓' : '⚠'} {t(permissions.alarms ? 'readiness_alarm_on' : questDevice ? 'readiness_alarm_off' : 'readiness_update')}</Text>}
+    </View>}
     <Text style={ui.heading}>{t('push_channel')}</Text>
     <Text style={ui.meta}>{t('push_description')}</Text>
     {uid === 'guest-local' && <Text style={ui.meta}>{t('push_sign_in')}</Text>}

@@ -1,3 +1,4 @@
+import SyncActivity from './SyncActivity';
 import { router, usePathname } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
@@ -57,6 +58,7 @@ export function Screen({ children, onSettingsChange }: { children: React.ReactNo
         {pathname === '/' && state.role === 'child' && <Pressable testID="connect-parent-home-btn" accessibilityRole="button" accessibilityLabel={t('family_connect_parent')} onPress={() => router.push({ pathname: '/link-account', params: { qr: 'show' } })} style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: palette.gold, alignItems: 'center', justifyContent: 'center' }}><QrCode size={24} color={palette.bg} /></Pressable>}
         <Text accessibilityLabel={t('coin_count', { count: state.coins })} style={ui.balance}>🪙 {state.coins.toLocaleString()}</Text>
       </View>
+      <SyncActivity />
       {state.syncError && <Text accessibilityLiveRegion="polite" style={ui.meta}>{t(state.syncError)}</Text>}
       {state.syncError && <Button secondary label={t('sync_retry')} onPress={() => { void state.retryFamilySync(); }} />}
       {pathname !== '/sync-recovery' && (state.syncIssueCount > 0 || state.syncError === 'progress_legacy_pending') && <Button secondary label={`🗂️ ${t('recovery_title')}`} onPress={() => router.push('/sync-recovery')} />}

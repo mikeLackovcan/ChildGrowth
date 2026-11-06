@@ -1,3 +1,4 @@
+import { useFighterGoal } from '../../store/useFighterGoal';
 import { fighterImage } from '../../constants/fighterImages';
 import { useTranslation } from 'react-i18next';
 import { DUEL_SKILLS } from '../../utils/duel';
@@ -16,6 +17,7 @@ export default function FightersScreen() {
   const { t, i18n } = useTranslation();
   const number = (value: number) => value.toLocaleString(i18n.language);
   const s = useAppStore();
+  const savings = useFighterGoal();
   const [selected, setSelected] = useState(s.currentAvatar);
   const [tab, setTab] = useState<'mine' | 'all'>('all');
   const [stats, setStats] = useState(false);
@@ -67,6 +69,7 @@ export default function FightersScreen() {
       {!equipped && <Button label={owned ? t('shop_use') : s.coins >= fighter.price ? t('shop_unlock', { price: number(fighter.price) }) : t('shop_more', { amount: number(fighter.price - s.coins) })} disabled={busy || equipped || (!owned && s.coins < fighter.price)} onPress={() => {
         void purchase(() => owned ? s.setCurrentAvatar(fighter.id) : s.buyAvatar(fighter.id), fighter.id);
       }} />}
+      {!owned && <Button secondary label={t(savings.goals[s.userId || 'guest-local'] === fighter.id ? 'goal_selected' : 'goal_choose')} onPress={() => savings.choose(s.userId || 'guest-local', fighter.id)} />}
       {equipped && <Button label={t('shop_arena')} onPress={() => router.push('/(tabs)/battle')} />}
       {fighter.id === 'roblox_noob' && owned && <View style={{ gap: 8 }}>
         <Text style={ui.heading}>{t('outfit_title')}</Text>
