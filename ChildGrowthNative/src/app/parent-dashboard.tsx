@@ -1,3 +1,4 @@
+import FamilyChallenge from '../components/questblox/FamilyChallenge';
 import SyncActivity from '../components/questblox/SyncActivity';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { localDay, tasksForDay } from '../utils/questDay';
@@ -158,6 +159,7 @@ function ParentDashboard() {
       <KeyboardAvoidingView style={styles.keyboardLayer} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView ref={page} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
         <SyncActivity />
+        {parentTab === 'overview' && <FamilyChallenge />}
         {syncError && <Text style={{ color: Colors.amber }}>{t(syncError)}</Text>}
         {/* Header with Parent Name, Nickname and Administration Badge */}
         <View style={{ backgroundColor: '#131726', borderWidth: 1, borderColor: 'rgba(255, 184, 0, 0.25)', borderRadius: 20, padding: 18, marginBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>

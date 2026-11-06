@@ -1,5 +1,15 @@
 // Every row contains English, Czech, Spanish and German, in that order.
 export const familyLinkMessages = {
+  family_code_connected: ['Already connected ✓', 'Už jste propojeni ✓', 'Ya estáis conectados ✓', 'Bereits verbunden ✓'],
+  family_link_error: ['Could not connect. Check the child code and internet connection.', 'Propojení se nezdařilo. Zkontroluj kód dítěte a internet.', 'No se pudo conectar. Revisa el código infantil e internet.', 'Verbindung fehlgeschlagen. Prüfe den Kinder-Code und das Internet.'],
+
+  team_boss: ['Family boss', 'Rodinný boss', 'Jefe familiar', 'Familienboss'],
+  team_cleared: ['Team cleared!', 'Tým vyhrál!', '¡Equipo vencedor!', 'Gemeinsam geschafft!'],
+  team_progress: ['{{done}} / {{total}} quests together', '{{done}} / {{total}} úkolů společně', '{{done}} / {{total}} misiones juntos', '{{done}} / {{total}} Aufgaben gemeinsam'],
+
+  quest_undo_recent: ['↶ Undo', '↶ Zpět', '↶ Deshacer', '↶ Rückgängig'],
+  quest_undo_failed: ['Could not undo. Ask your parent to check.', 'Nešlo vrátit. Popros rodiče o kontrolu.', 'No se pudo deshacer. Pide ayuda a tu familia.', 'Rückgängig nicht möglich. Bitte deine Eltern um Hilfe.'],
+
   sync_working: ['Saving changes…', 'Ukládám změny…', 'Guardando cambios…', 'Änderungen werden gespeichert…'],
   routine_title: ['✨ Quick routines', '✨ Rychlé rutiny', '✨ Rutinas rápidas', '✨ Schnelle Routinen'],
   routine_morning: ['☀️ Morning', '☀️ Ráno', '☀️ Mañana', '☀️ Morgen'],

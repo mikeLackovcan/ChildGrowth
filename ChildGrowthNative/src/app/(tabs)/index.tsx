@@ -1,3 +1,4 @@
+import FamilyChallenge from '../../components/questblox/FamilyChallenge';
 import { useFighterGoal } from '../../store/useFighterGoal';
 import { fighterImage } from '../../constants/fighterImages';
 import QuestCelebration from '../../components/questblox/QuestCelebration';
@@ -26,6 +27,13 @@ export default function QuestsScreen() {
   const [editingQuest, setEditingQuest] = useState<string | null>(null);
   const [questName, setQuestName] = useState('');
   const [message, setMessage] = useState('');
+  const [undoTask, setUndoTask] = useState<string | null>(null);
+  const [undoBusy, setUndoBusy] = useState(false);
+  useEffect(() => {
+    if (!undoTask) return;
+    const timer = setTimeout(() => setUndoTask(null), 8000);
+    return () => clearTimeout(timer);
+  }, [undoTask]);
   const [handlingInvite, setHandlingInvite] = useState(false);
   const [claimingGift, setClaimingGift] = useState(false);
   const [epicOpen, setEpicOpen] = useState(false);
@@ -80,6 +88,7 @@ export default function QuestsScreen() {
   const invitation = s.children.find(c => c.initiatedBy === 'parent' && !c.isApproved && c.linkedParents?.length);
   const completeTask = (task: (typeof tasks)[number]) => {
     const result = s.toggleTaskDone(task.id, Boolean(task.mystery));
+    if (result && s.userId && s.userId !== 'guest-local') setUndoTask(task.id);
     setSelectedTask(null);
     setDetailsTask(null);
     setMessage(result ? t('quest_complete', { coins: result.coinGain }) : task.requiresApproval ? t('quest_waiting') : '');
@@ -90,6 +99,12 @@ export default function QuestsScreen() {
       <View style={{ zIndex: 2, width: '48%', gap: 10 }}><Text style={ui.label}>{t('quest_today')}</Text><Text style={[ui.title, { fontSize: 30, lineHeight: 35 }]}>{epicDone ? t('quest_hero_ready') : t('quest_hero_intro')}</Text><Text style={ui.meta}>{t('quest_progress', { done: completed, total: tasks.length + 1 })}</Text></View>
     </View>
     {!!message && <QuestCelebration message={message} fighter={s.currentAvatar} />}
+    {undoTask && !epicDone && s.lastSpinDate !== today && <Button secondary disabled={undoBusy} label={t('quest_undo_recent')} onPress={async () => {
+      if (undoBusy) return;
+      setUndoBusy(true);
+      try { const ok = await s.undoRecentTask(undoTask); setMessage(ok ? '' : t('quest_undo_failed')); }
+      finally { setUndoBusy(false); setUndoTask(null); }
+    }} />}
     {invitation && <View style={{ gap: 12, paddingVertical: 16 }}><Text style={ui.heading}>👨‍👩‍👧 {t('family_waiting_title')}</Text><Text style={ui.text}>{t('family_invitation_from', { name: invitation.linkedParents[0] })}</Text>
       <Button disabled={handlingInvite} label={t('family_accept')} onPress={async () => {
         if (handlingInvite) return; setHandlingInvite(true);
@@ -189,6 +204,7 @@ export default function QuestsScreen() {
         </Pressable>
         <View style={{ paddingVertical: 22, gap: 12 }}>
           <View style={{ position: 'absolute', left: -34, top: 24, width: 22, height: 22, borderRadius: 11, backgroundColor: epicDone ? palette.green : palette.gold, alignItems: 'center', justifyContent: 'center' }}><Text>{epicDone ? '✓' : '★'}</Text></View>
+          <FamilyChallenge />
           <Text style={ui.label}>{t('quest_epic')}</Text>
           <View style={{ height: 170, marginRight: -20, justifyContent: 'flex-end' }}>
             <SceneArt source={fighterFor('roblox_dragon').image} />

@@ -10,7 +10,7 @@ export function questOnDay(task: Task, day: string): Task {
   if (task.date >= day || task.pendingApproval) return task;
   return { ...task, date: day, done: false, pendingApproval: false,
     pendingReward: undefined, pendingSubmissionId: undefined, verificationNote: undefined, awardedReward: undefined,
-    startedAt: undefined, helpRequested: false,
+    startedAt: undefined, completedAt: undefined, completedBy: undefined, helpRequested: false,
     postponedUntil: task.postponedUntil && task.postponedUntil > day ? task.postponedUntil : undefined };
 }
 

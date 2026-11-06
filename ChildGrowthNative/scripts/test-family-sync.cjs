@@ -141,4 +141,44 @@ check('Parent deletion disappears for the child and cannot affect another child'
   });
 });
 
+
+
+check('Server accepts every reminder hour, including midnight, and rejects invalid time', () => {
+  for (let hour = 0; hour < 24; hour++) {
+    const time = `${String(hour).padStart(2, '0')}:59`;
+    const result = progressTransition(child, { lastActiveDate: day, tasks: [] }, 'task.create', {
+      id: `hour-${hour}`, name: 'Read', diff: 'easy', freq: 'daily', reminderTime: time,
+    }, parentContext);
+    assert.equal(result.data.tasks[0].reminderTime, time);
+  }
+  assert.throws(() => progressTransition(child, { lastActiveDate: day, tasks: [] }, 'task.create', {
+    id: 'bad-hour', name: 'Read', diff: 'easy', freq: 'daily', reminderTime: '24:00',
+  }, parentContext), /INVALID_REMINDER/);
+});
+
+check('Child undo reverses a recent own completion, rejects expired, spent and parent-reviewed rewards', () => {
+  const initial = { lastActiveDate: day, tasks: [{ id: 'undo', name: 'Read', diff: 'easy', freq: 'daily', done: false, date: day }] };
+  const complete = progressTransition(child, initial, 'task.complete', { id: 'undo' }, childContext);
+  const undone = progressTransition(complete.profile, complete.data, 'task.undo', { id: 'undo' }, { ...childContext, time: now + 1000 });
+  assert.equal(undone.data.tasks[0].done, false);
+  assert.equal(undone.profile.coins, child.coins);
+  for (const context of [{ ...childContext, time: now + 31000 }, { ...childContext, actorUid: 'other-child' }]) {
+    assert.throws(() => progressTransition(complete.profile, complete.data, 'task.undo', { id: 'undo' }, context), /PARENT_REQUIRED/);
+  }
+  assert.throws(() => progressTransition({ ...complete.profile, coins: 0 }, complete.data, 'task.undo', { id: 'undo' }, childContext), /PARENT_REQUIRED/);
+  assert.throws(() => progressTransition(complete.profile, { ...complete.data, lastSpinDate: day }, 'task.undo', { id: 'undo' }, childContext), /PARENT_REQUIRED/);
+  const parentComplete = progressTransition(child, initial, 'task.complete', { id: 'undo' }, parentContext);
+  assert.throws(() => progressTransition(parentComplete.profile, parentComplete.data, 'task.undo', { id: 'undo' }, childContext), /PARENT_REQUIRED/);
+});
+
+check('Family challenge excludes rest days, future quests and previous-day completions', () => {
+  const { familyQuestCounts } = require('../backend/functions/lib/backend/functions/src/accounts');
+  const task = { id: 'a', name: 'Read', freq: 'daily', date: day, done: true };
+  assert.deepEqual(familyQuestCounts({ tasks: [task] }, day), { total: 1, done: 1 });
+  assert.deepEqual(familyQuestCounts({ isSick: true, tasks: [task] }, day), { total: 0, done: 0 });
+  assert.deepEqual(familyQuestCounts({ tasks: [{ ...task, date: '2020-01-01' }] }, day), { total: 1, done: 0 });
+  assert.deepEqual(familyQuestCounts({ tasks: [{ ...task, postponedUntil: '2099-01-01' }] }, day), { total: 0, done: 0 });
+  assert.deepEqual(familyQuestCounts({ tasks: [{ ...task, pendingApproval: true }] }, day), { total: 1, done: 0 });
+});
+
 console.log(`${checks} family synchronization checks passed without network writes.`);

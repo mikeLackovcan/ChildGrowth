@@ -417,7 +417,7 @@ export default function ManageTasksScreen() {
                             <Text style={styles.freqBadgeText}>{getFreqLabel(task.freq || 'daily')}</Text>
                           </View>
                           <Text style={[styles.statusBadgeText, { color: task.done ? Colors.green : Colors.amber }]}>
-                            • {task.done ? t('done_status', 'DONE ✅') : t('pending_status', 'PENDING ⏳')}
+                            {task.done ? t('completed_stamp') : task.pendingApproval ? `⏳ ${t('quest_parent_check')}` : ''}
                           </Text>
                           {task.isRolling && (
                             <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 10, color: '#06B6D4' }}>

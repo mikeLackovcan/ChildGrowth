@@ -1,3 +1,6 @@
+import { progressDay } from './progress';
+import { validZone } from './pushPolicy';
+import { questOnDay } from '../../../src/utils/questDay';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { randomBytes } from 'node:crypto';
 import { authenticated, db, digest, linkId, text } from './core';
@@ -123,7 +126,7 @@ async function ensureChildConnectionCode(uid: string) {
           const currentRef = db.doc(`familyCodes/${current}`);
           const currentSnap = await transaction.get(currentRef);
           if (!currentSnap.exists || currentSnap.data()?.uid === uid) {
-            transaction.set(currentRef, { uid, active: true });
+            if (!currentSnap.exists || currentSnap.data()?.active !== true) transaction.set(currentRef, { uid, active: true });
             return { code: current };
           }
         }
@@ -223,7 +226,39 @@ export const getFamilyStatus = onCall(async request => {
   }
   const oldTags = profile.role === 'parent' ? (Array.isArray(data.children) ? data.children : []).map((child: any) => child?.nickname) : [...(Array.isArray(data.linked_parents) ? data.linked_parents : []), data.parent_email];
   const familyReconnectTags = [...new Set<string>(oldTags.filter((tag: unknown): tag is string => typeof tag === 'string' && /^[a-z0-9_-]{3,24}$/.test(tag) && !known.has(tag)))];
-  return { children, linked_parents: parents, parent_email: parents[0] || pendingParent, connection_code,
+  // Share only a combined quest count, never a sibling's task titles or private data.
+  const familyChildIds = new Set<string>();
+  if (profile.role === 'parent') {
+    for (const link of links) if (link.status === 'accepted') familyChildIds.add(link.childUid);
+  } else {
+    for (const link of links.filter(link => link.status === 'accepted')) {
+      const siblings = await db.collection('familyLinks').where('parentUid', '==', link.parentUid).get();
+      for (const sibling of siblings.docs.map(item => item.data())) if (sibling.status === 'accepted') familyChildIds.add(sibling.childUid);
+    }
+  }
+  const day = progressDay(Date.now(), validZone(request.data?.timeZone) ? request.data.timeZone : 'UTC');
+  let total = 0, done = 0;
+  for (const childUid of familyChildIds) {
+    const counts = familyQuestCounts((await db.doc(`user_data/${childUid}`).get()).data(), day);
+    total += counts.total; done += counts.done;
+  }
+  const familyChallenge = familyChildIds.size > 1 ? { day, total, done, members: familyChildIds.size } : null;
+  return { familyChallenge, children, linked_parents: parents, parent_email: parents[0] || pendingParent, connection_code,
     approval_status: parents.length ? 'approved' : pendingParent ? 'pending' : null,
     pending_invitation: pendingInvitation, familyReconnectTags };
 });
+
+export function familyQuestCounts(childData: any, day: string) {
+  let total = 0, done = 0;
+  if (!childData || childData.isSick) return { total, done };
+  const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
+  const weekdayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][weekday];
+  for (const raw of childData.tasks || []) {
+    const task = questOnDay(raw, day);
+    const scheduled = task.postponedUntil ? task.postponedUntil <= day : task.isRolling || task.freq === 'daily' || task.freq === weekdayName ||
+      (task.freq === 'weekdays' && weekday > 0 && weekday < 6) || (task.freq === 'weekends' && (weekday === 0 || weekday === 6));
+    if (!scheduled) continue;
+    total++; if (task.done && !task.pendingApproval) done++;
+  }
+  return { total, done };
+}

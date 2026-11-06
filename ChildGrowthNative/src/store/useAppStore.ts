@@ -121,7 +121,8 @@ interface AppState {
   approveChildByParent: (childId: string) => Promise<boolean>;
   
   // Multi-Child & Multi-Parent Actions
-  addChildByCode: (code: string) => Promise<boolean>;
+  undoRecentTask: (id: string) => Promise<boolean>;
+  addChildByCode: (code: string) => Promise<'pending' | 'accepted' | false>;
   removeChild: (childId: string) => Promise<boolean>;
   removeParent: (parentNickname: string) => Promise<boolean>;
   selectChild: (childId: string) => void;
@@ -310,6 +311,7 @@ export const useAppStore: UseBoundStore<StoreApi<AppState>> = create<AppState>((
 
     get().saveMockState();
   },
+  undoRecentTask: async id => (await serverProgress('task.undo', { id })).completed,
   addTask: (task) => {
     const todayStr = localDay();
     const newTask: Task = {
@@ -800,10 +802,10 @@ export const useAppStore: UseBoundStore<StoreApi<AppState>> = create<AppState>((
   },
   addChildByCode: async (code) => {
     try {
-      await familyAction(code, 'invite');
+      const status = await familyAction(code, 'invite');
       set({ syncError: null });
       await get().loadMockState();
-      return true;
+      return status === 'accepted' ? 'accepted' : 'pending';
     } catch { set({ syncError: 'family_link_error' }); return false; }
   },
   removeChild: async (childId) => {

@@ -27,7 +27,7 @@ export const manageFamily = onCall(async request => {
   }
   if (uid === otherId) throw new HttpsError('invalid-argument', 'SELF_LINK');
 
-  await db.runTransaction(async transaction => {
+  const status = await db.runTransaction(async transaction => {
     const [actorSnap, otherSnap] = await Promise.all([
       transaction.get(db.doc(`profiles/${uid}`)), transaction.get(db.doc(`profiles/${otherId}`)),
     ]);
@@ -51,9 +51,9 @@ export const manageFamily = onCall(async request => {
     const link = linkSnap.data(), p = parentSnap.data() || {}, c = childSnap.data() || {};
     if ((action === 'invite' || action === 'accept') && link?.status === 'accepted') {
       transaction.set(db.doc(`familyAccess/${childUid}/parents/${parentUid}`), { accepted: true, updatedAt: Timestamp.now() });
-      return;
+      return 'accepted';
     }
-    if (action === 'invite' && link?.status === 'pending') return;
+    if (action === 'invite' && link?.status === 'pending') return 'pending';
     // Retries are harmless, but the sender can never accept their own invite.
     if (action === 'decline' && link?.status === 'declined') return;
     if (action === 'unlink' && (!link || link.status === 'unlinked')) return;
@@ -100,6 +100,7 @@ export const manageFamily = onCall(async request => {
       parent_email: [...linked][0] || (action === 'invite' ? parent.nickname : null),
       approval_status: linked.size ? 'approved' : action === 'invite' ? 'pending' : null, updated_at }, { merge: true });
     queueNotice(transaction, `${ref.id}:family:${revision}`, otherId, `family_${status}`, { familyLinkId: ref.id });
+    return status;
   });
-  return { ok: true };
+  return { ok: true, status };
 });

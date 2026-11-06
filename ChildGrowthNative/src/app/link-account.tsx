@@ -28,7 +28,7 @@ export default function LinkAccountScreen() {
   const [busy, setBusy] = useState(false);
   const [loadingCode, setLoadingCode] = useState(false);
   const [error, setError] = useState('');
-  const [sent, setSent] = useState(false);
+  const [sent, setSent] = useState<'pending' | 'accepted' | false>(false);
   const sending = useRef(false);
   const guest = !uid || uid === 'guest-local';
 
@@ -99,7 +99,7 @@ export default function LinkAccountScreen() {
       const invitationSent = await addChildByCode(normalized);
       if (auth.currentUser?.uid !== uid || useAppStore.getState().userId !== uid) return;
       if (!invitationSent) { setError('family_link_error'); return; }
-      setSent(true); setCode('');
+      setSent(invitationSent); setCode('');
     } catch { if (useAppStore.getState().userId === uid) setError('family_link_error'); }
     finally { sending.current = false; setBusy(false); }
   };
@@ -131,7 +131,7 @@ export default function LinkAccountScreen() {
       <Text style={styles.intro}>{guest ? t('family_signin_first') : t(role === 'child' ? 'family_code_child_intro' : 'family_code_parent_intro')}</Text>
     </View>
     {!!error && <Text accessibilityLiveRegion="polite" style={styles.error}>{t(error)}</Text>}
-    {sent && <View accessibilityLiveRegion="polite" style={styles.success}><CheckCircle2 size={22} color={palette.green} /><Text style={styles.successText}>{t('family_code_sent')}</Text></View>}
+    {sent && <View accessibilityLiveRegion="polite" style={styles.success}><CheckCircle2 size={22} color={palette.green} /><Text style={styles.successText}>{t(sent === 'accepted' ? 'family_code_connected' : 'family_code_sent')}</Text></View>}
     {guest ? <Button disabled={busy} label={t(busy ? 'settings_wait' : 'auth_signin')} onPress={() => { void openSignIn(); }} /> : role === 'child' ? <>
       {invitation && !invitation.sentByMe && <View style={ui.card}>
         <Text style={ui.heading}>{invitation.name}</Text>

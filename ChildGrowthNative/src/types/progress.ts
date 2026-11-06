@@ -11,6 +11,8 @@ export interface Task {
   freq: 'daily' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday' | 'weekdays' | 'weekends';
   mystery: boolean;
   done: boolean;
+  completedAt?: number;
+  completedBy?: string;
   date: string;
   icon?: string;
   startedAt?: string;

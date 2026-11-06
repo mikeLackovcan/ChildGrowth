@@ -14,7 +14,7 @@
 
 ## Verification
 - Quest flow: 24 isolated checks passed.
-- Family sync: 7 isolated checks passed.
+- Family sync/server rules: 10 isolated checks passed, including 24-hour reminder validation, Undo restrictions, and cooperative progress.
 - Progress queue/recovery: 8 isolated checks passed.
 - Reminders: 10 checks passed; no real notifications fired by these tests.
 - Family QR parsing: 8 checks passed; not a physical camera scan.
@@ -24,11 +24,13 @@
 ## Outstanding acceptance checks and scope
 - Physical Android keyboard, system bars, QR scanning, notifications with app closed/reboot/battery saver.
 - Full affected-screen visual review in all four languages and large text.
-- Short child Undo needs a server-controlled correction window; current child completions remain locked.
-- Cooperative family boss is not implemented in this release.
-- Already-connected invite response still needs a distinct status.
+- Recent own completions can be undone for eight seconds in the UI; the server checks a 30-second safety window, ownership, parent approval, reward balance and spin/Epic locks.
+- Cooperative family boss shows combined daily progress for accepted siblings without exposing their private task titles. It grants no additional currency.
+- Already-connected invites show a distinct connected status.
 - Separate ongoing 3D fighter changes are excluded from this release.
 - Native camera dependency was added after Play build 14: a new Android build is required. OTA must match the build runtime; never override the fingerprint to force compatibility.
 
 ## Release status
-Pending publication verification. No store availability claim until a successful submission is confirmed.
+Initial OTA published: 446f7c4e-f6fc-40e0-b852-469510e6a184 (runtime 84a0ab2902193c6c3743b17b5d214bf3fb134502). Android version 15 build: 1c0cf3bb-1cf5-415f-8524-70971784d786. Follow-up OTA and Play submission verification pending.
+
+Browser checks: morning routine assigned successfully to the disposable test child; two tasks appeared. German routine form reviewed at 360×640 without horizontal overflow.

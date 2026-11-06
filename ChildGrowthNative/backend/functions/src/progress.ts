@@ -39,7 +39,7 @@ function validateTask(input: any, parent: boolean, linked: boolean, day: string)
   }
   if (input.reminderTime !== undefined) {
     const reminder = boundedText(input.reminderTime, 5, true);
-    if (reminder && !/^(0[7-9]|1[0-9]):[0-5][0-9]$/.test(reminder)) return failure('INVALID_REMINDER');
+    if (reminder && !/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(reminder)) return failure('INVALID_REMINDER');
     task.reminderTime = reminder;
   }
   if (input.durationMinutes !== undefined) {
@@ -228,6 +228,7 @@ export function progressTransition(profileInput: any, dataInput: any, action: st
         if (payload?.note) task.verificationNote = boundedText(payload.note, 500);
       } else {
         const reward = taskReward(task); task.done = true; task.awardedReward = reward; task.helpRequested = false;
+        task.completedAt = time; task.completedBy = context.actorUid;
         award(reward.xpGain, reward.coinGain); result = reward;
       }
       break;
@@ -242,8 +243,12 @@ export function progressTransition(profileInput: any, dataInput: any, action: st
       break;
     }
     case 'task.undo': {
-      if (!parent) return failure('PARENT_REQUIRED'); const task = taskById();
-      if (task.done) { if (task.awardedReward) award(-task.awardedReward.xpGain, -task.awardedReward.coinGain); task.done = false; delete task.awardedReward; }
+      const task = taskById();
+      if (!parent && (!task.done || !context.actorUid || task.completedBy !== context.actorUid ||
+          !Number.isFinite(task.completedAt) || time < task.completedAt! || time - task.completedAt! > 30000 ||
+          task.requiresApproval || task.pendingApproval || data.lastSpinDate === day || data.epicClaimedDate === day ||
+          !task.awardedReward || profile.coins < task.awardedReward.coinGain)) return failure('PARENT_REQUIRED');
+      if (task.done) { if (task.awardedReward) award(-task.awardedReward.xpGain, -task.awardedReward.coinGain); task.done = false; delete task.awardedReward; delete task.completedAt; delete task.completedBy; }
       break;
     }
     case 'epic.configure': {
