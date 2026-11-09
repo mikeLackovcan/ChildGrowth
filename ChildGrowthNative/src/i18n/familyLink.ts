@@ -1,5 +1,7 @@
 // Every row contains English, Czech, Spanish and German, in that order.
 export const familyLinkMessages = {
+  settings_rate_app: ['Rate Questblox', 'Ohodnotit Questblox', 'Valorar Questblox', 'Questblox bewerten'],
+  settings_rate_hint: ['Opens Google Play. Test feedback is private.', 'Otevře Google Play. Zpětná vazba testerů je soukromá.', 'Abre Google Play. Los comentarios de prueba son privados.', 'Öffnet Google Play. Testfeedback ist privat.'],
   family_rewards_saved: ['Rewards saved', 'Odměny uloženy', 'Premios guardados', 'Belohnungen gespeichert'],
   family_live_rewards: ['Reward status updated', 'Stav odměny se změnil', 'Estado del premio actualizado', 'Belohnungsstatus aktualisiert'],
   schedule_kind: ['Quest schedule', 'Plán úkolu', 'Horario de misión', 'Aufgabenplan'],

@@ -12,7 +12,7 @@ import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { useAppStore } from '../store/useAppStore';
 import { AVAILABLE_AVATARS } from '../constants/fighters';
-import { Bell, LogOut, Users, X, Globe, RotateCcw, ChevronRight, Unlink, Archive, Pencil, Check, ShieldCheck, Trash2 } from 'lucide-react-native';
+import { Bell, LogOut, Users, X, Globe, RotateCcw, ChevronRight, Unlink, Archive, Pencil, Check, ShieldCheck, Trash2, Star } from 'lucide-react-native';
 import LanguageSwitcher from './LanguageSwitcher';
 
 export default function SettingsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -128,6 +128,14 @@ export default function SettingsModal({ visible, onClose }: { visible: boolean; 
           <TouchableOpacity accessibilityRole="link" style={styles.row} onPress={() => { void Linking.openURL('https://questblox-10c14.web.app/privacy.html'); }}>
             <ShieldCheck size={24} color="#aab8cf" /><Text style={styles.rowText}>{t('child_consent_privacy')}</Text><ChevronRight color="#aab8cf" size={20} />
           </TouchableOpacity>
+          {s.role === 'parent' && <View style={{ gap: 4 }}>
+            <TouchableOpacity testID="settings-rate-app" accessibilityRole="link" accessibilityLabel={t('settings_rate_app')}
+              accessibilityHint={t('settings_rate_hint')} disabled={busy} style={styles.row}
+              onPress={() => { void run(async () => { await Linking.openURL('https://play.google.com/store/apps/details?id=com.questblox.app'); }); }}>
+              <Star size={24} color="#ffc857" /><Text style={styles.rowText}>{t('settings_rate_app')}</Text><ChevronRight color="#aab8cf" size={20} />
+            </TouchableOpacity>
+            <Text style={styles.meta}>{t('settings_rate_hint')}</Text>
+          </View>}
           {!!error && <Text accessibilityLiveRegion="polite" style={styles.meta}>{t('settings_failed')}</Text>}
           {busy && <Text accessibilityLiveRegion="polite" style={styles.meta}>{t('settings_wait')}</Text>}
           <View style={styles.section}>
