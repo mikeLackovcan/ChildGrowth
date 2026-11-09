@@ -111,9 +111,8 @@
   "appContent": {
     "privacyPolicy": {
       "urlCandidate": "https://questblox-10c14.web.app/privacy.html",
-      "evidence": "public/privacy.html exists in EN/CS/ES/DE",
+      "evidence": "Public URL verified in browser on 2026-11-09; redirects to /privacy and includes EN/CS/ES/DE.",
       "pending": [
-        "Verify public URL in browser; research fetch could not retrieve it.",
         "Disclose Expo push/update services as well as Firebase; current text names Firebase but backend sends through Expo.",
         "Describe device speech service accurately, including potential provider processing; do not claim all speech stays offline.",
         "Confirm parental consent and SDK eligibility for the child-directed flow."
@@ -123,10 +122,11 @@
       "webUrlCandidate": "https://questblox-10c14.web.app/delete-account.html",
       "inApp": "Settings account deletion exists; newly deployed authenticated backend erases associated data asynchronously.",
       "pending": [
-        "Verify published web endpoint and monitored email request process.",
+        "Confirm the deletion-request email is monitored and the stated processing time is honored.",
         "Update web instructions to mention in-app deletion and accurately explain retained security records.",
         "Test deletion with a dedicated disposable account; never erase a real family account for review."
-      ]
+      ],
+      "webVerification": "Public deletion page verified in browser on 2026-11-09, with email instructions in all four languages."
     },
     "ads": {
       "proposed": "No ads",
