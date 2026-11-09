@@ -1,15 +1,18 @@
 {
   "researchedOn": "2026-11-09",
   "packageName": "com.questblox.app",
-  "status": "Prepared field plan, not a completed policy declaration or review submission.",
+  "status": "2026-11-09: Listing in all four languages, Productivity category, inherited trader status, testers-community group and Alpha build 16 submitted. Console shows changes under review, with quick checks still running; not yet approved/live.",
   "consoleObserved": {
     "applicationType": "App",
     "categoryBefore": "Education",
-    "categoryNow": "Productivity — saved change awaiting submission for Google review",
+    "categoryNow": "Productivity — submitted for review",
     "contactEmail": "mikeaegeri@gmail.com",
     "websiteCurrently": "http://questblox-10c14.web.app",
     "listingLanguages": [
-      "en-US"
+      "en-US",
+      "cs-CZ",
+      "es-ES",
+      "de-DE"
     ],
     "listingPublishedDate": "2026-10-25",
     "currentAssets": [
@@ -26,7 +29,7 @@
       "Promises specific 3D/boss/dancing-banana behavior not verified in the scoped release.",
       "Claims guaranteed parenting outcomes and uses unsupported statistics."
     ],
-    "accountBanner": "Declare trader status — requires the owner’s accurate business/trader details, not an inferred answer."
+    "accountBanner": "App-level declaration completed using existing account trader status; submitted for review."
   },
   "positioning": {
     "primary": "Visual family chore planner and habit tracker for children aged 6–12 and parents.",
@@ -89,7 +92,7 @@
       "shortDescription": 80,
       "fullDescription": 4000
     },
-    "copyStatus": "All four proposed texts fit limits; not entered into Console yet.",
+    "copyStatus": "All four texts entered, saved, and submitted for review on 2026-11-09.",
     "video": "Optional. Leave empty until a genuine app demonstration exists; no invented URL."
   },
   "visualAssets": {
@@ -227,13 +230,20 @@
       "otherDeclarations": "Inspect the active Console dashboard for health, financial, government, news and other declarations. Ordinary virtual quest coins do not make this a financial-services app; do not invent business facts."
     },
     "closedTesting": {
-      "status": "Active internal build 16 observed; that alone does not mean a closed release is active.",
+      "status": "Alpha was already active in 178 countries on build 12. Update to build 16 submitted for review on 2026-11-09.",
       "prepare": [
         "Select intended closed track and tester list/Google Group.",
         "Choose countries, release notes and tested AAB from library; check native runtime compatibility.",
         "Meet any account-specific testing/production-access eligibility shown in Console.",
         "Keep category/listing review status separate from internal OTA publication."
-      ]
+      ],
+      "testerGroup": "testers-community@googlegroups.com",
+      "testerGroupStatus": "Verified from Quest Champ, saved for Questblox and included in review submission.",
+      "optInUrl": "https://play.google.com/apps/testing/com.questblox.app",
+      "storeUrl": "https://play.google.com/store/apps/details?id=com.questblox.app",
+      "releaseName": "Questblox 16 — family closed testing",
+      "reviewStatus": "Changes under review; quick checks still running at last observation.",
+      "releaseWarning": "Non-blocking warning: larger download size, 84.8 MB. No supported-device losses shown."
     },
     "ownerFactsNeeded": [
       "Accurate trader/business status and any required verified contact details.",
