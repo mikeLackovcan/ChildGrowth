@@ -20,7 +20,7 @@ let storageQueue: Promise<unknown> = Promise.resolve(), networkQueue: Promise<un
 let writing = 0, sending = 0;
 export const progressGeneration = (uid: string) => generations.get(uid) || 0;
 export const progressBusy = () => writing > 0 || sending > 0;
-const reviewableReasons = ['QUEST_CHANGED', 'QUEST_REVIEW_REQUIRED', 'PROGRESS_DAY_CHANGED', 'REVIEW_CHANGED', 'QUEST_NOT_FOUND', 'PRIZE_NOT_FOUND', 'PARENT_REQUIRED', 'FAMILY_REQUIRED', 'NOT_ENOUGH_COINS', 'FIGHTER_NOT_OWNED', 'QUEST_NOT_READY', 'QUESTS_FIRST', 'POSTPONE_NOT_ALLOWED', 'INVALID_TASK_EDIT', 'QUEST_EXISTS', 'QUEST_LIMIT', 'SUPERCHARGE_USED', 'INVALID_INPUT', 'INVALID_TASK', 'INVALID_REMINDER', 'INVALID_DAY', 'INVALID_REWARD', 'INVALID_PRIZES', 'INVALID_FIGHTER', 'INVALID_THEME', 'INVALID_RECOVERY', 'RECOVERY_LIMIT'];
+const reviewableReasons = ['QUEST_CHANGED', 'QUEST_REVIEW_REQUIRED', 'PROGRESS_DAY_CHANGED', 'REVIEW_CHANGED', 'QUEST_NOT_FOUND', 'PRIZE_NOT_FOUND', 'PARENT_REQUIRED', 'FAMILY_REQUIRED', 'NOT_ENOUGH_COINS', 'FIGHTER_NOT_OWNED', 'QUEST_NOT_READY', 'QUESTS_FIRST', 'POSTPONE_NOT_ALLOWED', 'INVALID_TASK_DATE', 'INVALID_TASK_DAYS', 'INVALID_TASK_EDIT', 'QUEST_EXISTS', 'QUEST_LIMIT', 'SUPERCHARGE_USED', 'INVALID_INPUT', 'INVALID_TASK', 'INVALID_REMINDER', 'INVALID_DAY', 'INVALID_REWARD', 'INVALID_PRIZES', 'INVALID_FIGHTER', 'INVALID_THEME', 'INVALID_RECOVERY', 'RECOVERY_LIMIT'];
 function rejectionReason(error: any): string | undefined {
   const code = String(error?.code || '').replace(/^functions\//, '');
   if (!['failed-precondition', 'permission-denied', 'invalid-argument', 'not-found'].includes(code)) return;
@@ -175,4 +175,21 @@ export function flushProgress(uid: string): Promise<ProgressFlush> {
   }).finally(() => { sending--; });
   networkQueue = operation;
   return operation;
+}
+
+// Wait for existing queue work to settle before removing a deleted account's
+// local operations, so an old retry cannot write them back after cleanup.
+export async function discardDeletedAccountQueue(uid: string) {
+  await networkQueue.catch(() => {});
+  await withStorage(async () => {
+    failedWrites.delete(uid); pendingSnapshots.delete(uid); refreshNeeded.delete(uid); generations.delete(uid);
+    await AsyncStorage.multiRemove([key(uid), issueKey(uid)]);
+  });
+}
+
+export async function queuedProgressForAccount(uid: string): Promise<ProgressOperation[]> {
+  return withStorage(async () => {
+    checkOwner(uid);
+    return [...await read(uid), ...(failedWrites.get(uid) || [])];
+  });
 }

@@ -1,6 +1,8 @@
 import { fighterImage } from '../constants/fighterImages';
 import { useReminderStore } from '../store/useReminderStore';
 import { reminderAccount, syncQuestReminders } from '../lib/notifications';
+import { requestOwnAccountDeletion } from '../lib/deleteAccount';
+import { showMessage } from '../lib/dialogs';
 import { confirmAction } from '../lib/dialogs';
 import React, { useState } from 'react';
 import { personName } from '../utils/displayName';
@@ -10,12 +12,14 @@ import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { useAppStore } from '../store/useAppStore';
 import { AVAILABLE_AVATARS } from '../constants/fighters';
-import { Bell, LogOut, Users, X, Globe, RotateCcw, ChevronRight, Unlink, Archive, Pencil, Check, ShieldCheck } from 'lucide-react-native';
+import { Bell, LogOut, Users, X, Globe, RotateCcw, ChevronRight, Unlink, Archive, Pencil, Check, ShieldCheck, Trash2 } from 'lucide-react-native';
 import LanguageSwitcher from './LanguageSwitcher';
 
 export default function SettingsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { t, i18n } = useTranslation();
   const s = useAppStore();
+  const [deleting, setDeleting] = useState(false);
+  const [deletionError, setDeletionError] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const [editingNickname, setEditingNickname] = useState(false);
@@ -28,6 +32,16 @@ export default function SettingsModal({ visible, onClose }: { visible: boolean; 
     if (busy) return;
     setBusy(true); setError(false);
     try { await action(); } catch { setError(true); } finally { setBusy(false); }
+  };
+  const deleteOwnAccount = async () => {
+    if (busy) return;
+    setBusy(true); setDeletionError('');
+    try {
+      await requestOwnAccountDeletion(); setDeleting(false); onClose(); router.replace('/login');
+      showMessage(t('account_delete_requested'));
+    } catch (error: any) {
+      setDeletionError(String(error?.message).includes('DELETE_RECENT_LOGIN_REQUIRED') ? 'account_delete_recent' : 'account_delete_failed');
+    } finally { setBusy(false); }
   };
   const leave = () => { void run(async () => { await s.logout(); onClose(); router.replace('/login'); }); };
   const saveNickname = () => { void run(async () => {
@@ -54,6 +68,17 @@ export default function SettingsModal({ visible, onClose }: { visible: boolean; 
           <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('settings_close')} onPress={onClose} style={styles.iconButton}><X color="#aab8cf" size={24} /></TouchableOpacity>
         </View>
         <ScrollView contentContainerStyle={{ gap: 22, paddingBottom: 12 }}>
+          {deleting ? <View style={{ gap: 18 }}>
+            <Trash2 size={36} color="#ff8585" />
+            <Text style={styles.name}>{t('account_delete')}</Text>
+            <Text style={[styles.meta, { fontSize: 16, lineHeight: 24 }]}>{t('account_delete_body')}</Text>
+            {!!deletionError && <Text accessibilityLiveRegion="polite" style={styles.meta}>{t(deletionError)}</Text>}
+            <TouchableOpacity accessibilityRole="button" disabled={busy} onPress={() => void deleteOwnAccount()} style={[styles.row, { borderWidth: 1, borderColor: '#ff8585', padding: 14, borderRadius: 12 }]}>
+              <Text style={[styles.rowText, { color: '#ff8585' }]}>{t(busy ? 'settings_wait' : 'account_delete_confirm')}</Text>
+            </TouchableOpacity>
+            {deletionError === 'account_delete_recent' && <TouchableOpacity accessibilityRole="button" disabled={busy} style={styles.row} onPress={leave}><Text style={styles.rowText}>{t('settings_logout')}</Text></TouchableOpacity>}
+            <TouchableOpacity accessibilityRole="button" disabled={busy} style={styles.row} onPress={() => setDeleting(false)}><Text style={styles.rowText}>{t('action_cancel')}</Text></TouchableOpacity>
+          </View> : <>
           <View style={styles.profile}>
             <Image source={fighterImage(fighter.id, s.fighterOutfits[fighter.id])} style={{ width: 84, height: 84 }} contentFit="contain" />
             <View style={{ flex: 1, gap: 4 }}>
@@ -74,7 +99,7 @@ export default function SettingsModal({ visible, onClose }: { visible: boolean; 
                 </TouchableOpacity>
               </View>}
               {!!nicknameMessage && <Text accessibilityLiveRegion="polite" style={styles.meta}>{nicknameMessage}</Text>}
-              {!!s.userEmail && !guest && <Text numberOfLines={1} style={styles.meta}>{s.userEmail}</Text>}
+              {!!s.userEmail && !guest && <Text style={[styles.meta, { flexShrink: 1 }]}>{s.userEmail}</Text>}
               <Text style={styles.meta}>{t(s.role === 'parent' ? 'settings_parent' : 'settings_child')} · 🪙 {s.coins.toLocaleString(i18n.language)}</Text>
             </View>
           </View>
@@ -109,10 +134,14 @@ export default function SettingsModal({ visible, onClose }: { visible: boolean; 
             <TouchableOpacity disabled={busy} accessibilityRole="button" style={styles.row} onPress={leave}>
               <LogOut size={24} color="#aab8cf" /><Text style={styles.rowText}>{t(guest ? 'settings_leave_guest' : 'settings_logout')}</Text>
             </TouchableOpacity>
+            {!guest && <TouchableOpacity disabled={busy} accessibilityRole="button" style={styles.row} onPress={() => { setDeletionError(''); setDeleting(true); }}>
+              <Trash2 size={22} color="#ff8585" /><Text style={[styles.rowText, { color: '#ff8585' }]}>{t('account_delete')}</Text>
+            </TouchableOpacity>}
             {guest && <TouchableOpacity disabled={busy} accessibilityRole="button" style={styles.row} onPress={() => confirmAction(t('settings_reset_confirm'), resetGuest)}>
               <RotateCcw size={22} color="#aab8cf" /><Text style={styles.meta}>{t('settings_reset_guest')}</Text>
             </TouchableOpacity>}
           </View>
+          </>}
         </ScrollView>
       </View>
     </View>

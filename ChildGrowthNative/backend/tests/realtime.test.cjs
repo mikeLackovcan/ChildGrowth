@@ -1,0 +1,47 @@
+const assert = require('node:assert/strict');
+const { test, after } = require('node:test');
+const fs = require('node:fs'), path = require('node:path');
+const backendRequire = require('node:module').createRequire(path.resolve(__dirname, '../functions/package.json'));
+const { initializeTestEnvironment } = backendRequire('@firebase/rules-unit-testing');
+const { doc, onSnapshot, query, collection, where } = backendRequire('firebase/firestore');
+const { db, linkId } = require('../functions/lib/backend/functions/src/core');
+const { applyProgress, progressDay } = require('../functions/lib/backend/functions/src/progress');
+if (!process.env.FIRESTORE_EMULATOR_HOST || process.env.GCLOUD_PROJECT !== 'demo-questblox') throw Error('Use emulator');
+let env; const stops = [];
+after(async()=>{stops.forEach(stop=>stop()); if(env) await env.cleanup(); await db.terminate();});
+function watch(ref) {
+  const values=[]; const waiters=[];
+  stops.push(onSnapshot(ref, snapshot=>{const value=snapshot.docs ? snapshot.docs.map(d=>d.data()) : snapshot.data();values.push(value);for(const waiter of [...waiters]) if(waiter.match(value)){clearTimeout(waiter.timer);waiters.splice(waiters.indexOf(waiter),1);waiter.resolve(value);}},error=>{for(const w of waiters)w.reject(error);}));
+  return match=>{const value=values.at(-1);if(value && match(value))return Promise.resolve(value);return new Promise((resolve,reject)=>{const w={match,resolve,reject,timer:setTimeout(()=>reject(Error('Snapshot not received within 5 seconds')),5000)};waiters.push(w);});};
+}
+test('two authenticated listeners receive acceptance, quests and the full reward lifecycle without polling',async()=>{
+  const [host,port]=process.env.FIRESTORE_EMULATOR_HOST.split(':');
+  env=await initializeTestEnvironment({projectId:'demo-questblox',firestore:{host,port:Number(port),rules:fs.readFileSync(path.resolve(__dirname,'../firestore.rules'),'utf8')}});
+  const parent='live-parent',child='live-child',day=progressDay(Date.now(),'UTC');
+  await Promise.all([db.doc(`profiles/${parent}`).set({role:'parent',nickname:'liveparent'}),db.doc(`profiles/${child}`).set({role:'child',nickname:'livechild',coins:0,xp:0,level:1}),db.doc(`user_data/${child}`).set({tasks:[],prizes:[],won_prizes:[],lastActiveDate:day}),db.doc(`familyLinks/${linkId(parent,child)}`).set({parentUid:parent,childUid:child,participants:[parent,child],status:'pending'})]);
+  const p=env.authenticatedContext(parent).firestore(),c=env.authenticatedContext(child).firestore();
+  const pLinks=watch(query(collection(p,'familyLinks'),where('participants','array-contains',parent)));
+  const cLinks=watch(query(collection(c,'familyLinks'),where('participants','array-contains',child)));
+  await Promise.all([pLinks(v=>v?.[0]?.status==='pending'),cLinks(v=>v?.[0]?.status==='pending')]);
+  await db.doc(`familyAccess/${child}/parents/${parent}`).set({accepted:true});
+  await db.doc(`familyLinks/${linkId(parent,child)}`).update({status:'accepted'});
+  await Promise.all([pLinks(v=>v?.[0]?.status==='accepted'),cLinks(v=>v?.[0]?.status==='accepted')]);
+  const parentSees=watch(doc(p,'user_data',child)),childSees=watch(doc(c,'user_data',child));
+  await Promise.all([parentSees(v=>v?.tasks?.length===0),childSees(v=>v?.tasks?.length===0)]);
+  let seq=0;const op=(uid,action,payload={})=>applyProgress.run({auth:{uid},data:{action,payload,targetUid:child,day,timeZone:'UTC',requestId:`live-${++seq}`}});
+  const start=Date.now();
+  await op(parent,'task.create',{id:'live-quest',name:'Read together',freq:'once',scheduledDate:day,diff:'easy'});
+  await childSees(v=>v?.tasks?.some(t=>t.name==='Read together'));
+  await op(parent,'prizes.configure',{prizes:['Ice cream together 🍦','Choose a movie 🎬']});
+  await childSees(v=>v?.prizes?.[0]==='Ice cream together 🍦');
+  await op(parent,'task.complete',{id:'live-quest'});
+  await childSees(v=>v?.tasks?.[0]?.done);
+  await op(child,'epic.claim');
+  const spin=await op(child,'prize.spin');const id=spin.result.id;
+  await parentSees(v=>v?.won_prizes?.some(p=>p.id===id));
+  await op(child,'prize.request',{id});await parentSees(v=>v?.won_prizes?.[0]?.status==='requested');
+  await op(parent,'prize.approve',{id});await childSees(v=>v?.won_prizes?.[0]?.status==='approved');
+  await op(parent,'prize.redeem',{id,redeemed:true});await childSees(v=>v?.won_prizes?.[0]?.redeemed);
+  await op(parent,'prize.redeem',{id,redeemed:false});await childSees(v=>v?.won_prizes?.[0]?.status==='approved'&&!v.won_prizes[0].redeemed);
+  console.log(`Listener lifecycle completed in ${Date.now()-start} ms without refresh/polling`);
+});

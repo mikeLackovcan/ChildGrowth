@@ -1,3 +1,5 @@
+import QuestSchedule, { Schedule } from '../components/questblox/QuestSchedule';
+import { localDay, tasksForDay } from '../utils/questDay';
 import RoutinePicker from '../components/questblox/RoutinePicker';
 import QuestAlertChoice from '../components/questblox/QuestAlertChoice';
 import TaskMicrophone from '../components/questblox/TaskMicrophone';
@@ -77,7 +79,8 @@ export default function ManageTasksScreen() {
   const [showOptions, setShowOptions] = useState(false);
   const [created, setCreated] = useState(false);
   const [createdQuest, setCreatedQuest] = useState<{ name: string; icon: string } | null>(null);
-  const [selectedFreq, setSelectedFreq] = useState<Task['freq']>('daily');
+  const [schedule, setSchedule] = useState<Schedule>({ freq: 'once', scheduledDate: localDay() });
+  const [editingSchedule, setEditingSchedule] = useState<Schedule>({ freq: 'daily' });
   const [selectedIcon, setSelectedIcon] = useState<string>('🪥');
   const [editingRevision, setEditingRevision] = useState<string | number>(0);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -110,7 +113,7 @@ export default function ManageTasksScreen() {
       reminderTime, reminderMode,
       name: newTaskName.trim(),
       diff: 'med',
-      freq: selectedFreq,
+      ...schedule,
       mystery: false,
       icon: selectedIcon,
       requiresApproval: requiresApproval,
@@ -133,6 +136,8 @@ export default function ManageTasksScreen() {
     setEditingReminderTime(tasks.find(task => task.id === id)?.reminderTime || '');
     setEditingRevision(tasks.find(task => task.id === id)?.revision ?? 0);
     setEditingDurationMinutes(tasks.find(task => task.id === id)?.durationMinutes || 0);
+    const task = tasks.find(task => task.id === id)!;
+    setEditingSchedule({ freq: task.freq, scheduledDate: task.scheduledDate, repeatDays: task.repeatDays });
     setEditingTaskId(id);
     setEditingTaskName(currentName);
   };
@@ -141,7 +146,7 @@ export default function ManageTasksScreen() {
     if (editingReminderTime && !validReminderTime(editingReminderTime)) { setReminderError(t('reminder_time_error')); return; }
     setReminderError('');
     if (editingTaskId && editingTaskName.trim().length > 0) {
-      if (!updateTask(editingTaskId, { name: editingTaskName.trim(), reminderTime: editingReminderTime, reminderMode: editingReminderMode, durationMinutes: editingDurationMinutes }, editingRevision)) {
+      if (!updateTask(editingTaskId, { ...editingSchedule, name: editingTaskName.trim(), reminderTime: editingReminderTime, reminderMode: editingReminderMode, durationMinutes: editingDurationMinutes }, editingRevision)) {
         showMessage(t('quest_edit_changed')); return;
       }
     }
@@ -151,7 +156,7 @@ export default function ManageTasksScreen() {
 
   const getFreqLabel = (freq: Task['freq']) => {
     const found = FREQUENCY_OPTIONS.find((f) => f.id === freq);
-    return found ? t(found.key) : t('freq_daily');
+    return freq === 'once' ? t('schedule_once') : freq === 'custom' ? t('schedule_repeat') : found ? t(found.key) : t('freq_daily');
   };
 
   return (
@@ -219,26 +224,11 @@ export default function ManageTasksScreen() {
             </View>}
 
             <Text accessibilityRole="header" style={styles.stepTitle}>{t('quest_choose_when')}</Text>
+            <QuestSchedule value={schedule} onChange={setSchedule} />
             <Text style={styles.labelSub}>🔔 {t('quest_reminder_optional')}</Text>
             <TimeWheel label={t('quest_reminder_optional')} value={reminderTime} onChange={setReminderTime} optional />
             <QuestAlertChoice value={reminderMode} onChange={setReminderMode} />
-            <Text style={styles.labelSub}>{t('repeat_schedule_on')}</Text>
-            <View accessibilityRole="radiogroup" accessibilityLabel={t('repeat_schedule_on')} style={styles.scheduleGrid}>
-              {FREQUENCY_OPTIONS.map((option) => (
-                <TouchableOpacity
-                  key={option.id} accessibilityRole="radio" accessibilityState={{ checked: selectedFreq === option.id }} aria-checked={selectedFreq === option.id}
-                  style={[
-                    styles.freqPill,
-                    selectedFreq === option.id && styles.freqPillActive
-                  ]}
-                  onPress={() => setSelectedFreq(option.id)}
-                >
-                  <Text style={[styles.freqPillText, selectedFreq === option.id && styles.freqPillTextActive]}>
-                    {t(option.key)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+
 
             <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: showOptions }} onPress={() => setShowOptions(!showOptions)} style={styles.optionsButton}><Text style={styles.habitLabel}>{t('quest_more_options')}</Text><ChevronDown color={Colors.amber} size={24} style={{ transform: [{ rotate: showOptions ? '180deg' : '0deg' }] }} /></TouchableOpacity>
             {showOptions && <View>
@@ -362,6 +352,7 @@ export default function ManageTasksScreen() {
               <View key={task.id} style={styles.taskCard}>
                 {editingTaskId === task.id ? (
                   <View style={[styles.editRow, { flexWrap: 'wrap' }]}>
+                    <QuestSchedule value={editingSchedule} onChange={setEditingSchedule} />
                     <View style={{ width: '100%' }}><TimeWheel label={t('quest_reminder_optional')} value={editingReminderTime} onChange={setEditingReminderTime} optional /><QuestAlertChoice value={editingReminderMode} onChange={setEditingReminderMode} /></View>
                     <View accessibilityRole="radiogroup" accessibilityLabel={t('quest_timer_optional')} style={[styles.scheduleGrid, { width: '100%' }]}>
                       {QUEST_DURATION_OPTIONS.map(minutes => <TouchableOpacity key={minutes} accessibilityRole="radio"
@@ -391,7 +382,7 @@ export default function ManageTasksScreen() {
                       accessibilityRole="button" accessibilityLabel={t(task.done ? 'quest_toggle_undo' : 'quest_toggle_done', { name: t(task.name, task.name) })}
                       style={[styles.statusToggleBtn, task.done && styles.statusToggleBtnDone]}
                       onPress={() => void handleTaskToggle(task)}
-                      disabled={syncingTaskId !== null}
+                      disabled={syncingTaskId !== null || !tasksForDay([task]).length}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       {syncingTaskId === task.id ? (

@@ -354,8 +354,8 @@ export const useAppStore: UseBoundStore<StoreApi<AppState>> = create<AppState>((
     if (expectedRevision !== undefined && expectedRevision !== (task.revision ?? 0)) return false;
     const revision = `edit-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
     if (get().role !== 'parent') {
-      const { name, shortName, icon, reminderTime, reminderMode } = updates;
-      updates = Object.fromEntries(Object.entries({ name, shortName, icon, reminderTime, reminderMode }).filter(([, value]) => value !== undefined));
+      const { name, shortName, icon, reminderTime, reminderMode, durationMinutes, freq, scheduledDate, repeatDays } = updates;
+      updates = Object.fromEntries(Object.entries({ name, shortName, icon, reminderTime, reminderMode, durationMinutes, freq, scheduledDate, repeatDays }).filter(([, value]) => value !== undefined));
     }
     if (!recordProgress('task.update', { id, changes: updates, nextRevision: revision, expectedRevision: task.revision ?? 0 })) return false;
     set((state) => ({

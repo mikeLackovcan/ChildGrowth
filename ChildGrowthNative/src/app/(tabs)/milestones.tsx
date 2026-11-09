@@ -13,8 +13,7 @@ export default function RewardsScreen() {
   const s = useAppStore();
   const [spinPool, setSpinPool] = useState<string[] | null>(null);
   const storedPool = s.prizes.filter(p => p.trim());
-  const suggestedPool = storedPool.length > 0 && storedPool.length < DEFAULT_PRIZES.length ? Array.from(new Set([...storedPool, ...DEFAULT_PRIZES])) : storedPool;
-  const pool = spinPool || suggestedPool;
+  const pool = spinPool || storedPool;
   const spinningRef = useRef(false);
   const [spinError, setSpinError] = useState(false);
   const rotation = useRef(new Animated.Value(0)).current;
@@ -24,6 +23,7 @@ export default function RewardsScreen() {
   const [editing, setEditing] = useState(false);
   const [collection, setCollection] = useState<'saved' | 'requested' | 'given'>('saved');
   const [draft, setDraft] = useState('');
+  const [draftNames, setDraftNames] = useState<Record<number, string>>({});
   const [newPrizeName, setNewPrizeName] = useState('');
   const [newPrizeIcon, setNewPrizeIcon] = useState(PRIZE_ICONS[0]);
   const [presentingPrize, setPresentingPrize] = useState<WonPrize | null>(null);
@@ -40,10 +40,11 @@ export default function RewardsScreen() {
     const current = draftPrizes[index] || '';
     const icon = prizeEmoji(current);
     const next = [...draftPrizes];
-    next[index] = name.trim() ? `${name.trim()} ${icon}` : icon;
+    setDraftNames(current => ({ ...current, [index]: name }));
+    next[index] = `${name} ${icon}`;
     setDraft(next.join('\n'));
   };
-  const removeDraftPrize = (index: number) => setDraft(draftPrizes.filter((_, prizeIndex) => prizeIndex !== index).join('\n'));
+  const removeDraftPrize = (index: number) => { setDraft(draftPrizes.map((prize, i) => `${draftNames[i] ?? prizeLabel(prize)} ${prizeEmoji(prize)}`).filter((_, i) => i !== index).join('\n')); setDraftNames({}); };
   const addDraftPrize = () => {
     const name = newPrizeName.trim();
     if (!name) return;
@@ -55,7 +56,7 @@ export default function RewardsScreen() {
     spinningRef.current = true; setSpinning(true); setSpinError(false); setResult(null);
     const prize = await s.spinPrize();
     if (!prize) { setSpinning(false); spinningRef.current = false; setSpinError(true); return; }
-    const drawPool = pool;
+    const drawPool = prize.pool?.length ? prize.pool : pool;
     setSpinPool(drawPool);
     const index = drawPool.indexOf(prize.prize);
     if (index < 0) { setResult(prize); setSpinning(false); spinningRef.current = false; return; }
@@ -75,10 +76,10 @@ export default function RewardsScreen() {
       {!hasSpun && <Button label={spinning ? t('wheel_spinning') : t('wheel_spin')} disabled={!eligible || spinning || !pool.length} onPress={spin} />}
       {spinError && <Text accessibilityLiveRegion="polite" style={ui.text}>{t('reward_connect_retry')}</Text>}
       <Text style={ui.meta}>{pool.length ? t('wheel_equal') : t('wheel_empty')}</Text>
-      {pool.map((prize, index) => <View key={`${index}-${prize}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 }}><Text accessibilityLabel={prize} style={{ fontSize: 32 }}>{prizeEmoji(prize)}</Text><Text style={[ui.text, { flex: 1 }]}>{index + 1} · {prizeLabel(prize)}</Text></View>)}
+      {pool.map((prize, index) => <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 }}><Text accessibilityLabel={prize} style={{ fontSize: 32 }}>{prizeEmoji(prize)}</Text><Text style={[ui.text, { flex: 1 }]}>{index + 1} · {prizeLabel(prize)}</Text></View>)}
     </View>
     {(s.role === 'parent' || !s.linkedParents.length) && <>
-      <Button secondary disabled={spinning} label={editing ? t('action_cancel') : t('wheel_edit')} onPress={() => { setDraft(s.prizes.join('\n')); setEditing(!editing); setSpinPool(null); }} />
+      <Button secondary disabled={spinning} label={editing ? t('action_cancel') : t('wheel_edit')} onPress={() => { setDraftNames({}); setDraft(s.prizes.join('\n')); setEditing(!editing); setSpinPool(null); }} />
       {editing && <View style={{ gap: 12 }}>
         <Text style={ui.meta}>{t('prize_choose_icon')}</Text>
         <View accessibilityRole="radiogroup" accessibilityLabel={t('prize_choose_icon')} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -88,8 +89,8 @@ export default function RewardsScreen() {
           <TextInput accessibilityLabel={t('prize_name')} placeholder={t('prize_name')} placeholderTextColor={palette.muted} value={newPrizeName} onChangeText={setNewPrizeName} style={[ui.text, { flex: 1, minHeight: 48, borderBottomColor: palette.line, borderBottomWidth: 1, paddingHorizontal: 10 }]} />
           <Pressable accessibilityRole="button" accessibilityLabel={t('prize_add')} disabled={!newPrizeName.trim()} onPress={addDraftPrize} style={{ minHeight: 52, borderRadius: 14, paddingHorizontal: 12, backgroundColor: newPrizeName.trim() ? palette.gold : palette.line, alignItems: 'center', justifyContent: 'center', gap: 1 }}><Text style={{ fontSize: 22 }}>➕</Text><Text style={[ui.meta, { color: palette.bg }]}>{t('prize_add')}</Text></Pressable>
         </View>
-        <View style={{ gap: 8 }}>{draftPrizes.map((prize, index) => <View key={`${index}-${prize}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={{ fontSize: 30 }}>{prizeEmoji(prize)}</Text><TextInput accessibilityLabel={`${t('prize_name')} ${index + 1}`} value={prizeLabel(prize)} onChangeText={name => updateDraftPrize(index, name)} style={[ui.text, { flex: 1, minHeight: 44, borderBottomColor: palette.line, borderBottomWidth: 1, paddingHorizontal: 8 }]} /><Pressable accessibilityRole="button" accessibilityLabel={t('prize_remove')} onPress={() => removeDraftPrize(index)} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22, color: palette.muted }}>✕</Text></Pressable></View>)}</View>
-        <Button label={t('action_save')} disabled={spinning || !draftPrizes.length} onPress={() => { s.setPrizes([...new Set(draftPrizes)]); setEditing(false); }} />
+        <View style={{ gap: 8 }}>{draftPrizes.map((prize, index) => <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={{ fontSize: 30 }}>{prizeEmoji(prize)}</Text><TextInput accessibilityLabel={`${t('prize_name')} ${index + 1}`} value={draftNames[index] ?? prizeLabel(prize)} onChangeText={name => updateDraftPrize(index, name)} style={[ui.text, { flex: 1, minHeight: 44, borderBottomColor: palette.line, borderBottomWidth: 1, paddingHorizontal: 8 }]} /><Pressable accessibilityRole="button" accessibilityLabel={t('prize_remove')} onPress={() => removeDraftPrize(index)} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22, color: palette.muted }}>✕</Text></Pressable></View>)}</View>
+        <Button label={t('action_save')} disabled={spinning || !draftPrizes.length} onPress={() => { s.setPrizes([...new Set(draftPrizes.map((prize, i) => `${(draftNames[i] ?? prizeLabel(prize)).trim()} ${prizeEmoji(prize)}`.trim()))]); setDraftNames({}); setEditing(false); }} />
       </View>}
     </>}
     <View style={{ gap: 16 }}><Text style={ui.heading}>{t('wheel_prizes')}</Text>

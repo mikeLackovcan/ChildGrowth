@@ -1,3 +1,5 @@
+import { saveChildDisplayName } from '../lib/familyAccounts';
+import SettingsModal from '../components/SettingsModal';
 import FamilyChallenge from '../components/questblox/FamilyChallenge';
 import SyncActivity from '../components/questblox/SyncActivity';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,6 +30,10 @@ export default function ParentDashboardScreen() {
 }
 function ParentDashboard() {
   const { t, i18n } = useTranslation();
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const logout = useAppStore((state) => state.logout);
 
   const handleLogout = async () => {
@@ -60,15 +66,26 @@ function ParentDashboard() {
   const epicBossXP = useAppStore((state) => state.epicBossXP);
   const setEpicBossTask = useAppStore((state) => state.setEpicBossTask);
 
+  const prizeDirty = useRef(false);
+  const [savingPrizes, setSavingPrizes] = useState(false);
   const [editingPrizes, setEditingPrizes] = useState(() => Array.from({ length: DEFAULT_PRIZES.length }, (_, i) => prizes[i] || ''));
+  const [prizeDrafts, setPrizeDrafts] = useState(() => Array.from({ length: DEFAULT_PRIZES.length }, (_, i) => prizeLabel(prizes[i] || '')));
   const [choosingPrizeIcon, setChoosingPrizeIcon] = useState<number | null>(null);
   const page = useRef<any>(null);
 
   // A reward draft belongs to one child; never carry it into a sibling's form.
   React.useEffect(() => {
+    prizeDirty.current = false;
     const currentPrizes = useAppStore.getState().prizes;
     setEditingPrizes(Array.from({ length: DEFAULT_PRIZES.length }, (_, i) => currentPrizes[i] || ''));
+    setPrizeDrafts(Array.from({ length: DEFAULT_PRIZES.length }, (_, i) => prizeLabel(currentPrizes[i] || '')));
+    setNameDraft(null); setNameError(false);
   }, [selectedChildId]);
+  React.useEffect(() => {
+    if (prizeDirty.current) return;
+    setEditingPrizes(Array.from({ length: DEFAULT_PRIZES.length }, (_, i) => prizes[i] || ''));
+    setPrizeDrafts(Array.from({ length: DEFAULT_PRIZES.length }, (_, i) => prizeLabel(prizes[i] || '')));
+  }, [prizes]);
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [syncingTaskId, setSyncingTaskId] = useState<string | null>(null);
   const [parentTab, setParentTab] = useState<'overview' | 'quests' | 'rewards' | 'family'>('overview');
@@ -110,15 +127,6 @@ function ParentDashboard() {
     }
   }, [userEmail]);
 
-  React.useEffect(() => {
-    let refreshing = false;
-    const interval = setInterval(async () => {
-      if (refreshing) return;
-      refreshing = true;
-      try { await useAppStore.getState().loadMockState(); } finally { refreshing = false; }
-    }, 10000);
-    return () => clearInterval(interval);
-  }, []);
 
   React.useEffect(() => {
     if (activeChild) {
@@ -141,17 +149,23 @@ function ParentDashboard() {
 
 
 
-  const handleSavePrizes = () => {
-    setPrizes(editingPrizes);
-    showMessage(t('save_prizes'));
+  const handleSavePrizes = async () => {
+    if (savingPrizes) return;
+    setSavingPrizes(true);
+    setPrizes(editingPrizes.map((prize, index) => `${prizeDrafts[index].trim()} ${prizeEmoji(prize)}`.trim()));
+    await useAppStore.getState().syncToServer();
+    const failed = !!useAppStore.getState().syncError;
+    if (!failed) prizeDirty.current = false;
+    setSavingPrizes(false);
+    showMessage(t(failed ? 'family_sync_retry' : 'family_rewards_saved'));
   };
 
   const updatePrize = (index: number, text: string) => {
-    const newPrizes = [...editingPrizes];
-    newPrizes[index] = text.trim() ? `${text} ${prizeEmoji(newPrizes[index])}` : prizeEmoji(newPrizes[index]);
-    setEditingPrizes(newPrizes);
+    prizeDirty.current = true;
+    setPrizeDrafts(current => current.map((value, i) => i === index ? text : value));
   };
   const updatePrizeIcon = (index: number, icon: string) => {
+    prizeDirty.current = true;
     const next = [...editingPrizes];
     next[index] = `${prizeLabel(next[index])} ${icon}`.trim();
     setEditingPrizes(next); setChoosingPrizeIcon(null);
@@ -159,6 +173,7 @@ function ParentDashboard() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <KeyboardAvoidingView style={styles.keyboardLayer} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView ref={page} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
         <SyncActivity />
@@ -166,7 +181,7 @@ function ParentDashboard() {
         {syncError && <Text style={{ color: Colors.amber }}>{t(syncError)}</Text>}
         {/* Header with Parent Name, Nickname and Administration Badge */}
         <View style={{ backgroundColor: '#131726', borderWidth: 1, borderColor: 'rgba(255, 184, 0, 0.25)', borderRadius: 20, padding: 18, marginBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ marginRight: 12 }}><QuestbloxIcon size={46} /></View>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('settings_title')} onPress={() => setSettingsOpen(true)} style={{ marginRight: 12, minWidth: 48, minHeight: 48, justifyContent: 'center' }}><QuestbloxIcon size={46} /></TouchableOpacity>
           <View style={{ gap: 4, flex: 1, minWidth: 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Shield size={18} color={Colors.amber} />
@@ -344,6 +359,24 @@ function ParentDashboard() {
               {/* Active Selected Child Overview Card */}
               {activeChild && (
                 <View style={[styles.card, { marginTop: 12, backgroundColor: Colors.surface2 }]}>
+                  <View style={{ gap: 8, marginBottom: 12 }}>
+                    {nameDraft === null ? <TouchableOpacity accessibilityRole="button" onPress={() => setNameDraft(childName(activeChild))} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: Colors.amber, fontFamily: 'Nunito_800ExtraBold', fontSize: 16 }}>✎ {t('family_edit_child_name')}</Text></TouchableOpacity> : <>
+                      <Text style={{ color: Colors.text }}>{t('family_child_name_label')}</Text>
+                      <TextInput accessibilityLabel={t('family_child_name_label')} value={nameDraft} onChangeText={setNameDraft} maxLength={40} style={styles.input} />
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                        <TouchableOpacity accessibilityRole="button" disabled={savingName || !nameDraft.trim()} style={[styles.saveButton, { flex: 1, minWidth: 100, opacity: savingName || !nameDraft.trim() ? 0.5 : 1 }]} onPress={async () => {
+                          const id = activeChild.id, account = useAppStore.getState().userId;
+                          setSavingName(true); setNameError(false);
+                          try { await saveChildDisplayName(id, nameDraft); if (useAppStore.getState().userId !== account) return;
+                            useAppStore.setState(state => ({ children: state.children.map(child => child.id === id ? { ...child, name: nameDraft.trim() } : child) }));
+                            setNameDraft(null); await useAppStore.getState().loadMockState();
+                          } catch { setNameError(true); } finally { setSavingName(false); }
+                        }}><Text style={styles.saveButtonText}>{t('quest_save_edit')}</Text></TouchableOpacity>
+                        <TouchableOpacity accessibilityRole="button" disabled={savingName} onPress={() => setNameDraft(null)} style={{ minHeight: 48, padding: 12 }}><Text style={{ color: Colors.text }}>{t('action_cancel')}</Text></TouchableOpacity>
+                      </View>
+                      {nameError && <Text accessibilityLiveRegion="polite" style={{ color: Colors.amber }}>{t('family_name_failed')}</Text>}
+                    </>}
+                  </View>
                   <View style={styles.childRow}>
                     <View style={styles.childInfo}>
                       <View style={[styles.avatar, { backgroundColor: Colors.surface }]}>
@@ -521,7 +554,7 @@ function ParentDashboard() {
                   return (
                     <TouchableOpacity 
                       key={itemKey} 
-                      style={[styles.questCheckRow, item.redeemed && styles.questCheckRowDone]}
+                      style={[styles.questCheckRow, { flexDirection: 'column', alignItems: 'stretch', gap: 10 }, item.redeemed && styles.questCheckRowDone]}
                       onPress={() => togglePrizeRedeemed(item.id || index)}
                       activeOpacity={0.8}
                     >
@@ -535,7 +568,7 @@ function ParentDashboard() {
                           </Text>
                         </View>
                       </View>
-                      <View style={styles.checkStatusPill}>
+                      <View style={{ alignSelf: 'flex-start', maxWidth: '100%' }}>
                         {item.redeemed ? (
                           <View style={styles.doneTag}>
                             <CheckCircle2 size={16} color={Colors.green} />
@@ -619,8 +652,8 @@ function ParentDashboard() {
                 <View key={index} style={{ gap: 8 }}><View style={styles.rewardRow}>
                 <TouchableOpacity accessibilityRole="button" accessibilityLabel={`${t('prize_choose_icon')} ${index + 1}`} onPress={() => setChoosingPrizeIcon(choosingPrizeIcon === index ? null : index)} style={styles.rewardIconButton}><Text style={styles.rewardIcon}>{prizeEmoji(prize)}</Text></TouchableOpacity>
                 <TextInput
-                  style={[styles.input, { flex: 1 }]}
-                  value={prizeLabel(prize)}
+                  style={[styles.input, { flex: 1, minWidth: 0 }]}
+                  value={prizeDrafts[index]}
                   onFocus={() => setChoosingPrizeIcon(index)}
                   onChangeText={(text) => updatePrize(index, text)}
                   placeholder={t('family_reward_number', { count: index + 1 })}
@@ -632,8 +665,8 @@ function ParentDashboard() {
               ))}
             </View>
 
-            <TouchableOpacity style={styles.saveButton} onPress={handleSavePrizes}>
-              <Text style={styles.saveButtonText}>{t('save_prizes')}</Text>
+            <TouchableOpacity accessibilityRole="button" disabled={savingPrizes} style={styles.saveButton} onPress={handleSavePrizes}>
+              <Text style={styles.saveButtonText}>{t(savingPrizes ? 'sync_working' : 'save_prizes')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -727,6 +760,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   secTitle: {
+    minWidth: 0,
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 14,
     lineHeight: 20,
@@ -894,6 +928,7 @@ const styles = StyleSheet.create({
     width: 32,
   },
   doneTag: {
+    maxWidth: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -905,11 +940,13 @@ const styles = StyleSheet.create({
     borderColor: Colors.green,
   },
   doneTagText: {
+    flexShrink: 1,
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 10,
     color: Colors.green,
   },
   pendingTag: {
+    maxWidth: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -921,6 +958,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border2,
   },
   pendingTagText: {
+    flexShrink: 1,
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 10,
     color: Colors.textMuted,

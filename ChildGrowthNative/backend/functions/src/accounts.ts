@@ -1,6 +1,6 @@
 import { progressDay } from './progress';
 import { validZone } from './pushPolicy';
-import { questOnDay } from '../../../src/utils/questDay';
+import { isTaskScheduled, questOnDay } from '../../../src/utils/questDay';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { randomBytes } from 'node:crypto';
 import { authenticated, db, digest, linkId, text } from './core';
@@ -21,7 +21,7 @@ const friendlyWords = {
 };
 
 function nicknameStem(fullName: unknown) {
-  if (typeof fullName !== 'string') return '';
+  if (typeof fullName !== 'string' || /^hero_/i.test(fullName) || isOldGeneratedNickname(fullName)) return '';
   return fullName.trim().split(/\s+/)[0].normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10);
 }
@@ -41,7 +41,7 @@ function isOldGeneratedNickname(nickname: unknown) {
 }
 
 export const initializeAccount = onCall(async request => {
-  const uid = authenticated(request);
+  const uid = await authenticated(request);
   const email = typeof request.auth?.token.email === 'string' ? request.auth.token.email.toLowerCase() : '';
   if (!email || request.auth?.token.firebase?.sign_in_provider === 'anonymous') throw new HttpsError('permission-denied', 'ACCOUNT_SIGN_IN_REQUIRED');
   const role = request.data?.role;
@@ -72,7 +72,7 @@ export const initializeAccount = onCall(async request => {
 });
 
 export const updateNickname = onCall(async request => {
-  const uid = authenticated(request);
+  const uid = await authenticated(request);
   const requested = request.data?.nickname;
   return db.runTransaction(async transaction => {
     const profileRef = db.doc(`profiles/${uid}`);
@@ -147,7 +147,7 @@ async function ensureChildConnectionCode(uid: string) {
 // A nickname may be used to find an already accepted family account, but never
 // to enumerate private profiles or read another family's email/progress.
 export const resolveFamilyAccount = onCall(async request => {
-  const uid = authenticated(request), tag = text(request.data?.tag, 254).toLowerCase().replace(/^@/, '');
+  const uid = await authenticated(request), tag = text(request.data?.tag, 254).toLowerCase().replace(/^@/, '');
   const matches = await db.collection('profiles').where(tag.includes('@') ? 'email' : 'nickname', '==', tag).limit(2).get();
   if (matches.size !== 1) throw new HttpsError('not-found', 'FAMILY_ACCOUNT_UNAVAILABLE');
   const otherId = matches.docs[0].id;
@@ -160,7 +160,7 @@ export const resolveFamilyAccount = onCall(async request => {
 });
 
 export const recoverLegacyProgress = onCall(async request => {
-  const uid = authenticated(request);
+  const uid = await authenticated(request);
   return db.runTransaction(async transaction => {
     const ref = db.doc(`user_data/${uid}`);
     const [profile, current] = await Promise.all([transaction.get(db.doc(`profiles/${uid}`)), transaction.get(ref)]);
@@ -189,7 +189,7 @@ export const recoverLegacyProgress = onCall(async request => {
 // Read-only projection: historical client-written summaries remain available as
 // recovery evidence, but cannot make an unverified family look connected.
 export const getFamilyStatus = onCall(async request => {
-  const uid = authenticated(request);
+  const uid = await authenticated(request);
   const [profileSnap, dataSnap, asParent, asChild] = await Promise.all([
     db.doc(`profiles/${uid}`).get(), db.doc(`user_data/${uid}`).get(),
     db.collection('familyLinks').where('parentUid', '==', uid).get(),
@@ -218,7 +218,7 @@ export const getFamilyStatus = onCall(async request => {
     // The child's invitation screen uses the same summary shape as the parent.
     const child = profile.role === 'parent' ? other : profile;
     children.push({ id: profile.role === 'parent' ? otherUid : uid,
-      name: child.full_name || child.nickname, nickname: child.nickname,
+      name: (profile.role === 'parent' && link.childDisplayName) || child.full_name || child.nickname, nickname: child.nickname,
       isApproved: accepted, initiatedBy: link.invitedBy === link.parentUid ? 'parent' : 'kid',
       linkedParents: [profile.role === 'parent' ? profile.nickname : other.nickname],
       level: accepted ? child.level || 1 : 1, xp: accepted ? child.xp || 0 : 0, coins: accepted ? child.coins || 0 : 0,
@@ -255,8 +255,7 @@ export function familyQuestCounts(childData: any, day: string) {
   const weekdayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][weekday];
   for (const raw of childData.tasks || []) {
     const task = questOnDay(raw, day);
-    const scheduled = task.postponedUntil ? task.postponedUntil <= day : task.isRolling || task.freq === 'daily' || task.freq === weekdayName ||
-      (task.freq === 'weekdays' && weekday > 0 && weekday < 6) || (task.freq === 'weekends' && (weekday === 0 || weekday === 6));
+    const scheduled = isTaskScheduled(task, day);
     if (!scheduled) continue;
     total++; if (task.done && !task.pendingApproval) done++;
   }

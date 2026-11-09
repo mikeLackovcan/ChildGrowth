@@ -64,7 +64,7 @@ export default function FightersScreen() {
         })}
       </ScrollView>
     </View>
-    <View style={[ui.card, { padding: 0 }]}><View style={{ height: 260, marginHorizontal: -20 }}><SceneArt source={fighterImage(fighter.id, s.fighterOutfits[fighter.id])} centered /></View><View style={{ paddingVertical: 14, gap: 12 }}><Text style={ui.label}>{equipped ? `✓ ${t('shop_active')}` : owned ? t('shop_owned') : `🪙 ${number(fighter.price)}`}</Text><Text style={ui.title}>{fighter.name}</Text>
+    <View style={[ui.card, { padding: 0 }]}><View style={{ height: 260 }}><SceneArt source={fighterImage(fighter.id, s.fighterOutfits[fighter.id])} centered /></View><View style={{ paddingVertical: 14, gap: 12 }}><Text style={ui.label}>{equipped ? `✓ ${t('shop_active')}` : owned ? t('shop_owned') : `🪙 ${number(fighter.price)}`}</Text><Text style={ui.title}>{fighter.name}</Text>
       <View style={{ gap: 4 }}><Text style={ui.heading}>{t(`shop_skill_${fighter.id}`)}</Text><Text style={ui.meta}>{t('shop_quest_power')} · {t(`shop_buff_${fighter.id}`)}</Text></View>
       {!equipped && <Button label={owned ? t('shop_use') : s.coins >= fighter.price ? t('shop_unlock', { price: number(fighter.price) }) : t('shop_more', { amount: number(fighter.price - s.coins) })} disabled={busy || equipped || (!owned && s.coins < fighter.price)} onPress={() => {
         void purchase(() => owned ? s.setCurrentAvatar(fighter.id) : s.buyAvatar(fighter.id), fighter.id);

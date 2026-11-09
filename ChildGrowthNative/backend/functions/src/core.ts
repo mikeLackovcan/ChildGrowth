@@ -6,8 +6,11 @@ if (!getApps().length) initializeApp();
 export const db = getFirestore();
 export const now = () => Timestamp.now();
 export const digest = (value: string) => createHash('sha256').update(value).digest('hex');
-export function authenticated(request: { auth?: { uid: string } }) {
+export async function authenticated(request: { auth?: { uid: string } }) {
   if (!request.auth) throw new HttpsError('unauthenticated', 'AUTH_REQUIRED');
+  if ((await db.doc(`deletedAccountTokens/${digest(request.auth.uid)}`).get()).exists) {
+    throw new HttpsError('unauthenticated', 'AUTH_REQUIRED');
+  }
   return request.auth.uid;
 }
 export function text(value: unknown, max = 128): string {

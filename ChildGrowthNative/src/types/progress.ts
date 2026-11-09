@@ -8,7 +8,9 @@ export interface Task {
   ownerRole?: 'child' | 'parent';
   helpRequested?: boolean;
   diff: 'easy' | 'med' | 'hard';
-  freq: 'daily' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday' | 'weekdays' | 'weekends';
+  scheduledDate?: string; // One-time local calendar day (YYYY-MM-DD).
+  repeatDays?: number[]; // Custom weekdays, Sunday=0.
+  freq: 'once' | 'custom' | 'daily' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday' | 'weekdays' | 'weekends';
   mystery: boolean;
   done: boolean;
   completedAt?: number;

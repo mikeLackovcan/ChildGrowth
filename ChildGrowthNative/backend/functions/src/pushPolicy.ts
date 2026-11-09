@@ -11,6 +11,7 @@ export function familyChanges(before: any, after: any) {
   for (const task of after?.tasks || []) {
     if (typeof task.id !== 'string') continue;
     const old = oldTasks.get(task.id);
+    if (task.ownerRole === 'parent' && !old?.pendingApproval && (!old || (old.revision ?? 0) !== (task.revision ?? 0))) notices.push({ kind: 'quest_updated', taskId: task.id, toParent: false });
     if (task.pendingApproval === true && old?.pendingApproval !== true) notices.push({ kind: 'quest_review', taskId: task.id, toParent: true });
     if (task.helpRequested === true && old?.helpRequested !== true) notices.push({ kind: 'quest_help', taskId: task.id, toParent: true });
     // A review receipt distinguishes late approval from a legacy daily reset.
@@ -23,10 +24,12 @@ export function familyChanges(before: any, after: any) {
       }
     }
   }
+  if (before && JSON.stringify(before.prizes || []) !== JSON.stringify(after?.prizes || [])) notices.push({ kind: 'prizes_updated', toParent: false });
   const oldPrizes = new Map<string, any>((before?.won_prizes || []).map((prize: any) => [prize.id, prize]));
   for (const prize of after?.won_prizes || []) {
     if (typeof prize.id !== 'string') continue;
     const old = oldPrizes.get(prize.id);
+    if (prize.redeemed === true && old?.redeemed === false) notices.push({ kind: 'prize_delivered', prizeId: prize.id, toParent: false });
     if (prize.status === 'requested' && old?.status !== 'requested') notices.push({ kind: 'prize_review', prizeId: prize.id, toParent: true });
     if (prize.status === 'approved' && old?.status === 'requested') notices.push({ kind: 'prize_approved', prizeId: prize.id, toParent: false });
   }

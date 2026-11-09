@@ -7,6 +7,7 @@ export function localDay(date = new Date()): string {
 // A submitted quest belongs to the day it was completed. Keep that submission
 // until a parent reviews it, even across restarts and multiple midnights.
 export function questOnDay(task: Task, day: string): Task {
+  if (task.freq === 'once') return task.done || task.pendingApproval || !isTaskScheduled(task, day) ? task : { ...task, date: day };
   if (task.date >= day || task.pendingApproval) return task;
   return { ...task, date: day, done: false, pendingApproval: false,
     pendingReward: undefined, pendingSubmissionId: undefined, verificationNote: undefined, awardedReward: undefined,
@@ -22,17 +23,19 @@ export function reviewedQuest(task: Task, approved: boolean, reward: NonNullable
   return questOnDay(reviewed, day);
 }
 
+export function isTaskScheduled(task: Task, day: string): boolean {
+  const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
+  if (task.freq === 'once') return (task.postponedUntil || task.scheduledDate || task.date) === day;
+  if (task.postponedUntil) return task.postponedUntil <= day;
+  if (task.isRolling) return true;
+  if (task.freq === 'custom') return !!task.repeatDays?.includes(weekday);
+  return task.freq === 'daily' || task.freq === ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][weekday] ||
+    (task.freq === 'weekdays' && weekday > 0 && weekday < 6) ||
+    (task.freq === 'weekends' && (weekday === 0 || weekday === 6));
+}
+
 export function tasksForDay(tasks: Task[], date = new Date()): Task[] {
-  const day = localDay(date);
-  const weekday = date.getDay();
-  const names = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  return tasks.filter(task => {
-    if (task.postponedUntil) return task.postponedUntil <= day;
-    if (task.isRolling) return true;
-    return task.freq === 'daily' || task.freq === names[weekday] ||
-      (task.freq === 'weekdays' && weekday > 0 && weekday < 6) ||
-      (task.freq === 'weekends' && (weekday === 0 || weekday === 6));
-  });
+  return tasks.filter(task => isTaskScheduled(task, localDay(date)));
 }
 
 export function canSpin(tasks: Task[], epicDate: string | null, spinDate: string | null, date = new Date()): boolean {

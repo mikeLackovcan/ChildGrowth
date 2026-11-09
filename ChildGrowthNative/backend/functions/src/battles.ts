@@ -12,7 +12,7 @@ async function acceptedParents(uid: string) {
   return links.docs.map(doc => doc.data().parentUid as string);
 }
 export const listFamilyOpponents = onCall(async request => {
-  const uid = authenticated(request);
+  const uid = await authenticated(request);
   const parents = await acceptedParents(uid);
   const opponents = new Set<string>();
   for (const parent of parents) {
@@ -23,7 +23,7 @@ export const listFamilyOpponents = onCall(async request => {
   return profiles.filter(profile => profile.exists).map(profile => ({ uid: profile.id, nickname: profile.data()!.nickname, fighter: profile.data()!.current_avatar || 'roblox_noob' }));
 });
 export const createFamilyBattle = onCall(async request => {
-  const uid = authenticated(request), opponent = text(request.data?.opponentUid), fighter = text(request.data?.fighter);
+  const uid = await authenticated(request), opponent = text(request.data?.opponentUid), fighter = text(request.data?.fighter);
   const key = requestKey(request.data?.requestId), id = digest(`${uid}:${key}`);
   if (uid === opponent) throw new HttpsError('invalid-argument', 'SELF_BATTLE');
   const parents = await acceptedParents(uid), otherParents = await acceptedParents(opponent);
@@ -52,7 +52,7 @@ export const createFamilyBattle = onCall(async request => {
   return { id };
 });
 export const respondFamilyBattle = onCall(async request => {
-  const uid = authenticated(request), id = text(request.data?.battleId), decision = request.data?.accept;
+  const uid = await authenticated(request), id = text(request.data?.battleId), decision = request.data?.accept;
   if (typeof decision !== 'boolean') throw new HttpsError('invalid-argument', 'INVALID_INPUT');
   const fighter = decision ? text(request.data?.fighter) : 'roblox_noob';
   await db.runTransaction(async transaction => {
@@ -70,7 +70,7 @@ export const respondFamilyBattle = onCall(async request => {
   return { ok: true };
 });
 export const playFamilyBattleMove = onCall(async request => {
-  const uid = authenticated(request), id = text(request.data?.battleId), key = requestKey(request.data?.requestId);
+  const uid = await authenticated(request), id = text(request.data?.battleId), key = requestKey(request.data?.requestId);
   const move = request.data?.move as DuelMove, turn = request.data?.expectedTurn;
   if (!['attack', 'guard', 'skill'].includes(move) || !Number.isInteger(turn)) throw new HttpsError('invalid-argument', 'INVALID_MOVE');
   await db.runTransaction(async transaction => {
@@ -92,7 +92,7 @@ export const playFamilyBattleMove = onCall(async request => {
   return { ok: true };
 });
 export const leaveFamilyBattle = onCall(async request => {
-  const uid = authenticated(request), id = text(request.data?.battleId);
+  const uid = await authenticated(request), id = text(request.data?.battleId);
   await db.runTransaction(async transaction => {
     const ref = db.doc(`battles/${id}`), snapshot = await transaction.get(ref), battle = snapshot.data();
     if (!battle || !battle.participants.includes(uid)) throw new HttpsError('permission-denied', 'NOT_PARTICIPANT');

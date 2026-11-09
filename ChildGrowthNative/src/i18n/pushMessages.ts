@@ -2,6 +2,9 @@
 // quest descriptions, email addresses or reward details.
 export const pushMessages = {
   push_title: ['Questblox', 'Questblox', 'Questblox', 'Questblox'],
+  push_quest_updated: ['A quest from your parent is ready.', 'Úkol od rodiče je připraven.', 'Hay una misión de tu familia lista.', 'Eine Aufgabe von deinen Eltern ist bereit.'],
+  push_prizes_updated: ['Your rewards have been updated.', 'Tvé odměny se změnily.', 'Tus premios se han actualizado.', 'Deine Belohnungen wurden aktualisiert.'],
+  push_prize_delivered: ['Reward delivered. Enjoy!', 'Odměna předána. Užij si ji!', 'Premio entregado. ¡Disfrútalo!', 'Belohnung erhalten. Viel Spaß!'],
   push_quest_review: ['A quest is ready for your review.', 'Úkol čeká na tvoje schválení.', 'Hay una misión lista para revisar.', 'Eine Aufgabe wartet auf deine Bestätigung.'],
   push_quest_help: ['Your child asked for a little help.', 'Tvoje dítě požádalo o pomoc.', 'Tu peque ha pedido un poco de ayuda.', 'Dein Kind hat um Hilfe gebeten.'],
   push_quest_approved: ['Quest approved. Great effort!', 'Úkol schválen. Skvělá práce!', 'Misión aprobada. ¡Buen trabajo!', 'Aufgabe bestätigt. Gut gemacht!'],

@@ -1,3 +1,4 @@
+import FamilySyncController from '../components/FamilySyncController';
 import ReminderController from '../components/ReminderController';
 import { Stack } from 'expo-router';
 import { useEffect } from 'react';
@@ -52,6 +53,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
       </Stack>
       <ReminderController />
+      <FamilySyncController />
     </GestureHandlerRootView>
   );
 }

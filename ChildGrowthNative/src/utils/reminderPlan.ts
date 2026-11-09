@@ -11,7 +11,7 @@ export function reminderPlan(tasks: Task[], time: string, lastActiveDate: string
     const day = new Date(now); day.setDate(day.getDate() + offset);
     const grouped = new Map<number, string[]>();
     for (const task of tasksForDay(tasks, day)) {
-      if (task.pendingApproval || (offset === 0 && lastActiveDate === localDay(now) && task.done)) continue;
+      if ((task.freq === 'once' && task.done) || task.pendingApproval || (offset === 0 && lastActiveDate === localDay(now) && task.done)) continue;
       const clock = validReminderTime(task.reminderTime || '') ? task.reminderTime! : time;
       const [hour, minute] = clock.split(':').map(Number);
       const at = new Date(day); at.setHours(hour, minute, 0, 0);

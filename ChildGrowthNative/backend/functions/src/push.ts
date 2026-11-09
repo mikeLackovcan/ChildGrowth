@@ -8,7 +8,7 @@ import { familyChanges, retryAt, validZone } from './pushPolicy';
 
 const day = 86400000;
 export const registerPushDevice = onCall(async request => {
-  const uid = authenticated(request), token = text(request.data?.token, 200);
+  const uid = await authenticated(request), token = text(request.data?.token, 200);
   if (!/^(ExponentPushToken|ExpoPushToken)\[[A-Za-z0-9_-]+\]$/.test(token)) throw new HttpsError('invalid-argument', 'INVALID_PUSH_TOKEN');
   const language = request.data?.language, timeZone = request.data?.timeZone;
   if (!pushLanguages.includes(language) || !validZone(timeZone) || typeof request.data?.sound !== 'boolean' || (request.data?.enabled !== undefined && typeof request.data.enabled !== 'boolean')) throw new HttpsError('invalid-argument', 'INVALID_PREFERENCES');
@@ -22,7 +22,7 @@ export const registerPushDevice = onCall(async request => {
   return { id };
 });
 export const unregisterPushDevice = onCall(async request => {
-  const uid = authenticated(request), id = text(request.data?.id);
+  const uid = await authenticated(request), id = text(request.data?.id);
   await db.runTransaction(async transaction => {
     const ref = db.doc(`pushDevices/${id}`), device = await transaction.get(ref);
     if (device.data()?.uid === uid) transaction.update(ref, { enabled: false, updatedAt: Timestamp.now() });
@@ -104,6 +104,9 @@ async function stillRelevant(job: any) {
     const task = data?.tasks?.find((task: any) => task.id === job.data.taskId);
     const prize = data?.won_prizes?.find((prize: any) => prize.id === job.data.prizeId);
     switch (job.kind) {
+      case 'quest_updated': return !!task;
+      case 'prizes_updated': return !!data;
+      case 'prize_delivered': return prize?.redeemed === true;
       case 'quest_review': return task?.pendingApproval === true;
       case 'quest_help': return task?.helpRequested === true && !task.done;
       case 'quest_approved': return task?.done === true || (task?.lastReview?.approved === true && !task.pendingApproval);
@@ -184,7 +187,7 @@ export const retryPushDelivery = onSchedule({ schedule: 'every 5 minutes', timeo
 export async function cleanupPushRecords(time = Date.now()) {
   for (const [collection, field, cutoff] of [
     ['notificationOutbox', 'createdAt', time - 7 * day], ['pushJobs', 'createdAt', time - 7 * day],
-    ['pushEvents', 'expiresAt', time], ['pushLimits', 'expiresAt', time],
+    ['deletedAccountTokens', 'expiresAt', time], ['pushEvents', 'expiresAt', time], ['pushLimits', 'expiresAt', time],
     ['pushDevices', 'updatedAt', time - 30 * day],
   ] as const) {
     const expired = await db.collection(collection).where(field, '<=', Timestamp.fromMillis(cutoff)).limit(200).get();

@@ -5,7 +5,7 @@ import { authenticated, db, linkId, queueNotice, text } from './core';
 // Only this trusted endpoint creates accepted family memberships. Mirrored
 // profile summaries are for display; they never grant access to battles.
 export const manageFamily = onCall(async request => {
-  const uid = authenticated(request);
+  const uid = await authenticated(request);
   const action = request.data?.action;
   if (!['invite', 'accept', 'decline', 'unlink'].includes(action)) throw new HttpsError('invalid-argument', 'INVALID_ACTION');
   let otherId: string;
@@ -103,4 +103,21 @@ export const manageFamily = onCall(async request => {
     return status;
   });
   return { ok: true, status };
+});
+
+// A familiar display name belongs to this parent's relationship, not the
+// child's login identity or another parent's dashboard.
+export const setChildDisplayName = onCall(async request => {
+  const uid = await authenticated(request);
+  const childUid = text(request.data?.childUid, 128);
+  const name = typeof request.data?.name === 'string' ? request.data.name.trim() : '';
+  if (!name || name.length > 40 || /[\u0000-\u001f]/.test(name)) throw new HttpsError('invalid-argument', 'INVALID_CHILD_NAME');
+  await db.runTransaction(async transaction => {
+    const ref = db.doc(`familyLinks/${linkId(uid, childUid)}`);
+    const [profile, snapshot] = await Promise.all([transaction.get(db.doc(`profiles/${uid}`)), transaction.get(ref)]);
+    const link = snapshot.data();
+    if (profile.data()?.role !== 'parent' || link?.parentUid !== uid || link?.childUid !== childUid || link.status !== 'accepted') throw new HttpsError('permission-denied', 'FAMILY_REQUIRED');
+    transaction.update(ref, { childDisplayName: name, updatedAt: Timestamp.now() });
+  });
+  return { name };
 });

@@ -99,6 +99,7 @@ test('push registration, outbox, receipts and retries use real Firestore with a 
     await db.doc(`pushDevices/${deviceId}`).update({ timeZone: daytimeZone });
     await db.doc(`user_data/${child}`).set(before);
     await makeJob('push-stale');
+    calls = 0;
     await processPushJob('push-stale', async () => { calls++; });
     assert.equal(calls, 0); assert.equal((await get('pushJobs', 'push-stale')).status, 'cancelled');
     await db.doc(`user_data/${child}`).set(current);

@@ -1,0 +1,46 @@
+const assert = require('node:assert/strict');
+const { test, after } = require('node:test');
+if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST || process.env.GCLOUD_PROJECT !== 'demo-questblox') throw Error('Use only demo-questblox Auth and Firestore emulators');
+const { db, authenticated, digest, linkId } = require('../functions/lib/backend/functions/src/core');
+const backendRequire = require('node:module').createRequire(require('node:path').resolve(__dirname, '../functions/package.json'));
+const { getAuth } = backendRequire('firebase-admin/auth');
+const { requireDeletionConfirmation, requestAccountDeletion, eraseAccount } = require('../functions/lib/backend/functions/src/deletion');
+const { Timestamp } = backendRequire('firebase-admin/firestore');
+after(() => db.terminate());
+test('deletion requires explicit confirmation and recent authentication', () => {
+ assert.throws(()=>requireDeletionConfirmation(Date.now()/1000,false),/DELETE_CONFIRM_REQUIRED/);
+ assert.throws(()=>requireDeletionConfirmation(Date.now()/1000-301,true),/DELETE_RECENT_LOGIN_REQUIRED/);
+ assert.throws(()=>requireDeletionConfirmation(undefined,true),/DELETE_RECENT_LOGIN_REQUIRED/);
+ requireDeletionConfirmation(Date.now()/1000,true);
+});
+test('account erasure is scoped, revokes tokens, cleans copies and is safe to retry', async()=>{
+ const uid='deletion-child',parent='deletion-parent',nick='delete_me';
+ await getAuth().createUser({uid,email:'delete-me@example.test'});
+ await db.doc(`profiles/${uid}`).set({nickname:nick,role:'child'});
+ await db.doc(`profiles/${parent}`).set({nickname:'keep_parent',role:'parent'});
+ await db.doc(`user_data/${uid}`).set({tasks:[{id:'secret'}]});
+ await db.doc(`user_data/${parent}`).set({tasks:[{id:'keep'}],children:[{id:uid,nickname:nick,tasks:[{name:'secret'}]}],legacy_family_children:[{id:uid,nickname:nick}]});
+ const link=linkId(parent,uid);
+ await db.doc(`familyLinks/${link}`).set({parentUid:parent,childUid:uid,participants:[parent,uid]});
+ await db.doc(`familyAccess/${uid}/parents/${parent}`).set({accepted:true});
+ await db.doc(`nicknames/${nick}`).set({uid});
+ await db.doc('familyCodes/DELETE22').set({uid});
+ await db.doc('progressReceipts/deletion').set({actorUid:parent,targetUid:uid});
+ await db.doc('pushDevices/deletion').set({uid});
+ await db.doc('notificationOutbox/deletion').set({recipient:parent,data:{sourceChildId:uid}});
+ await db.doc(`user_data/usr_${nick}`).set({tasks:[{name:'legacy secret'}]});
+ await assert.rejects(requestAccountDeletion.run({data:{confirmed:true}}),/AUTH_REQUIRED/);
+ await requestAccountDeletion.run({auth:{uid,token:{auth_time:Date.now()/1000}},data:{confirmed:true,targetUid:parent}});
+ assert.equal((await db.doc(`accountDeletions/${parent}`).get()).exists,false);
+ await assert.rejects(authenticated({auth:{uid}}),/AUTH_REQUIRED/);
+ // The production delay drains old calls; no in-flight calls exist in this test.
+ await db.doc(`accountDeletions/${uid}`).update({stoppedAt:Timestamp.fromMillis(Date.now()-36000)});
+ await eraseAccount(uid);
+ await assert.rejects(getAuth().getUser(uid),error=>error.code==='auth/user-not-found');
+ for(const path of [`profiles/${uid}`,`user_data/${uid}`,`user_data/usr_${nick}`,`nicknames/${nick}`,'familyCodes/DELETE22','progressReceipts/deletion','pushDevices/deletion','notificationOutbox/deletion',`familyLinks/${link}`,`familyAccess/${uid}/parents/${parent}`,`accountDeletions/${uid}`]) assert.equal((await db.doc(path).get()).exists,false,path);
+ const preserved=(await db.doc(`user_data/${parent}`).get()).data();
+ assert.deepEqual(preserved.tasks,[{id:'keep'}]);assert.deepEqual(preserved.children,[]);assert.deepEqual(preserved.legacy_family_children,[]);
+ assert.equal((await db.doc(`profiles/${parent}`).get()).exists,true);
+ assert.equal((await db.doc(`deletedAccountTokens/${digest(uid)}`).get()).exists,true);
+ await eraseAccount(uid);
+});

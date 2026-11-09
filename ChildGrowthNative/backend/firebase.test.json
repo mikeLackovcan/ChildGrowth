@@ -1,4 +1,17 @@
 {
-  "firestore": { "rules": "tests/deny-all.rules" },
-  "emulators": { "firestore": { "port": 8085 }, "ui": { "enabled": false }, "singleProjectMode": true }
+  "firestore": {
+    "rules": "tests/deny-all.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8085
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true,
+    "auth": {
+      "port": 9099
+    }
+  }
 }

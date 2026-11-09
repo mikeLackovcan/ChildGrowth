@@ -28,3 +28,10 @@ export async function readFamilyStatus() {
   if (auth.currentUser?.uid !== uid) throw new Error('ACCOUNT_CHANGED');
   return { ...response.data, familyVerifiedUid: uid };
 }
+
+export async function saveChildDisplayName(childUid: string, name: string) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('AUTH_REQUIRED');
+  await httpsCallable(getFunctions(app, 'europe-west1'), 'setChildDisplayName')({ childUid, name });
+  if (auth.currentUser?.uid !== uid) throw new Error('ACCOUNT_CHANGED');
+}

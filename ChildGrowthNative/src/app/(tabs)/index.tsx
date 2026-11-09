@@ -94,7 +94,7 @@ export default function QuestsScreen() {
     setMessage(result ? t('quest_complete', { coins: result.coinGain }) : task.requiresApproval ? t('quest_waiting') : '');
   };
   return <Screen>
-    <View style={{ height: 160, marginHorizontal: -20, justifyContent: 'center', paddingHorizontal: 20 }}>
+    <View style={{ minHeight: 180, marginHorizontal: -20, justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 8 }}>
       <SceneArt source={fighterImage(currentFighter.id, s.fighterOutfits[currentFighter.id])} prominent />
       <View style={{ zIndex: 2, width: '48%', gap: 10 }}><Text style={ui.label}>{t('quest_today')}</Text><Text style={[ui.title, { fontSize: 30, lineHeight: 35 }]}>{epicDone ? t('quest_hero_ready') : t('quest_hero_intro')}</Text><Text style={ui.meta}>{t('quest_progress', { done: completed, total: tasks.length + 1 })}</Text></View>
     </View>
@@ -155,7 +155,7 @@ export default function QuestsScreen() {
                   <Text accessibilityLabel={t('quest_reward_amount', { coins: reward.coinGain, xp: reward.xpGain })} style={ui.meta}>🪙 {reward.coinGain}  ·  ✨ {reward.xpGain}</Text>}
               </View>
             </Pressable>
-            {!timed && !task.done && !task.pendingApproval && !expanded && <Pressable accessibilityRole="button" accessibilityLabel={t('quest_mark_done')} onPress={() => completeTask(task)} style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: palette.gold, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 26, color: palette.bg }}>✓</Text></Pressable>}
+            {!timed && !task.done && !task.pendingApproval && !expanded && <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: false }} accessibilityLabel={t('quest_mark_done')} onPress={() => completeTask(task)} style={({ pressed }) => ({ width: 48, height: 48, borderRadius: 24, borderWidth: 3, borderColor: palette.gold, backgroundColor: pressed ? palette.panel : 'transparent', alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? 0.94 : 1 }] })} />}
             {(expanded || detailsTask === task.id) && editingQuest !== task.id && canManageQuest(task, s.role, s.linkedParents) && <View style={{ width: 44, alignSelf: 'center' }}>
               <Pressable accessibilityRole="button" accessibilityLabel={t('quest_edit', { name: t(task.name, task.name) })}
                 onPress={() => { setQuestName(t(task.name, task.name)); setEditingRevision(task.revision ?? 0); setEditingQuest(task.id); }}
@@ -190,9 +190,9 @@ export default function QuestsScreen() {
             </View> : null}
 
             {expanded && editingQuest !== task.id && <>
-              {!timed ? <Button label={`✓ ${t('quest_mark_done')}`} onPress={() => completeTask(task)} /> : !task.startedAt ? <Button label={`▶ ${t('quest_start')} · ${t('quest_minutes', { count: task.durationMinutes })}`} onPress={() => { setMessage(''); s.startQuest(task.id); setTimerNow(Date.now()); }} /> : <>
+              {!timed ? <Button label={t('quest_mark_done')} onPress={() => completeTask(task)} /> : !task.startedAt ? <Button label={`▶ ${t('quest_start')} · ${t('quest_minutes', { count: task.durationMinutes })}`} onPress={() => { setMessage(''); s.startQuest(task.id); setTimerNow(Date.now()); }} /> : <>
                 <Text accessibilityLiveRegion="polite" style={[ui.heading, { color: remainingMs ? palette.gold : palette.green, textAlign: 'center' }]}>{remainingMs ? t('quest_timer_running', { time: questTimerText(remainingMs) }) : t('quest_timer_ready')}</Text>
-                <Button disabled={remainingMs > 0} label={`✓ ${t('quest_complete_action')}`} onPress={() => completeTask(task)} />
+                <Button disabled={remainingMs > 0} label={t('quest_complete_action')} onPress={() => completeTask(task)} />
               </>}
               {task.canPostpone && <Button secondary label={`${t('quest_later')} →`} onPress={() => { s.postponeTask(task.id); setSelectedTask(null); }} />}
             </>}
@@ -206,11 +206,11 @@ export default function QuestsScreen() {
           <View style={{ position: 'absolute', left: -34, top: 24, width: 22, height: 22, borderRadius: 11, backgroundColor: epicDone ? palette.green : palette.gold, alignItems: 'center', justifyContent: 'center' }}><Text>{epicDone ? '✓' : '★'}</Text></View>
           <FamilyChallenge />
           <Text style={ui.label}>{t('quest_epic')}</Text>
-          <View style={{ height: 170, marginRight: -20, justifyContent: 'flex-end' }}>
+          <View style={{ minHeight: 170, justifyContent: 'flex-end' }}>
             <SceneArt source={fighterFor('roblox_dragon').image} />
             <View style={{ width: '66%', gap: 8, paddingBottom: 12 }}><Text style={{ fontSize: 58, lineHeight: 68 }}>{s.epicBossTask === defaultEpicTask ? '🧠' : '⭐'}</Text><Text style={[ui.heading, epicDone && { color: palette.muted, textDecorationLine: 'line-through' }]}>{epicTaskName}</Text>{s.epicBossTask === defaultEpicTask && !epicDone && <Text style={ui.meta}>⏱ {t('quest_minutes', { count: 30 })}</Text>}{epicDone ? <View accessible accessibilityLabel={t('completed_stamp')} style={{ alignSelf: 'flex-start', borderWidth: 2, borderColor: palette.green, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, transform: [{ rotate: '-4deg' }] }}><Text style={[ui.label, { color: palette.green }]}>{t('completed_stamp')}</Text></View> : <Text style={ui.meta}>🪙 {epicReward.coinGain} · {epicReward.xpGain} XP</Text>}</View>
           </View>
-          {!epicDone && <Button disabled={!allDone} label={allDone ? (epicOpen || s.epicBossTask !== defaultEpicTask ? `✓ ${t('quest_mark_done')}` : `${t('quest_start')} →`) : `🔒 ${t('quest_first')}`} onPress={() => {
+          {!epicDone && <Button disabled={!allDone} label={allDone ? (epicOpen || s.epicBossTask !== defaultEpicTask ? t('quest_mark_done') : `${t('quest_start')} →`) : `🔒 ${t('quest_first')}`} onPress={() => {
             if (s.epicBossTask === defaultEpicTask && !epicOpen) { setEpicOpen(true); return; }
             const reward = s.claimEpicBoss();
             if (reward) setMessage(t('quest_spin_ready', { coins: reward.coinGain }));

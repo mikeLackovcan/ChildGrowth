@@ -5,7 +5,7 @@ const ts = require('../../node_modules/typescript');
 if (!process.env.FIRESTORE_EMULATOR_HOST || process.env.GCLOUD_PROJECT !== 'demo-questblox') throw Error('Use the demo-questblox emulator');
 const { db, linkId } = require('../functions/lib/backend/functions/src/core');
 const { applyProgress } = require('../functions/lib/backend/functions/src/progress');
-const { resolveFamilyAccount, getFamilyStatus } = require('../functions/lib/backend/functions/src/accounts');
+const { resolveFamilyAccount, getFamilyStatus, updateNickname } = require('../functions/lib/backend/functions/src/accounts');
 after(() => db.terminate());
 const memory = new Map(), modules = new Map(), calls = [];
 const auth = { currentUser: null, authStateReady: async () => {} };
@@ -32,7 +32,7 @@ function load(file) {
     };
     if (name === 'firebase/functions') return { getFunctions: () => ({}), httpsCallable: (_functions, endpoint) => async data => {
       if (offline) throw Error('offline');
-      const handler = { applyProgress, resolveFamilyAccount, getFamilyStatus }[endpoint];
+      const handler = { applyProgress, resolveFamilyAccount, getFamilyStatus, updateNickname }[endpoint];
       assert.ok(handler, `Unexpected callable ${endpoint}`);
       calls.push({ uid: auth.currentUser?.uid, endpoint, data });
       const result = await handler.run({ auth: auth.currentUser ? { uid: auth.currentUser.uid } : undefined, data });

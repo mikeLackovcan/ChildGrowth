@@ -7,7 +7,7 @@ import { validZone } from './pushPolicy';
 import { calculateQuestReward, AVATAR_SKILL_CONFIGS, getAvatarSkillConfig } from '../../../src/utils/avatarSkills';
 import { WORLD_THEMES, ThemeKey } from '../../../src/constants/theme';
 import type { Task, WonPrize } from '../../../src/types/progress';
-import { questOnDay, reviewedQuest } from '../../../src/utils/questDay';
+import { questOnDay, reviewedQuest, isTaskScheduled } from '../../../src/utils/questDay';
 
 const failure = (message: string): never => { throw new HttpsError('failed-precondition', message); };
 function boundedText(value: unknown, max: number, empty = false): string {
@@ -19,18 +19,22 @@ export function progressDay(time: number, timeZone: string) {
   const part = (name: string) => parts.find(item => item.type === name)!.value;
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
-const frequencies = ['daily', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'weekdays', 'weekends'];
-function scheduled(task: Task, day: string) {
-  const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
-  if (task.postponedUntil) return task.postponedUntil <= day;
-  return task.isRolling || task.freq === 'daily' || task.freq === frequencies[weekday === 0 ? 7 : weekday] ||
-    (task.freq === 'weekdays' && weekday > 0 && weekday < 6) || (task.freq === 'weekends' && (weekday === 0 || weekday === 6));
-}
+const frequencies = ['once', 'custom', 'daily', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'weekdays', 'weekends'];
+const scheduled = isTaskScheduled;
 function validateTask(input: any, parent: boolean, linked: boolean, day: string): Task {
   const task: Task = { id: text(input?.id, 80), name: boundedText(input?.name, 500),
     diff: input?.diff, freq: input?.freq, mystery: input?.mystery === true,
     revision: 0, done: false, date: day, ownerRole: parent ? 'parent' : 'child' };
   if (!['easy', 'med', 'hard'].includes(task.diff) || !frequencies.includes(task.freq)) return failure('INVALID_TASK');
+  if (task.freq === 'once') {
+    const value = input.scheduledDate;
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(`${value}T12:00:00Z`)) || new Date(`${value}T12:00:00Z`).toISOString().slice(0, 10) !== value) return failure('INVALID_TASK_DATE');
+    task.scheduledDate = value;
+  }
+  if (task.freq === 'custom') {
+    if (!Array.isArray(input.repeatDays) || !input.repeatDays.length || input.repeatDays.length > 7 || input.repeatDays.some((d: unknown) => !Number.isInteger(d) || Number(d) < 0 || Number(d) > 6)) return failure('INVALID_TASK_DAYS');
+    task.repeatDays = [...new Set<number>(input.repeatDays)].sort();
+  }
   if (input.shortName !== undefined) task.shortName = boundedText(input.shortName, 50, true);
   if (input.icon !== undefined) task.icon = boundedText(input.icon, 32, true);
   if (input.reminderMode !== undefined) {
@@ -176,11 +180,12 @@ export function progressTransition(profileInput: any, dataInput: any, action: st
       checkRevision(task);
       const changes = payload?.changes;
       if (!changes || typeof changes !== 'object' || Array.isArray(changes)) return failure('INVALID_TASK');
-      const fields = parent ? ['name', 'shortName', 'icon', 'reminderTime', 'reminderMode', 'durationMinutes', 'diff', 'freq', 'mystery', 'isRolling', 'canPostpone', 'requiresApproval'] : ['name', 'shortName', 'icon', 'reminderTime', 'reminderMode', 'durationMinutes'];
+      const fields = parent ? ['name', 'shortName', 'icon', 'reminderTime', 'reminderMode', 'durationMinutes', 'diff', 'freq', 'scheduledDate', 'repeatDays', 'mystery', 'isRolling', 'canPostpone', 'requiresApproval'] : ['name', 'shortName', 'icon', 'reminderTime', 'reminderMode', 'durationMinutes', 'freq', 'scheduledDate', 'repeatDays'];
       if (Object.keys(changes).some(key => !fields.includes(key))) return failure('INVALID_TASK_EDIT');
       const checked = validateTask({ ...task, ...changes }, parent, linked, day);
       for (const key of Object.keys(changes)) {
         if (key === 'durationMinutes' && !checked.durationMinutes) delete task.durationMinutes;
+        else if ((checked as any)[key] === undefined) delete (task as any)[key];
         else (task as any)[key] = (checked as any)[key];
       }
       // Unique tokens prevent a later offline edit from matching a different
@@ -327,7 +332,7 @@ export function progressTransition(profileInput: any, dataInput: any, action: st
 }
 
 export const applyProgress = onCall(async request => {
-  const uid = authenticated(request), targetUid = text(request.data?.targetUid), action = text(request.data?.action, 40);
+  const uid = await authenticated(request), targetUid = text(request.data?.targetUid), action = text(request.data?.action, 40);
   const key = requestKey(request.data?.requestId), timeZone = request.data?.timeZone;
   const operationDay = text(request.data?.day, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(operationDay)) throw new HttpsError('invalid-argument', 'INVALID_DAY');

@@ -17,23 +17,6 @@ export default function ReminderController() {
   const s = useAppStore();
   const reminders = useReminderStore();
   const nav = useRootNavigationState();
-  useEffect(() => {
-    if (!s.userId || s.userId === 'guest-local') return;
-    const uid = s.userId;
-    let busy = false, disposed = false;
-    const refresh = async () => {
-      if (busy || disposed || useAppStore.getState().userId !== uid) return;
-      busy = true;
-      try {
-        await useAppStore.getState().syncToServer();
-        if (!disposed && useAppStore.getState().userId === uid) await useAppStore.getState().loadMockState();
-      } finally { busy = false; }
-    };
-    void refresh();
-    const timer = setInterval(() => { void refresh(); }, 30000);
-    const listener = AppState.addEventListener('change', state => { if (state === 'active') void refresh(); });
-    return () => { disposed = true; clearInterval(timer); listener.remove(); };
-  }, [s.userId]);
   const signature = JSON.stringify([s.userEmail, s.role, s.tasks, s.isSick, s.lastActiveDate, s.language, reminders.accounts, reminders.hydrated]);
   useEffect(() => { void syncQuestReminders(); }, [signature]);
   useEffect(() => { void syncPush(); }, [s.userId, s.language, reminders.accounts, reminders.hydrated]);
