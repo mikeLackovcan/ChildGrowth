@@ -1,0 +1,257 @@
+{
+  "researchedOn": "2026-11-09",
+  "packageName": "com.questblox.app",
+  "status": "Prepared field plan, not a completed policy declaration or review submission.",
+  "consoleObserved": {
+    "applicationType": "App",
+    "categoryBefore": "Education",
+    "categoryNow": "Productivity — saved change awaiting submission for Google review",
+    "contactEmail": "mikeaegeri@gmail.com",
+    "websiteCurrently": "http://questblox-10c14.web.app",
+    "listingLanguages": [
+      "en-US"
+    ],
+    "listingPublishedDate": "2026-10-25",
+    "currentAssets": [
+      "app-icon-v2-512.png",
+      "QuestBlox-feature-graphic-1024x500.png",
+      "mobile-01-daily-quests.png",
+      "mobile-02-battle-arena.png",
+      "mobile-03-prizes-wheel.png",
+      "mobile-04-avatar-shop.png"
+    ],
+    "currentListingProblems": [
+      "Contains Roblox and old third-party character names despite prior removal request.",
+      "Claims child-development-specialist involvement without evidence found.",
+      "Promises specific 3D/boss/dancing-banana behavior not verified in the scoped release.",
+      "Claims guaranteed parenting outcomes and uses unsupported statistics."
+    ],
+    "accountBanner": "Declare trader status — requires the owner’s accurate business/trader details, not an inferred answer."
+  },
+  "positioning": {
+    "primary": "Visual family chore planner and habit tracker for children aged 6–12 and parents.",
+    "secondary": "Collectible characters, earned virtual coins, family-arranged rewards and fantasy battles motivate task completion.",
+    "keywordsForNaturalCopy": [
+      "kids chores",
+      "habit tracker",
+      "family tasks",
+      "daily routines",
+      "chore rewards"
+    ],
+    "avoid": [
+      "Trademark references or implied affiliation",
+      "Medical/ADHD treatment claims",
+      "Guaranteed behavior change",
+      "Unverified endorsements, rankings or user counts",
+      "Descriptions of features not present in the published build"
+    ],
+    "competitorObservations": [
+      {
+        "app": "Habitica",
+        "finding": "Combines productivity with RPG rewards; confirms a playful game layer can coexist with Productivity positioning.",
+        "url": "https://play.google.com/store/apps/details?id=com.habitrpg.android.habitica"
+      },
+      {
+        "app": "Nipto",
+        "finding": "Emphasizes shared household chores and points; Questblox should differentiate with visual child flows and parental review.",
+        "url": "https://play.google.com/store/apps/details?id=com.nipto.niptoapp"
+      },
+      {
+        "app": "Joon",
+        "finding": "Markets child tasks linked to a game. Do not copy its medical or professional-endorsement claims.",
+        "url": "https://play.google.com/store/apps/details?id=com.joon.android"
+      }
+    ]
+  },
+  "storeSettings": {
+    "type": "App",
+    "category": "Productivity",
+    "tagsRecommendedFromObservedConsole": [
+      "Productivity",
+      "Parenting"
+    ],
+    "tagNote": "Only select clearly relevant available tags. Do not fill all five slots with weak matches. No dedicated chore/habit tag appeared in the inspected list.",
+    "contactEmail": "mikeaegeri@gmail.com",
+    "websiteProposed": "https://questblox-10c14.web.app",
+    "phone": "Optional; leave blank unless the owner supplies a public support number.",
+    "externalMarketing": "Currently enabled; no change made."
+  },
+  "listingFields": {
+    "copyFile": "listing-copy.json",
+    "languages": [
+      "en-US",
+      "cs-CZ",
+      "es-ES",
+      "de-DE"
+    ],
+    "limits": {
+      "title": 30,
+      "shortDescription": 80,
+      "fullDescription": 4000
+    },
+    "copyStatus": "All four proposed texts fit limits; not entered into Console yet.",
+    "video": "Optional. Leave empty until a genuine app demonstration exists; no invented URL."
+  },
+  "visualAssets": {
+    "icon": "Use approved icon, 512×512 PNG, max 1 MB; no extra rankings or price badges.",
+    "featureGraphic": "1024×500 JPEG or opaque 24-bit PNG; use the official preview-asset requirements (the Console Czech copy appears to mistranslate transparency).",
+    "phoneScreenshots": "Prepare 6 real current screens in each listing language, preferably 1080×1920 portrait. Console currently requests 2–8 screenshots, 320–3840 px per side, max 8 MB. Do not upload the 360×740 QA images as finished store assets.",
+    "recommendedOrder": [
+      "Child quest list with task pictures",
+      "Create a one-time or repeating quest",
+      "Parent overview and child switcher",
+      "Family QR/code invitation and consent",
+      "Parent reward setup and child saved reward",
+      "Collectible characters and optional family battle"
+    ],
+    "tablet": "Capture genuine tablet layouts; expand Console device-specific requirements before upload. Do not enlarge phone captures and call them tablet screenshots.",
+    "accuracy": "Use fictional family data. Never expose real emails, connection QR codes or child data in public screenshots.",
+    "aiDisclosure": "Approved artwork was AI-generated. Review each submitted asset under the AI-asset declaration shown in Console; declare applicable generated/edited assets accurately. Do not confuse static artwork with an in-app generative-AI feature."
+  },
+  "appContent": {
+    "privacyPolicy": {
+      "urlCandidate": "https://questblox-10c14.web.app/privacy.html",
+      "evidence": "public/privacy.html exists in EN/CS/ES/DE",
+      "pending": [
+        "Verify public URL in browser; research fetch could not retrieve it.",
+        "Disclose Expo push/update services as well as Firebase; current text names Firebase but backend sends through Expo.",
+        "Describe device speech service accurately, including potential provider processing; do not claim all speech stays offline.",
+        "Confirm parental consent and SDK eligibility for the child-directed flow."
+      ]
+    },
+    "accountDeletion": {
+      "webUrlCandidate": "https://questblox-10c14.web.app/delete-account.html",
+      "inApp": "Settings account deletion exists; newly deployed authenticated backend erases associated data asynchronously.",
+      "pending": [
+        "Verify published web endpoint and monitored email request process.",
+        "Update web instructions to mention in-app deletion and accurately explain retained security records.",
+        "Test deletion with a dedicated disposable account; never erase a real family account for review."
+      ]
+    },
+    "ads": {
+      "proposed": "No ads",
+      "basis": "No advertising integration identified in scoped dependencies or app code.",
+      "finalCheck": "Inspect merged manifest and shipped SDKs before certifying."
+    },
+    "appAccess": {
+      "proposed": "Some functionality is restricted by login/family setup.",
+      "instructions": "Provide dedicated review parent and child accounts using email/password, with a stable accepted family link and seeded example tasks/rewards. Explain how to switch account roles, inspect family screens, and exercise code/QR consent with a separate unlinked review child. Supply credentials only inside Play Console App access, never in the public listing or Git. No reviewer personal Google account should be required.",
+      "pending": "Confirm existing review credentials and maintain reviewer access without MFA/expiry/geographic restrictions."
+    },
+    "audience": {
+      "designedFor": [
+        "6–8",
+        "9–12",
+        "18+ parents"
+      ],
+      "basis": "Children aged 6–12 plus a substantial dedicated parent dashboard. Do not select all ages solely for reach.",
+      "required": "Families requirements still apply in Productivity. Child account choice/acceptance is not proof of verified parental consent.",
+      "pending": "Check Google Sign-In and other SDK eligibility/terms for child-directed use and the parental consent flow."
+    },
+    "contentRating": {
+      "instruction": "Answer the actual IARC questions; do not guess or promise the final rating.",
+      "facts": [
+        "Contains stylized fantasy combat and weapons; do not declare no violence just because the app is Productivity.",
+        "Family-connected interaction and user-written task/reward names must be considered in user-interaction questions.",
+        "No chat with strangers identified.",
+        "No real-money wagering or purchased random prizes identified."
+      ],
+      "wheelReview": "The current roulette/casino-like art and chance-based wheel need review against the Families prohibition on real or simulated gambling. An earned family reward picker is not automatically gambling, but casino imitation creates avoidable risk. Recommend a clearly non-casino reward wheel with family prize icons, no betting, cash-out, paid spins or wagers; a category/wording change alone does not resolve actual mechanics."
+    },
+    "dataSafety": {
+      "status": "Proposed inventory; do not submit until SDK/service details and sharing exceptions are checked.",
+      "collectsData": "Yes for signed-in cloud/family features.",
+      "encryptionInTransit": "HTTPS/TLS is used; verify all shipped network paths. Do not describe this as end-to-end encryption.",
+      "dataTypesToDeclare": [
+        {
+          "type": "Personal info / Name",
+          "evidence": "Profile name and nickname, family display names",
+          "purposes": [
+            "Account management",
+            "App functionality"
+          ]
+        },
+        {
+          "type": "Personal info / Email address",
+          "evidence": "Firebase authentication and account profile",
+          "purposes": [
+            "Account management",
+            "App functionality"
+          ]
+        },
+        {
+          "type": "Personal info / User IDs",
+          "evidence": "Auth UID and parent/child link identifiers",
+          "purposes": [
+            "Account management",
+            "App functionality"
+          ]
+        },
+        {
+          "type": "App activity / App interactions and Other actions",
+          "evidence": "Quest completion, habit progress, rewards, fighters and family battles",
+          "purposes": [
+            "App functionality"
+          ]
+        },
+        {
+          "type": "App activity / Other user-generated content",
+          "evidence": "User-authored task names, reward names and related settings",
+          "purposes": [
+            "App functionality"
+          ]
+        },
+        {
+          "type": "Device or other IDs",
+          "evidence": "Notification registration/push tokens",
+          "purposes": [
+            "App functionality"
+          ]
+        }
+      ],
+      "optionalVsRequired": "Classify per field and feature: notifications are opt-in, voice/camera are optional; account data is needed for cloud accounts. Guest mode alone does not make every collected account field optional.",
+      "sharing": "Assess Firebase/Google/Expo processing under service-provider exceptions and explicit user-initiated family sharing. Do not mark “no sharing” simply because data is not sold.",
+      "additionalChecks": [
+        "Speech audio handled by external device speech service: assess actual provider/network flow before answering Audio files.",
+        "QR camera scans appear locally processed; verify no image/frame upload before answering Photos/videos.",
+        "Review SDK diagnostic/network logs, retention and server logging before answering Diagnostics.",
+        "No evidence found for precise location, contacts, payment card details, health data or advertising identifiers; verify shipped manifest/SDK behavior."
+      ]
+    },
+    "permissions": {
+      "camera": "Optional parent QR scan; explain at use and retain code-entry alternative.",
+      "microphone": "Android launches RecognizerIntent; app audio recording is disabled in Expo config. External speech processing still needs accurate disclosure.",
+      "notifications": "Task reminders and family events, opt-in and controllable.",
+      "exactAlarms": "Native module requests SCHEDULE_EXACT_ALARM for user-chosen task alarms. Do not substitute restricted USE_EXACT_ALARM or claim alarm-clock core eligibility without review.",
+      "foregroundService": "Check merged manifest and any Console foreground-service declaration against alarm audio behavior.",
+      "otherDeclarations": "Inspect the active Console dashboard for health, financial, government, news and other declarations. Ordinary virtual quest coins do not make this a financial-services app; do not invent business facts."
+    },
+    "closedTesting": {
+      "status": "Active internal build 16 observed; that alone does not mean a closed release is active.",
+      "prepare": [
+        "Select intended closed track and tester list/Google Group.",
+        "Choose countries, release notes and tested AAB from library; check native runtime compatibility.",
+        "Meet any account-specific testing/production-access eligibility shown in Console.",
+        "Keep category/listing review status separate from internal OTA publication."
+      ]
+    },
+    "ownerFactsNeeded": [
+      "Accurate trader/business status and any required verified contact details.",
+      "Confirmation of the support/deletion email monitoring process.",
+      "Any actual endorsements, subscriptions, advertising plans or external data processors not represented in code."
+    ]
+  },
+  "sources": [
+    "https://support.google.com/googleplay/android-developer/answer/9859673",
+    "https://support.google.com/googleplay/android-developer/answer/9859152",
+    "https://support.google.com/googleplay/android-developer/answer/13393723",
+    "https://support.google.com/googleplay/android-developer/answer/9866151",
+    "https://support.google.com/googleplay/android-developer/answer/9867159",
+    "https://support.google.com/googleplay/android-developer/answer/9893335",
+    "https://support.google.com/googleplay/android-developer/answer/10787469",
+    "https://support.google.com/googleplay/android-developer/answer/13327111",
+    "https://support.google.com/googleplay/android-developer/answer/15748846",
+    "https://support.google.com/googleplay/android-developer/answer/17262077",
+    "https://docs.expo.dev/push-notifications/faq/"
+  ]
+}

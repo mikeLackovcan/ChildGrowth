@@ -84,7 +84,8 @@ export default function QuestsScreen() {
   const nextTaskId = tasks.find(task => !task.done && !task.pendingApproval)?.id;
   const currentFighter = fighterFor(s.currentAvatar);
   const defaultEpicTask = '30-min deep focus block 🧠';
-  const epicTaskName = s.epicBossTask === defaultEpicTask || s.epicBossTask === 'habit_focus' ? t('quest_focus_full') : s.epicBossTask;
+  const isDefaultEpic = s.epicBossTask === defaultEpicTask || s.epicBossTask === 'habit_focus';
+  const epicTaskName = isDefaultEpic ? t('quest_focus_full') : s.epicBossTask;
   const invitation = s.children.find(c => c.initiatedBy === 'parent' && !c.isApproved && c.linkedParents?.length);
   const completeTask = (task: (typeof tasks)[number]) => {
     const result = s.toggleTaskDone(task.id, Boolean(task.mystery));
@@ -208,10 +209,10 @@ export default function QuestsScreen() {
           <Text style={ui.label}>{t('quest_epic')}</Text>
           <View style={{ minHeight: 170, justifyContent: 'flex-end' }}>
             <SceneArt source={fighterFor('roblox_dragon').image} />
-            <View style={{ width: '66%', gap: 8, paddingBottom: 12 }}><Text style={{ fontSize: 58, lineHeight: 68 }}>{s.epicBossTask === defaultEpicTask ? '🧠' : '⭐'}</Text><Text style={[ui.heading, epicDone && { color: palette.muted, textDecorationLine: 'line-through' }]}>{epicTaskName}</Text>{s.epicBossTask === defaultEpicTask && !epicDone && <Text style={ui.meta}>⏱ {t('quest_minutes', { count: 30 })}</Text>}{epicDone ? <View accessible accessibilityLabel={t('completed_stamp')} style={{ alignSelf: 'flex-start', borderWidth: 2, borderColor: palette.green, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, transform: [{ rotate: '-4deg' }] }}><Text style={[ui.label, { color: palette.green }]}>{t('completed_stamp')}</Text></View> : <Text style={ui.meta}>🪙 {epicReward.coinGain} · {epicReward.xpGain} XP</Text>}</View>
+            <View style={{ width: '66%', gap: 8, paddingBottom: 12 }}><Text style={{ fontSize: 58, lineHeight: 68 }}>{isDefaultEpic ? '🧠' : '⭐'}</Text><Text style={[ui.heading, epicDone && { color: palette.muted, textDecorationLine: 'line-through' }]}>{epicTaskName}</Text>{isDefaultEpic && !epicDone && <Text style={ui.meta}>⏱ {t('quest_minutes', { count: 30 })}</Text>}{epicDone ? <View accessible accessibilityLabel={t('completed_stamp')} style={{ alignSelf: 'flex-start', borderWidth: 2, borderColor: palette.green, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, transform: [{ rotate: '-4deg' }] }}><Text style={[ui.label, { color: palette.green }]}>{t('completed_stamp')}</Text></View> : <Text style={ui.meta}>🪙 {epicReward.coinGain} · {epicReward.xpGain} XP</Text>}</View>
           </View>
-          {!epicDone && <Button disabled={!allDone} label={allDone ? (epicOpen || s.epicBossTask !== defaultEpicTask ? t('quest_mark_done') : `${t('quest_start')} →`) : `🔒 ${t('quest_first')}`} onPress={() => {
-            if (s.epicBossTask === defaultEpicTask && !epicOpen) { setEpicOpen(true); return; }
+          {!epicDone && <Button disabled={!allDone} label={allDone ? (epicOpen || !isDefaultEpic ? t('quest_mark_done') : `${t('quest_start')} →`) : `🔒 ${t('quest_first')}`} onPress={() => {
+            if (isDefaultEpic && !epicOpen) { setEpicOpen(true); return; }
             const reward = s.claimEpicBoss();
             if (reward) setMessage(t('quest_spin_ready', { coins: reward.coinGain }));
           }} />}
