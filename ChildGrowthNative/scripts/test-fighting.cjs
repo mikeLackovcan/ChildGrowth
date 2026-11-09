@@ -407,8 +407,9 @@ test('Countdown taps cannot leak into the first fighting frame', () => {
 test('Every default head has a bounded RGBA crop and fighters face rivals after crossing', () => {
   const { FIGHTER_ATLASES } = load('constants/fighterAtlases');
   for (const [id, atlas] of Object.entries(FIGHTER_ATLASES)) {
-    const head = atlas.combatHead;
-    assert.ok(head, id);
+    // Rookie intentionally uses its redesigned atlas head, not the old classic head.
+    if (id !== 'roblox_noob') assert.ok(atlas.combatHead, id);
+    const head = atlas.combatHead || { source: atlas.source, size: atlas.size, region: atlas.regions.head, neckX: 0.5 };
     const bytes = fs.readFileSync(head.source);
     assert.equal(bytes.readUInt32BE(16), head.size);
     assert.equal(bytes.readUInt32BE(20), head.size);

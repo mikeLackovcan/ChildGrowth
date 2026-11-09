@@ -10,13 +10,15 @@ async function setup(page, language, size) {
   await page.goto('/');
   await expect(page.getByTestId('auth-role-child')).toBeVisible();
 }
-async function login(page, role) {
+async function login(page, role, language) {
   await page.getByTestId(`auth-role-${role}`).click();
   await page.getByTestId('auth-input-email').fill(process.env[role === 'parent' ? 'QB_TEST_PARENT_EMAIL' : 'QB_TEST_CHILD_EMAIL']);
   await page.getByTestId('auth-input-password').fill(process.env.QB_TEST_PASSWORD);
   await page.getByTestId('auth-submit-btn').click();
   await expect(page.getByTestId('auth-submit-btn')).not.toBeVisible({ timeout: 40000 });
   await expect(page.getByRole('tab').first()).toBeVisible();
+  if (role === 'parent') await page.getByRole('tab', {name: language === 'cs' ? 'Úkoly' : 'Quests', exact:true}).click();
+  await expect(page.getByText(language === 'cs' ? 'Vyčistit zuby' : 'Brush teeth', {exact:true}).first()).toBeVisible({timeout:30000});
 }
 async function route(page, pathname) {
   await page.evaluate(path => { window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }, pathname);
@@ -50,7 +52,7 @@ for(const language of languages) for(const size of sizes) {
   });
   for(const role of ['child','parent']) test(`${role} screens ${language} ${size.width}`,async({page},info)=>{
     test.skip(!process.env.QB_TEST_PASSWORD,'Requires explicitly disposable QA accounts');
-    errors.length=0;await setup(page,language,size);await login(page,role);
+    errors.length=0;await setup(page,language,size);await login(page,role,language);
     if(role==='parent') {
       for(const name of language==='cs'?['Přehled','Úkoly','Odměny','Rodina']:['Overview','Quests','Rewards','Family']) {
         await page.getByRole('tab',{name,exact:true}).click();await audit(page,`parent-${name}`,info);
@@ -64,7 +66,7 @@ for(const language of languages) for(const size of sizes) {
       // Draft only: do not save over the QA family's prize pool.
     } else {
       for(const path of ['/','/shop','/battle','/milestones','/reminders','/link-account','/sync-recovery']) {
-        await route(page,path);await audit(page,path.replaceAll('/','')||'quests',info);
+        await route(page,path);if(path==='/link-account') await expect(page.getByTestId('child-family-qr')).toBeVisible({timeout:30000});await audit(page,path.replaceAll('/','')||'quests',info);
       }
     }
     await route(page,'/manage-tasks');await expect(page.getByTestId('quest-name-input')).toBeVisible();await audit(page,`${role}-add-quest`,info);
