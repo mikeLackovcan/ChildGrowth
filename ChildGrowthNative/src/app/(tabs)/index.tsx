@@ -84,7 +84,7 @@ export default function QuestsScreen() {
   const nextTaskId = tasks.find(task => !task.done && !task.pendingApproval)?.id;
   const currentFighter = fighterFor(s.currentAvatar);
   const defaultEpicTask = '30-min deep focus block 🧠';
-  const epicTaskName = s.epicBossTask === defaultEpicTask ? t('quest_focus_full') : s.epicBossTask;
+  const epicTaskName = s.epicBossTask === defaultEpicTask || s.epicBossTask === 'habit_focus' ? t('quest_focus_full') : s.epicBossTask;
   const invitation = s.children.find(c => c.initiatedBy === 'parent' && !c.isApproved && c.linkedParents?.length);
   const completeTask = (task: (typeof tasks)[number]) => {
     const result = s.toggleTaskDone(task.id, Boolean(task.mystery));

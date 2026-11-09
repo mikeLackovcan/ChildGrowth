@@ -98,7 +98,10 @@ function ParentDashboard() {
     if (!synced) showMessage(t('quest_sync_failed'));
   };
 
-  const [epicBossTitleInput, setEpicBossTitleInput] = useState(activeChild?.epicBossTask || epicBossTask || t('quest_focus_full'));
+  const savedEpicTitle = activeChild?.epicBossTask || epicBossTask;
+  const displayedEpicTitle = !savedEpicTitle || ['habit_focus', '30-min deep focus block 🧠'].includes(savedEpicTitle) ? t('quest_focus_full') : savedEpicTitle;
+  const savedEpicXP = activeChild?.epicBossXP || epicBossXP || 35;
+  const [epicBossTitleInput, setEpicBossTitleInput] = useState(displayedEpicTitle);
   const [epicBossXPInput, setEpicBossXPInput] = useState(String(activeChild?.epicBossXP || epicBossXP || 35));
 
   React.useEffect(() => {
@@ -119,10 +122,10 @@ function ParentDashboard() {
 
   React.useEffect(() => {
     if (activeChild) {
-      setEpicBossTitleInput(activeChild.epicBossTask || epicBossTask || t('quest_focus_full'));
-      setEpicBossXPInput(String(activeChild.epicBossXP || epicBossXP || 35));
+      setEpicBossTitleInput(displayedEpicTitle);
+      setEpicBossXPInput(String(savedEpicXP));
     }
-  }, [activeChild, epicBossTask, epicBossXP, t]);
+  }, [activeChild?.id, displayedEpicTitle, savedEpicXP]);
 
   if (!userEmail) {
     return null;
@@ -457,7 +460,7 @@ function ParentDashboard() {
                       {t(task.name, task.name)}
                     </Text>
                   </View>
-                  <View accessible accessibilityLabel={t(task.done ? 'done_status' : 'pending_status')} style={styles.checkStatusPill}>
+                  <View accessible accessibilityLabel={t(task.done ? 'done_status' : task.pendingApproval ? 'pending_status' : 'quest_mark_done')} style={styles.checkStatusPill}>
                     {syncingTaskId === `${group.child.id}:${task.id}` ? (
                       <ActivityIndicator accessibilityLabel={t('quest_syncing')} color={Colors.amber} />
                     ) : task.done ? (
@@ -639,7 +642,7 @@ function ParentDashboard() {
         <View style={[styles.section, parentTab !== 'family' && styles.hidden]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: Colors.border }}>
             <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.textSecondary, fontSize: 13 }}>
-              🌐 {t('language_preference', 'LANGUAGE PREFERENCE')}
+              🌐 {t('settings_language')}
             </Text>
             <LanguageSwitcher />
           </View>
