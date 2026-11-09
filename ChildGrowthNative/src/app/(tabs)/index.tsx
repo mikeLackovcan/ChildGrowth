@@ -239,7 +239,7 @@ export default function QuestsScreen() {
       <Button secondary label={t('family_view_invitation')} onPress={() => router.push('/link-account')} />
       <Button secondary label={`🌙 ${t('day_rest')}`} onPress={() => s.setSick(true)} />
       <Button secondary disabled={claimingGift || s.dailyChestClaimedDate === today} label={t(claimingGift ? 'reminder_saving' : s.dailyChestClaimedDate === today ? 'gift_collected' : 'gift_collect')} onPress={async () => { if (claimingGift) return; setClaimingGift(true); try { const r = await s.claimDailyLoginChest(); setMessage(r ? t('gift_received', { coins: r.coins, xp: r.xp }) : t('reward_connect_retry')); } finally { setClaimingGift(false); } }} />
-      {s.tasks.filter(task => !tasks.some(a => a.id === task.id)).map(task => <View key={task.id}><Text style={ui.text}>{t(task.name, task.name)}</Text><Text style={ui.meta}>{task.postponedUntil ? t('day_moved', { date: new Date(`${task.postponedUntil}T12:00:00`).toLocaleDateString(i18n.language) }) : t(`freq_${task.freq}`)}</Text></View>)}
+      {s.tasks.filter(task => !tasks.some(a => a.id === task.id)).map(task => <View key={task.id}><Text style={ui.text}>{t(task.name, task.name)}</Text><Text style={ui.meta}>{task.postponedUntil ? t('day_moved', { date: new Date(`${task.postponedUntil}T12:00:00`).toLocaleDateString(i18n.language) }) : task.freq === 'once' ? `${t('schedule_once')} · ${new Date(`${task.scheduledDate}T12:00:00`).toLocaleDateString(i18n.language)}` : task.freq === 'custom' ? t('schedule_choose_days') : t(`freq_${task.freq}`)}</Text></View>)}
     </View>}
   </Screen>;
 }

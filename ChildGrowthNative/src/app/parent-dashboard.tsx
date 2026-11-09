@@ -175,7 +175,7 @@ function ParentDashboard() {
     <SafeAreaView style={styles.safeArea}>
       <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <KeyboardAvoidingView style={styles.keyboardLayer} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView ref={page} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
+      <ScrollView ref={page} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'web' ? 'none' : Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
         <SyncActivity />
         {parentTab === 'overview' && <FamilyChallenge />}
         {syncError && <Text style={{ color: Colors.amber }}>{t(syncError)}</Text>}
@@ -673,7 +673,7 @@ function ParentDashboard() {
 
         {/* Dedicated Language Preference Section */}
         <View style={[styles.section, parentTab !== 'family' && styles.hidden]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: Colors.border }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, backgroundColor: Colors.surface, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: Colors.border }}>
             <Text style={{ fontFamily: 'Nunito_800ExtraBold', color: Colors.textSecondary, fontSize: 13 }}>
               🌐 {t('settings_language')}
             </Text>

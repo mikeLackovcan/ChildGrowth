@@ -28,7 +28,7 @@ test('two authenticated listeners receive acceptance, quests and the full reward
   await Promise.all([pLinks(v=>v?.[0]?.status==='accepted'),cLinks(v=>v?.[0]?.status==='accepted')]);
   const parentSees=watch(doc(p,'user_data',child)),childSees=watch(doc(c,'user_data',child));
   await Promise.all([parentSees(v=>v?.tasks?.length===0),childSees(v=>v?.tasks?.length===0)]);
-  let seq=0;const op=(uid,action,payload={})=>applyProgress.run({auth:{uid},data:{action,payload,targetUid:child,day,timeZone:'UTC',requestId:`live-${++seq}`}});
+  let seq=0;const op=(uid,action,payload={})=>applyProgress.run({auth:{uid},data:{action,payload,targetUid:child,day,timeZone:'UTC',requestId:`live-regression-${++seq}`}});
   const start=Date.now();
   await op(parent,'task.create',{id:'live-quest',name:'Read together',freq:'once',scheduledDate:day,diff:'easy'});
   await childSees(v=>v?.tasks?.some(t=>t.name==='Read together'));
