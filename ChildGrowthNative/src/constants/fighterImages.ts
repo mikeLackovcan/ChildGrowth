@@ -9,7 +9,7 @@ export function fighterHasCombatCutout(fighter: string, outfit?: string) {
 }
 
 export function fighterCombatImage(fighter: string, outfit?: string) {
-  if (fighter === 'roblox_noob' && outfit !== 'explorer') return require('../assets/images/fighter_noob_cutout.png');
+  if (fighter === 'roblox_noob' && outfit !== 'explorer') return require('../assets/images/quest-rookie-v2.png');
   if (fighter === 'roblox_bacon_hair') return require('../assets/images/fighter_bacon_cutout.png');
   if (fighter === 'roblox_guest') return require('../assets/images/fighter_guest_cutout.png');
   if (fighter === 'roblox_builderman') return require('../assets/images/fighter_builderman_cutout.png');

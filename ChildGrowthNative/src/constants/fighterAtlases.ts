@@ -18,11 +18,11 @@ export interface FighterAtlas {
 // preview). Keep sources static so Expo bundles every offline texture.
 export const FIGHTER_ATLASES: Partial<Record<string, FighterAtlas>> = {
   roblox_noob: {
-    source: require('../assets/fighter-atlases/noob-v1.png'),
+    source: require('../assets/fighter-atlases/noob-v2.png'),
     size: 1254, neckColor: '#e6b829',
     anchors: { upperArm: [0.55, 0.17, 0.48, 0.85] },
     regions: {
-      head: [88, 76, 277, 330], torso: [449, 128, 359, 269], hips: [898, 116, 305, 150],
+      head: [88, 120, 277, 260], torso: [449, 128, 359, 269], hips: [898, 116, 305, 150],
       upperArm: [133, 455, 195, 340], forearm: [550, 462, 155, 334], hand: [927, 493, 244, 281],
       thigh: [120, 830, 213, 365], shin: [540, 832, 178, 363], boot: [881, 884, 339, 306],
     },
@@ -149,7 +149,6 @@ export const FIGHTER_ATLASES: Partial<Record<string, FighterAtlas>> = {
 const classicHeads = require('../assets/fighter-atlases/heads-classic-right-v1.png');
 const fantasyHeads = require('../assets/fighter-atlases/heads-fantasy-right-v1.png');
 const combatHeads: [string, ImageSourcePropType, AtlasRegion, number][] = [
-  ['roblox_noob', classicHeads, [84, 271, 229, 271], 0.48],
   ['roblox_ninja', classicHeads, [488, 299, 258, 237], 0.6],
   ['roblox_bacon_hair', classicHeads, [930, 238, 247, 303], 0.49],
   ['roblox_builderman', classicHeads, [74, 751, 269, 304], 0.49],

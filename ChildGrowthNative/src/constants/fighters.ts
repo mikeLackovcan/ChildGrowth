@@ -25,7 +25,7 @@ export const AVAILABLE_AVATARS: QuestbloxFighter[] = [
     rarity: 'Common',
     skillName: 'Beginner Luck 🍀',
     skillDesc: '+10% Bonus Coins on Easy Quests',
-    image: require('../assets/images/roblox_noob.png'),
+    image: require('../assets/images/quest-rookie-v2.png'),
     color: '#FBBF24',
     hp: 100,
     attack: 15,
